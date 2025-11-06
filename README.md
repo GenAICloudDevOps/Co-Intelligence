@@ -26,13 +26,16 @@ A multi-AI chat application with FastAPI backend, Next.js frontend, deployed on 
 ### 2. Agentic Barista
 - ☕ **LangGraph Workflow** - Multi-agent system with state management
 - 🤖 **3 Specialized Agents** - Menu, Order, and Confirmation agents
+- 🧠 **AI Reasoning** - Intent detection with conversational handling for general questions
 - 🛒 **Cart Management** - Add/remove items, view totals
 - 📋 **Menu Discovery** - Browse coffee, pastries, and food items
 - ✅ **Order Confirmation** - Complete orders with database persistence
+- 💬 **Floating Chat UI** - Modal popup interface with agent status display
 
 ## Platform Features
 
 - 🔐 **Secure Authentication** - JWT-based user authentication
+- 👤 **User Profile Header** - Reusable AppHeader component with logout functionality
 - ☁️ **Cloud Native** - Deployed on AWS EKS with auto-scaling
 - 🧩 **Modular Architecture** - Easy to add new AI applications
 
@@ -45,6 +48,25 @@ A multi-AI chat application with FastAPI backend, Next.js frontend, deployed on 
 - Python 3.11+
 
 ## Setup Instructions
+
+### Option 1: Automated Deployment (Recommended)
+
+After creating the CloudFormation stack and configuring `.env`:
+
+```bash
+# Run automated deployment script
+./deploy.sh
+```
+
+This script will:
+- Verify CloudFormation stack and RDS availability
+- Build and push Docker images to ECR
+- Create Kubernetes secrets
+- Deploy backend and frontend to EKS
+- Set up LoadBalancers and wait for health checks
+- Display access URLs
+
+### Option 2: Manual Deployment
 
 ### 1. Deploy AWS Infrastructure
 
@@ -177,6 +199,11 @@ kubectl logs -f deployment/frontend
 # Check HPA status
 kubectl get hpa
 ```
+
+## Notes
+
+- **PostgreSQL SSL**: For private VPC connections, SSL is disabled via RDS parameter group (`rds.force_ssl=0`)
+- **Code Execution**: Lambda function uses whitelisted safe modules (math, json, datetime, etc.) with custom `__import__` for security
 
 ## Cleanup
 
