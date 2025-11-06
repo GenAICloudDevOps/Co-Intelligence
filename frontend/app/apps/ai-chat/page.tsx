@@ -6,6 +6,7 @@ import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import jsPDF from 'jspdf'
+import AppHeader from '../../components/AppHeader'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -327,12 +328,13 @@ export default function AIChat() {
   )
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      minHeight: '100vh', 
-      background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)',
-      color: 'white' 
-    }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)' }}>
+      <AppHeader appName="Co-Intelligence" />
+      <div style={{ 
+        display: 'flex', 
+        minHeight: 'calc(100vh - 73px)',
+        color: 'white' 
+      }}>
       {/* Sidebar */}
       {showSidebar && (
         <div style={{ 
@@ -950,6 +952,7 @@ export default function AIChat() {
             Send
           </button>
         </div>
+      </div>
       </div>
     </div>
   )

@@ -139,7 +139,7 @@ export default function Home() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
             <h2 style={{ fontSize: '2rem', fontWeight: 'bold' }}>AI Applications</h2>
             <div style={{ display: 'flex', gap: '20px', fontSize: '0.9rem', color: '#64748b' }}>
-              <span>⚡ 1 active</span>
+              <span>⚡ 2 active</span>
               <span>🕐 Last updated: {currentTime}</span>
             </div>
           </div>
@@ -161,6 +161,27 @@ export default function Home() {
                 • Code Execution
               </p>
               <button onClick={handleLaunchChat} style={{ padding: '12px 28px', background: '#6366f1', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer', fontWeight: '600', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                Launch <span>↗</span>
+              </button>
+            </div>
+
+            <div style={{
+              background: '#1e293b',
+              borderRadius: '12px',
+              padding: '32px',
+              border: '1px solid #334155',
+              position: 'relative'
+            }}>
+              <div style={{ position: 'absolute', top: '20px', right: '20px', padding: '4px 12px', background: '#10b981', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '600' }}>active</div>
+              <div style={{ width: '48px', height: '48px', background: '#f97316', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', marginBottom: '20px' }}>☕</div>
+              <h3 style={{ fontSize: '1.5rem', marginBottom: '12px', fontWeight: 'bold' }}>Agentic Barista</h3>
+              <p style={{ color: '#94a3b8', lineHeight: '1.6', marginBottom: '24px', fontSize: '0.95rem' }}>
+                • LangGraph Workflow<br/>
+                • Multi-Agent System<br/>
+                • Menu Discovery<br/>
+                • Order Management
+              </p>
+              <button onClick={() => window.open('/apps/agentic-barista', '_blank')} style={{ padding: '12px 28px', background: '#f97316', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer', fontWeight: '600', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 Launch <span>↗</span>
               </button>
             </div>

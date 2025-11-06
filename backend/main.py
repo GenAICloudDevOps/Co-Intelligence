@@ -5,6 +5,7 @@ from tortoise import Tortoise
 from config import settings
 from auth.routes import router as auth_router
 from apps.ai_chat.routes import router as ai_chat_router
+from apps.agentic_barista.routes import router as barista_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -13,7 +14,7 @@ async def lifespan(app: FastAPI):
     
     await Tortoise.init(
         db_url=db_url,
-        modules={'models': ['auth.models', 'apps.ai_chat.models']}
+        modules={'models': ['auth.models', 'apps.ai_chat.models', 'apps.agentic_barista.models']}
     )
     await Tortoise.generate_schemas()
     yield
@@ -31,6 +32,7 @@ app.add_middleware(
 
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 app.include_router(ai_chat_router, prefix="/api/apps/ai-chat", tags=["ai-chat"])
+app.include_router(barista_router, prefix="/api/apps/agentic-barista", tags=["agentic-barista"])
 
 @app.get("/")
 async def root():

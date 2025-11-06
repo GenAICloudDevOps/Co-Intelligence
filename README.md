@@ -14,15 +14,27 @@ A multi-AI chat application with FastAPI backend, Next.js frontend, deployed on 
 - **Infrastructure**: AWS EKS (t3.medium), ECR, S3, Lambda
 - **Region**: us-east-1
 
-## Features
+## Applications
 
+### 1. AI Chat
 - 🤖 **Multi-AI Chat** - Switch between Gemini, Groq, and Bedrock models
 - 📄 **Document Upload** - PDF, DOCX, TXT support with text extraction
 - 🌐 **Web Search** - Real-time internet search (Tavily integration)
 - ⚡ **Code Execution** - AI automatically runs Python code when needed
 - 💬 **Streaming Responses** - Real-time AI responses
+
+### 2. Agentic Barista
+- ☕ **LangGraph Workflow** - Multi-agent system with state management
+- 🤖 **3 Specialized Agents** - Menu, Order, and Confirmation agents
+- 🛒 **Cart Management** - Add/remove items, view totals
+- 📋 **Menu Discovery** - Browse coffee, pastries, and food items
+- ✅ **Order Confirmation** - Complete orders with database persistence
+
+## Platform Features
+
 - 🔐 **Secure Authentication** - JWT-based user authentication
 - ☁️ **Cloud Native** - Deployed on AWS EKS with auto-scaling
+- 🧩 **Modular Architecture** - Easy to add new AI applications
 
 ## Prerequisites
 
@@ -141,6 +153,11 @@ docker-compose up
 - `GET /api/apps/ai-chat/sessions` - List sessions
 - `GET /api/apps/ai-chat/sessions/{id}/messages` - Get messages
 - `POST /api/apps/ai-chat/chat` - Send message
+
+### Agentic Barista
+- `POST /api/apps/agentic-barista/chat` - Chat with barista agent
+- `GET /api/apps/agentic-barista/menu` - Get menu items
+- `GET /api/apps/agentic-barista/orders/{session_id}` - Get order history
 
 ## Scaling
 
