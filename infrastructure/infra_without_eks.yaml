@@ -1,0 +1,359 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Co-Intelligence Infrastructure - VPC, RDS, ECR, S3 (EKS Manual)'
+
+Parameters:
+  DBUsername:
+    Type: String
+    Default: cointelligence
+    Description: Database master username
+  DBPassword:
+    Type: String
+    NoEcho: true
+    Description: Database master password
+    MinLength: 8
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: co-intelligence-vpc
+
+  Subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: us-east-1a
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: co-intelligence-subnet-1
+
+  Subnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: us-east-1b
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: co-intelligence-subnet-2
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: co-intelligence-igw
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: co-intelligence-rt
+
+  Route:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  SubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet1
+      RouteTableId: !Ref RouteTable
+
+  SubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref Subnet2
+      RouteTableId: !Ref RouteTable
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for RDS
+      SubnetIds:
+        - !Ref Subnet1
+        - !Ref Subnet2
+      Tags:
+        - Key: Name
+          Value: co-intelligence-db-subnet-group
+
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for RDS
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: 10.0.0.0/16
+      Tags:
+        - Key: Name
+          Value: co-intelligence-db-sg
+
+  EKSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for EKS
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: co-intelligence-eks-sg
+
+  RDSInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: co-intelligence-db
+      Engine: postgres
+      EngineVersion: '17.4'
+      DBInstanceClass: db.t3.medium
+      AllocatedStorage: 20
+      StorageType: gp2
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBPassword
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      VPCSecurityGroups:
+        - !Ref DBSecurityGroup
+      PubliclyAccessible: false
+      BackupRetentionPeriod: 7
+      Tags:
+        - Key: Name
+          Value: co-intelligence-rds
+
+  EKSClusterRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: co-intelligence-eks-cluster-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: eks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+
+  EKSNodeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: co-intelligence-eks-node-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+      Policies:
+        - PolicyName: LambdaInvokePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: !GetAtt CodeExecutorLambda.Arn
+
+  BackendECR:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: co-intelligence-backend
+      ImageScanningConfiguration:
+        ScanOnPush: true
+
+  FrontendECR:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: co-intelligence-frontend
+      ImageScanningConfiguration:
+        ScanOnPush: true
+
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'co-intelligence-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # Lambda Execution Role
+  CodeExecutorLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: co-intelligence-code-executor-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Tags:
+        - Key: Name
+          Value: co-intelligence-code-executor-role
+
+  # Lambda Function for Code Execution
+  CodeExecutorLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: co-intelligence-code-executor
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt CodeExecutorLambdaRole.Arn
+      Timeout: 30
+      MemorySize: 512
+      Code:
+        ZipFile: |
+          import json
+          import sys
+          import io
+          import traceback
+          from contextlib import redirect_stdout, redirect_stderr
+
+          def lambda_handler(event, context):
+              """Execute Python code safely and return output"""
+              
+              code = event.get('code', '')
+              
+              if not code:
+                  return {
+                      'statusCode': 400,
+                      'body': json.dumps({'error': 'No code provided'})
+                  }
+              
+              # Capture stdout and stderr
+              stdout_capture = io.StringIO()
+              stderr_capture = io.StringIO()
+              
+              try:
+                  # Create restricted globals (no dangerous imports)
+                  safe_globals = {
+                      '__builtins__': {
+                          'print': print,
+                          'len': len,
+                          'range': range,
+                          'str': str,
+                          'int': int,
+                          'float': float,
+                          'list': list,
+                          'dict': dict,
+                          'set': set,
+                          'tuple': tuple,
+                          'sum': sum,
+                          'max': max,
+                          'min': min,
+                          'abs': abs,
+                          'round': round,
+                          'sorted': sorted,
+                          'enumerate': enumerate,
+                          'zip': zip,
+                          'map': map,
+                          'filter': filter,
+                          'any': any,
+                          'all': all,
+                      }
+                  }
+                  
+                  # Execute code with captured output
+                  with redirect_stdout(stdout_capture), redirect_stderr(stderr_capture):
+                      exec(code, safe_globals)
+                  
+                  output = stdout_capture.getvalue()
+                  errors = stderr_capture.getvalue()
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps({
+                          'output': output,
+                          'errors': errors if errors else None,
+                          'success': True
+                      })
+                  }
+                  
+              except Exception as e:
+                  error_msg = f"{type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
+                  
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps({
+                          'output': stdout_capture.getvalue(),
+                          'errors': error_msg,
+                          'success': False
+                      })
+                  }
+      Tags:
+        - Key: Name
+          Value: co-intelligence-code-executor
+
+Outputs:
+  VPCId:
+    Value: !Ref VPC
+    Description: VPC ID for EKS
+  Subnet1Id:
+    Value: !Ref Subnet1
+    Description: Subnet 1 ID for EKS
+  Subnet2Id:
+    Value: !Ref Subnet2
+    Description: Subnet 2 ID for EKS
+  EKSSecurityGroupId:
+    Value: !Ref EKSSecurityGroup
+    Description: Security Group for EKS
+  EKSClusterRoleArn:
+    Value: !GetAtt EKSClusterRole.Arn
+    Description: IAM Role ARN for EKS Cluster
+  EKSNodeRoleArn:
+    Value: !GetAtt EKSNodeRole.Arn
+    Description: IAM Role ARN for EKS Nodes
+  RDSEndpoint:
+    Value: !GetAtt RDSInstance.Endpoint.Address
+    Description: RDS PostgreSQL Endpoint
+  RDSPort:
+    Value: !GetAtt RDSInstance.Endpoint.Port
+    Description: RDS Port
+  BackendECRUri:
+    Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${BackendECR}'
+    Description: Backend ECR Repository URI
+  FrontendECRUri:
+    Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${FrontendECR}'
+    Description: Frontend ECR Repository URI
+  S3BucketName:
+    Value: !Ref S3Bucket
+    Description: S3 Bucket Name
+  CodeExecutorLambdaArn:
+    Value: !GetAtt CodeExecutorLambda.Arn
+    Description: Code Executor Lambda Function ARN

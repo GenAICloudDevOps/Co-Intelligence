@@ -1,0 +1,16 @@
+.env
+.env.local
+.git
+.gitignore
+README.md
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv
+env
+node_modules
+.next
+.DS_Store
+*.log
