@@ -17,7 +17,7 @@ export default function AppHeader({
   appName,
   showModelSelector = false,
   showCart = false,
-  selectedModel = 'gemini-2.0-flash-exp',
+  selectedModel = 'gemini-2.5-flash-lite',
   onModelChange,
   cartCount = 0
 }: AppHeaderProps) {
@@ -25,10 +25,13 @@ export default function AppHeader({
   const router = useRouter();
 
   const models = [
-    { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash', provider: 'Google' },
-    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'Google' },
-    { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B', provider: 'Groq' },
-    { id: 'us.amazon.nova-lite-v1:0', name: 'Nova Lite', provider: 'AWS Bedrock' },
+    { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', provider: 'Google' },
+    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google' },
+    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google' },
+    { id: 'groq/compound', name: 'Groq Compound', provider: 'Groq' },
+    { id: 'meta-llama/llama-4-scout-17b-16e-instruct', name: 'Llama 4 Scout', provider: 'Groq' },
+    { id: 'amazon.nova-lite-v1:0', name: 'Nova Lite', provider: 'AWS Bedrock' },
+    { id: 'amazon.nova-pro-v1:0', name: 'Nova Pro', provider: 'AWS Bedrock' },
   ];
 
   useEffect(() => {

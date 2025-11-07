@@ -21,7 +21,7 @@ export default function AgenticBarista() {
   const [sessionId, setSessionId] = useState('');
   const [cart, setCart] = useState<Record<number, number>>({});
   const [totalAmount, setTotalAmount] = useState(0);
-  const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash-exp');
+  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash-lite');
   const [isChatOpen, setIsChatOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -253,6 +253,11 @@ export default function AgenticBarista() {
                   {!message.isUser && message.agent && (
                     <div style={{ fontSize: '11px', color: '#d97706', fontWeight: '600', marginBottom: '4px' }}>
                       {message.agent.toUpperCase()} AGENT
+                    </div>
+                  )}
+                  {!message.isUser && message.reasoning && (
+                    <div style={{ fontSize: '11px', color: '#78716c', fontStyle: 'italic', marginBottom: '8px', padding: '6px', background: '#fef3c7', borderRadius: '4px', border: '1px solid #fde68a' }}>
+                      🧠 AI Reasoning: {message.reasoning}
                     </div>
                   )}
                   <div style={{ whiteSpace: 'pre-wrap', fontSize: '13px' }}>

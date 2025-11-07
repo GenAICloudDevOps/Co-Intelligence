@@ -16,12 +16,16 @@ export default function Home() {
   const [message, setMessage] = useState('')
   const [formData, setFormData] = useState({ email: '', username: '', password: '' })
   const [currentTime, setCurrentTime] = useState('')
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const [userEmail, setUserEmail] = useState('')
 
   useEffect(() => {
     const savedToken = localStorage.getItem('token')
     const savedUsername = localStorage.getItem('username')
+    const savedEmail = localStorage.getItem('email')
     if (savedToken) setToken(savedToken)
     if (savedUsername) setUsername(savedUsername)
+    if (savedEmail) setUserEmail(savedEmail)
     
     const updateTime = () => {
       const now = new Date()
@@ -45,7 +49,9 @@ export default function Home() {
         setToken(newToken)
         localStorage.setItem('token', newToken)
         localStorage.setItem('username', formData.email.split('@')[0])
+        localStorage.setItem('email', formData.email)
         setUsername(formData.email.split('@')[0])
+        setUserEmail(formData.email)
         setMessage('Login successful!')
         setTimeout(() => {
           setShowAuth(false)
@@ -61,7 +67,9 @@ export default function Home() {
         setToken(newToken)
         localStorage.setItem('token', newToken)
         localStorage.setItem('username', formData.username)
+        localStorage.setItem('email', formData.email)
         setUsername(formData.username)
+        setUserEmail(formData.email)
         setMessage('Registration successful!')
         setTimeout(() => {
           setShowAuth(false)
@@ -87,8 +95,10 @@ export default function Home() {
   const handleLogout = () => {
     setToken('')
     setUsername('')
+    setUserEmail('')
     localStorage.removeItem('token')
     localStorage.removeItem('username')
+    localStorage.removeItem('email')
   }
 
   return (
@@ -110,7 +120,26 @@ export default function Home() {
           <div style={{ fontSize: '0.9rem', color: '#94a3b8' }}>Updated: {currentTime}</div>
           {token ? (
             <>
-              <div style={{ padding: '8px 16px', background: '#334155', borderRadius: '6px', fontSize: '0.9rem' }}>👤 {username}</div>
+              <div style={{ position: 'relative' }}>
+                <button 
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  style={{ padding: '8px 16px', background: '#334155', borderRadius: '6px', fontSize: '0.9rem', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  👤 {username}
+                </button>
+                {showUserMenu && (
+                  <div style={{ position: 'absolute', top: '45px', right: '0', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '12px', minWidth: '200px', zIndex: 100 }}>
+                    <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '8px' }}>
+                      <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Username</div>
+                      {username}
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: '#94a3b8', paddingTop: '8px', borderTop: '1px solid #334155' }}>
+                      <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Email</div>
+                      {userEmail}
+                    </div>
+                  </div>
+                )}
+              </div>
               <button onClick={handleLogout} style={{ padding: '10px 24px', background: '#ef4444', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>🚪 Logout</button>
             </>
           ) : (
@@ -124,13 +153,13 @@ export default function Home() {
 
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '40px 40px' }}>
         {/* Hero Section */}
-        <section style={{ textAlign: 'center', marginBottom: '60px' }}>
-          <h1 style={{ fontSize: '4.5rem', fontWeight: 'bold', marginBottom: '20px', lineHeight: '1.2' }}>
+        <section style={{ textAlign: 'center', marginBottom: '40px' }}>
+          <h1 style={{ fontSize: '4.5rem', fontWeight: 'bold', marginBottom: '16px', lineHeight: '1.2' }}>
             Where Human Meets<br/>
             <span style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>AI Intelligence</span>
           </h1>
           <p style={{ fontSize: '1.1rem', color: '#94a3b8', maxWidth: '900px', margin: '0 auto', lineHeight: '1.8' }}>
-            A modular, containerized platform for rapid co-intelligence development with secure authentication and production-ready deployment.
+            A modular, container orchestration platform for rapid co-intelligence development
           </p>
         </section>
 
@@ -176,10 +205,10 @@ export default function Home() {
               <div style={{ width: '48px', height: '48px', background: '#f97316', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', marginBottom: '20px' }}>☕</div>
               <h3 style={{ fontSize: '1.5rem', marginBottom: '12px', fontWeight: 'bold' }}>Agentic Barista</h3>
               <p style={{ color: '#94a3b8', lineHeight: '1.6', marginBottom: '24px', fontSize: '0.95rem' }}>
-                • LangGraph Workflow<br/>
-                • Multi-Agent System<br/>
+                • Natural Language Ordering<br/>
                 • Menu Discovery<br/>
-                • Order Management
+                • Smart Cart Management<br/>
+                • Order Confirmation
               </p>
               <button onClick={() => window.open('/apps/agentic-barista', '_blank')} style={{ padding: '12px 28px', background: '#f97316', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer', fontWeight: '600', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 Launch <span>↗</span>
@@ -196,7 +225,7 @@ export default function Home() {
               {[
                 { icon: '☸️', title: 'Kubernetes (AWS EKS)', desc: 'Container orchestration with auto-scaling and health monitoring', color: '#3b82f6' },
                 { icon: '⚡', title: 'FastAPI Backend', desc: 'High-performance async Python API with automatic documentation', color: '#f97316' },
-                { icon: '▲', title: 'Next.js Frontend', desc: 'Modern React framework with server-side rendering and optimized builds', color: '#06b6d4' },
+                { icon: '▲', title: 'Next.js Frontend', desc: 'Next.js 14 App Router with server-side rendering and optimized builds', color: '#06b6d4' },
                 { icon: '🐘', title: 'PostgreSQL Database', desc: 'Reliable AWS RDS with Tortoise ORM and automated migrations', color: '#8b5cf6' },
                 { icon: '🔐', title: 'JWT Authentication', desc: 'Secure user registration, login, and session management', color: '#10b981' },
                 { icon: '☁️', title: 'AI/Cloud First', desc: 'Built for AWS with intelligent automation and cloud-native architecture', color: '#ec4899' },

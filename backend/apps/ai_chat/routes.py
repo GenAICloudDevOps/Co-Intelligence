@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from auth.utils import get_current_user
 from auth.models import User
 from apps.ai_chat.models import ChatSession, ChatMessage, ChatDocument
-from apps.ai_chat.agent import chat_graph, stream_model
+from apps.ai_chat.agent import stream_model
 from apps.ai_chat.utils import extract_text_from_file, upload_to_s3
 import json
 
@@ -127,12 +127,14 @@ async def chat(data: ChatRequest, current_user: User = Depends(get_current_user)
     
     await ChatMessage.create(session_id=session_id, role="user", content=data.message)
     
-    result = await chat_graph.ainvoke({
-        "messages": [{"role": "user", "content": data.message}],
-        "model": data.model
-    })
+    # Non-streaming endpoint - deprecated, use /chat/stream instead
+    # result = await chat_graph.ainvoke({
+    #     "messages": [{"role": "user", "content": data.message}],
+    #     "model": data.model
+    # })
+    # response_text = result["response"]
     
-    response_text = result["response"]
+    response_text = "Please use /chat/stream endpoint for responses"
     await ChatMessage.create(session_id=session_id, role="assistant", content=response_text, model=data.model)
     
     return {"session_id": session_id, "response": response_text}

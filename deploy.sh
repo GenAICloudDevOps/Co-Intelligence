@@ -140,6 +140,12 @@ for i in {1..30}; do
     sleep 5
 done
 
+# Update .env with backend URL
+echo ""
+echo "🔧 Updating .env with backend URL..."
+sed -i.bak "s|NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=http://$BACKEND_URL:8000|" .env
+echo "✓ .env updated"
+
 # Build and push frontend
 echo ""
 echo "🔨 Building frontend image..."
@@ -156,7 +162,9 @@ cd ..
 # Deploy frontend
 echo ""
 echo "🚀 Deploying frontend..."
-sed "s|<ACCOUNT_ID>|$ACCOUNT_ID|g" k8s/frontend-deployment.yaml | kubectl apply -f -
+sed -e "s|<ACCOUNT_ID>|$ACCOUNT_ID|g" \
+    -e "s|value: \".*\"|value: \"http://$BACKEND_URL:8000\"|" \
+    k8s/frontend-deployment.yaml | kubectl apply -f -
 kubectl apply -f k8s/frontend-service.yaml
 
 echo "⏳ Waiting for frontend LoadBalancer (2-3 min)..."

@@ -5,18 +5,14 @@ from apps.agentic_barista.agents.menu_agent import MenuAgent
 from apps.agentic_barista.agents.order_agent import OrderAgent
 from apps.agentic_barista.agents.confirmation_agent import ConfirmationAgent
 from langchain_core.messages import HumanMessage, AIMessage
-import google.generativeai as genai
-from config import settings
-
-genai.configure(api_key=settings.GEMINI_API_KEY)
+from services.ai_service import ai_service
 
 class BaristaCoordinator:
-    def __init__(self, model_name: str = "gemini-2.0-flash-exp"):
+    def __init__(self, model_name: str = "gemini-2.5-flash-lite"):
         self.menu_agent = MenuAgent()
         self.order_agent = OrderAgent()
         self.confirmation_agent = ConfirmationAgent()
         self.model_name = model_name
-        self.model = genai.GenerativeModel(model_name)
         self.graph = self._build_graph()
     
     def _build_graph(self) -> StateGraph:
@@ -56,46 +52,46 @@ class BaristaCoordinator:
 User message: "{last_message}"
 
 Classify into ONE of these intents:
-- MENU: User wants to see menu, browse items, ask about specific drinks/food
-- ORDER: User wants to add/remove items, view cart, modify order
-- CONFIRM: User wants to confirm/place/complete their order
-- GENERAL: General questions, greetings, chitchat (not related to menu/ordering)
+- MENU: User wants to see menu, browse items, ask about drinks/food (e.g., "show menu", "what's available", "what do you have")
+- ORDER: User wants to add/remove items, view cart, modify order (e.g., "add latte", "remove coffee", "show cart")
+- CONFIRM: User wants to confirm/place/complete their order (e.g., "confirm order", "place order", "checkout")
+- GENERAL: General questions, greetings, chitchat
 
-Respond with ONLY the intent word (MENU, ORDER, CONFIRM, or GENERAL) and a brief reasoning.
-Format: INTENT: <intent>
-REASONING: <one sentence explanation>"""
+Respond with ONLY the intent word: MENU, ORDER, CONFIRM, or GENERAL"""
 
         try:
-            ai_response = self.model.generate_content(prompt).text
+            ai_response = await ai_service.call_model(self.model_name, prompt)
+            ai_response = ai_response.strip().upper()
             
             # Parse response
-            if "MENU" in ai_response.upper():
+            if "MENU" in ai_response:
                 state["current_agent"] = "menu"
-            elif "CONFIRM" in ai_response.upper():
+                state["reasoning"] = "Detected menu browsing intent"
+            elif "CONFIRM" in ai_response:
                 state["current_agent"] = "confirmation"
-            elif "ORDER" in ai_response.upper():
+                state["reasoning"] = "Detected order confirmation intent"
+            elif "ORDER" in ai_response:
                 state["current_agent"] = "order"
+                state["reasoning"] = "Detected order management intent"
             else:
                 state["current_agent"] = "general"
-            
-            # Extract reasoning
-            if "REASONING:" in ai_response:
-                reasoning = ai_response.split("REASONING:")[1].strip()
-                state["reasoning"] = reasoning
-            else:
-                state["reasoning"] = "Analyzing user intent..."
+                state["reasoning"] = "Detected general conversation intent"
                 
         except Exception as e:
             # Fallback to keyword matching
-            if any(word in last_message.lower() for word in ["menu", "show me", "what do you have", "items", "drinks"]):
+            msg_lower = last_message.lower()
+            if any(word in msg_lower for word in ["menu", "show", "what", "have", "available", "items", "drinks", "coffee", "food"]):
                 state["current_agent"] = "menu"
-            elif any(word in last_message.lower() for word in ["confirm", "place order", "checkout", "complete"]):
+                state["reasoning"] = "Keyword match: menu browsing"
+            elif any(word in msg_lower for word in ["confirm", "place", "checkout", "complete", "finish"]):
                 state["current_agent"] = "confirmation"
-            elif any(word in last_message.lower() for word in ["add", "cart", "remove", "delete"]):
+                state["reasoning"] = "Keyword match: order confirmation"
+            elif any(word in msg_lower for word in ["add", "cart", "remove", "delete", "order"]):
                 state["current_agent"] = "order"
+                state["reasoning"] = "Keyword match: order management"
             else:
                 state["current_agent"] = "general"
-            state["reasoning"] = "Using keyword-based intent detection."
+                state["reasoning"] = "Default: general conversation"
         
         return state
     
@@ -132,18 +128,17 @@ Respond conversationally and helpfully. Keep it brief (2-3 sentences). Be warm a
 If they're asking about coffee in general, share interesting facts. If it's a greeting, be friendly."""
 
         try:
-            response = self.model.generate_content(prompt).text
+            response = await ai_service.call_model(self.model_name, prompt)
         except:
             response = "I'm here to help you with our menu and orders! Feel free to ask me anything about coffee or our offerings."
         
         state["messages"].append(AIMessage(content=response))
         return state
     
-    async def process_message(self, message: str, session_id: str, cart: dict, model_name: str = "gemini-2.0-flash-exp") -> dict:
+    async def process_message(self, message: str, session_id: str, cart: dict, model_name: str = "gemini-2.5-flash-lite") -> dict:
         # Update model if different
         if model_name != self.model_name:
             self.model_name = model_name
-            self.model = genai.GenerativeModel(model_name)
         
         initial_state = CafeState(
             messages=[HumanMessage(content=message)],

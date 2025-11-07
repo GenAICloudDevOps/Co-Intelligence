@@ -13,7 +13,7 @@ cp .env.example .env
 cd infrastructure
 aws cloudformation create-stack \
   --stack-name co-intelligence \
-  --template-body file://cloudformation.yaml \
+  --template-body file://infra_without_eks.yaml \
   --parameters ParameterKey=DBUsername,ParameterValue=cointelligence \
                ParameterKey=DBPassword,ParameterValue=SecurePass123! \
   --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \

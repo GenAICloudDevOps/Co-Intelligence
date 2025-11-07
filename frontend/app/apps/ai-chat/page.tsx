@@ -32,7 +32,7 @@ interface Document {
 export default function AIChat() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
-  const [model, setModel] = useState('gemini')
+  const [model, setModel] = useState('gemini-2.5-flash-lite')
   const [token, setToken] = useState('')
   const [sessionId, setSessionId] = useState<number | null>(null)
   const [sessions, setSessions] = useState<Session[]>([])
@@ -86,8 +86,13 @@ export default function AIChat() {
         headers: { Authorization: `Bearer ${authToken}` }
       })
       setSessions(response.data)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load sessions:', error)
+      // Don't show error to user on initial load - they might not have sessions yet
+      if (error.response?.status !== 404) {
+        // Only log non-404 errors
+        console.warn('Session load error:', error.message)
+      }
     }
   }
 
@@ -467,9 +472,19 @@ export default function AIChat() {
               fontWeight: '500',
               cursor: 'pointer'
             }}>
-              <option value="gemini">Gemini 2.5 Flash</option>
-              <option value="groq">Groq Mixtral</option>
-              <option value="bedrock">AWS Bedrock Nova</option>
+              <optgroup label="Gemini">
+                <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
+                <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+              </optgroup>
+              <optgroup label="Groq">
+                <option value="groq/compound">Groq Compound</option>
+                <option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4 Scout</option>
+              </optgroup>
+              <optgroup label="AWS Bedrock">
+                <option value="amazon.nova-lite-v1:0">Amazon Nova Lite</option>
+                <option value="amazon.nova-pro-v1:0">Amazon Nova Pro</option>
+              </optgroup>
             </select>
             <div style={{ position: 'relative' }}>
               <button 

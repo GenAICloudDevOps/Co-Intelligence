@@ -9,11 +9,8 @@ from apps.agentic_barista.routes import router as barista_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Remove SSL parameters from URL if present
-    db_url = settings.DATABASE_URL.split('?')[0]
-    
     await Tortoise.init(
-        db_url=db_url,
+        db_url=settings.DATABASE_URL,
         modules={'models': ['auth.models', 'apps.ai_chat.models', 'apps.agentic_barista.models']}
     )
     await Tortoise.generate_schemas()
