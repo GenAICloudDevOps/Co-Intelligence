@@ -18,8 +18,19 @@ export default function NewClaim() {
     incident_description: '',
     incident_location: ''
   })
+  const [rewriteModal, setRewriteModal] = useState<{ show: boolean; field: string; original: string; rewritten: string; loading: boolean }>({
+    show: false,
+    field: '',
+    original: '',
+    rewritten: '',
+    loading: false
+  })
+  const [selectedModel, setSelectedModel] = useState('gemini')
 
   useEffect(() => {
+    const savedModel = localStorage.getItem('insurance_ai_model') || 'gemini'
+    setSelectedModel(savedModel)
+    
     const token = localStorage.getItem('token')
     if (!token) {
       router.push('/')
@@ -27,6 +38,40 @@ export default function NewClaim() {
     }
     loadPolicies()
   }, [])
+
+  const handleRewrite = async (field: 'incident_location' | 'incident_description') => {
+    const text = formData[field]
+    if (!text.trim()) {
+      setMessage('Please enter text before rewriting')
+      return
+    }
+
+    setRewriteModal({ show: true, field, original: text, rewritten: '', loading: true })
+
+    try {
+      const token = localStorage.getItem('token')
+      const res = await axios.post(`${API_URL}/api/apps/insurance-claims/rewrite`, {
+        text,
+        model: selectedModel
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setRewriteModal(prev => ({ ...prev, rewritten: res.data.rewritten_text, loading: false }))
+    } catch (error) {
+      console.error('Error rewriting:', error)
+      setRewriteModal(prev => ({ ...prev, loading: false }))
+      setMessage('Failed to rewrite text')
+    }
+  }
+
+  const acceptRewrite = () => {
+    setFormData(prev => ({ ...prev, [rewriteModal.field]: rewriteModal.rewritten }))
+    setRewriteModal({ show: false, field: '', original: '', rewritten: '', loading: false })
+  }
+
+  const rejectRewrite = () => {
+    setRewriteModal({ show: false, field: '', original: '', rewritten: '', loading: false })
+  }
 
   const loadPolicies = async () => {
     try {
@@ -157,14 +202,23 @@ export default function NewClaim() {
               <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#94a3b8' }}>
                 Incident Location *
               </label>
-              <input
-                type="text"
-                value={formData.incident_location}
-                onChange={(e) => setFormData({ ...formData, incident_location: e.target.value })}
-                placeholder="e.g., Main St & 5th Ave, Seattle, WA"
-                required
-                style={{ width: '100%', padding: '12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white' }}
-              />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  value={formData.incident_location}
+                  onChange={(e) => setFormData({ ...formData, incident_location: e.target.value })}
+                  placeholder="e.g., Main St & 5th Ave, Seattle, WA"
+                  required
+                  style={{ flex: 1, padding: '12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => handleRewrite('incident_location')}
+                  style={{ padding: '12px 16px', background: '#8b5cf6', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600', whiteSpace: 'nowrap' }}
+                >
+                  ✨ Rewrite
+                </button>
+              </div>
             </div>
 
             <div style={{ marginBottom: '24px' }}>
@@ -179,6 +233,13 @@ export default function NewClaim() {
                 rows={6}
                 style={{ width: '100%', padding: '12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', resize: 'vertical' }}
               />
+              <button
+                type="button"
+                onClick={() => handleRewrite('incident_description')}
+                style={{ marginTop: '8px', padding: '10px 16px', background: '#8b5cf6', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}
+              >
+                ✨ Rewrite with AI
+              </button>
             </div>
 
             {message && (
@@ -206,6 +267,51 @@ export default function NewClaim() {
           </form>
         </div>
       </div>
+
+      {rewriteModal.show && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#1e293b', padding: '24px', borderRadius: '12px', maxWidth: '600px', width: '90%', maxHeight: '80vh', overflow: 'auto' }}>
+            <h3 style={{ marginBottom: '16px', color: 'white' }}>✨ AI Rewrite Suggestion</h3>
+            
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#94a3b8' }}>Original:</label>
+              <div style={{ padding: '12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#94a3b8' }}>
+                {rewriteModal.original}
+              </div>
+            </div>
+
+            {rewriteModal.loading ? (
+              <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8' }}>
+                <div style={{ marginBottom: '12px' }}>🤖 AI is rewriting...</div>
+              </div>
+            ) : (
+              <>
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#94a3b8' }}>AI Suggestion:</label>
+                  <div style={{ padding: '12px', background: '#0f172a', border: '1px solid #8b5cf6', borderRadius: '6px', color: 'white' }}>
+                    {rewriteModal.rewritten}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                  <button
+                    onClick={rejectRewrite}
+                    style={{ padding: '10px 20px', background: '#475569', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}
+                  >
+                    ❌ Reject
+                  </button>
+                  <button
+                    onClick={acceptRewrite}
+                    style={{ padding: '10px 20px', background: '#10b981', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}
+                  >
+                    ✅ Accept
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

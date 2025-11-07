@@ -48,6 +48,33 @@ class AIService:
             return "bedrock"
         return "gemini"
     
+    async def generate_response(self, prompt: str, model_name: str = DEFAULT_MODEL) -> str:
+        """Generate a single response (non-streaming)"""
+        provider = self._get_provider(model_name)
+        
+        if provider == "gemini":
+            model = genai.GenerativeModel(model_name)
+            response = await model.generate_content_async(prompt)
+            return response.text
+        elif provider == "groq":
+            response = self.groq_client.chat.completions.create(
+                model=model_name,
+                messages=[{"role": "user", "content": prompt}],
+                stream=False
+            )
+            return response.choices[0].message.content
+        elif provider == "bedrock":
+            response = self.bedrock.invoke_model(
+                modelId=model_name,
+                body=json.dumps({
+                    "messages": [{"role": "user", "content": [{"text": prompt}]}],
+                    "inferenceConfig": {"maxTokens": 1000, "temperature": 0.7}
+                })
+            )
+            result = json.loads(response['body'].read())
+            return result['output']['message']['content'][0]['text']
+        raise ValueError(f"Unsupported provider: {provider}")
+    
     async def call_model(self, model_name: str, prompt: str) -> str:
         """Non-streaming model call"""
         provider = self._get_provider(model_name)

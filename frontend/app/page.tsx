@@ -185,7 +185,7 @@ export default function Home() {
                 <div style={{ width: '48px', height: '48px', background: '#6366f1', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>💬</div>
                 <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>Chat</h3>
               </div>
-              <p style={{ color: '#94a3b8', lineHeight: '1.6', marginBottom: '24px', fontSize: '0.95rem', paddingLeft: '64px' }}>
+              <p style={{ color: '#94a3b8', lineHeight: '1.6', marginBottom: '24px', fontSize: '0.95rem' }}>
                 • AI Chat<br/>
                 • Document Analysis<br/>
                 • Web Search<br/>
@@ -208,7 +208,7 @@ export default function Home() {
                 <div style={{ width: '48px', height: '48px', background: '#f97316', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>☕</div>
                 <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>Agentic Barista</h3>
               </div>
-              <p style={{ color: '#94a3b8', lineHeight: '1.6', marginBottom: '24px', fontSize: '0.95rem', paddingLeft: '64px' }}>
+              <p style={{ color: '#94a3b8', lineHeight: '1.6', marginBottom: '24px', fontSize: '0.95rem' }}>
                 • Natural Language Ordering<br/>
                 • Menu Discovery<br/>
                 • Smart Cart Management<br/>
@@ -231,7 +231,7 @@ export default function Home() {
                 <div style={{ width: '48px', height: '48px', background: '#06b6d4', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>🚗</div>
                 <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>Insurance Claims</h3>
               </div>
-              <p style={{ color: '#94a3b8', lineHeight: '1.6', marginBottom: '24px', fontSize: '0.95rem', paddingLeft: '64px' }}>
+              <p style={{ color: '#94a3b8', lineHeight: '1.6', marginBottom: '24px', fontSize: '0.95rem' }}>
                 • Role-Based Workflow<br/>
                 • Policy Management<br/>
                 • Claims Processing<br/>

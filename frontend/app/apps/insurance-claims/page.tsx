@@ -12,8 +12,12 @@ export default function InsuranceClaimsDashboard() {
   const [policies, setPolicies] = useState<any[]>([])
   const [roles, setRoles] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedModel, setSelectedModel] = useState('gemini')
 
   useEffect(() => {
+    const savedModel = localStorage.getItem('insurance_ai_model') || 'gemini'
+    setSelectedModel(savedModel)
+    
     const token = localStorage.getItem('token')
     if (!token) {
       router.push('/')
@@ -21,6 +25,11 @@ export default function InsuranceClaimsDashboard() {
     }
     loadData()
   }, [])
+
+  const handleModelChange = (model: string) => {
+    setSelectedModel(model)
+    localStorage.setItem('insurance_ai_model', model)
+  }
 
   const loadData = async () => {
     try {
@@ -94,6 +103,15 @@ export default function InsuranceClaimsDashboard() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '12px' }}>
+            <select
+              value={selectedModel}
+              onChange={(e) => handleModelChange(e.target.value)}
+              style={{ padding: '10px', background: '#1f2937', border: '1px solid #374151', borderRadius: '6px', color: 'white', cursor: 'pointer' }}
+            >
+              <option value="gemini">🤖 Gemini</option>
+              <option value="groq">⚡ Groq</option>
+              <option value="bedrock">☁️ Bedrock</option>
+            </select>
             {roles.includes('customer') && (
               <>
                 <button

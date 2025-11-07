@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from typing import List
+from pydantic import BaseModel
 from auth.models import User
 from models.app_role import AppRole
 from middleware.auth import get_current_user, require_app_role
@@ -9,10 +10,15 @@ from .schemas import (
     ClaimNoteCreate, ClaimNoteResponse, AppRoleAssign
 )
 from .workflow import can_transition_status
+from services.ai_service import AIService
 import uuid
 import os
 
 router = APIRouter()
+
+class RewriteRequest(BaseModel):
+    text: str
+    model: str = "gemini"
 
 # Auto-assign customer role on first access
 async def ensure_customer_role(user: User):
@@ -209,3 +215,19 @@ async def assign_role(
     
     await AppRole.create(**assignment.dict())
     return {"message": "Role assigned successfully"}
+
+@router.post("/rewrite")
+async def rewrite_text(
+    request: RewriteRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Rewrite text using AI for insurance claims"""
+    ai_service = AIService()
+    prompt = f"Rewrite this insurance claim text professionally and clearly. Keep it concise but detailed:\n\n{request.text}"
+    
+    response = await ai_service.generate_response(
+        prompt=prompt,
+        model_name=request.model
+    )
+    
+    return {"rewritten_text": response}
