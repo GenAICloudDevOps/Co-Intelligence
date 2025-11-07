@@ -168,11 +168,11 @@ export default function Home() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
             <h2 style={{ fontSize: '2rem', fontWeight: 'bold' }}>AI Applications</h2>
             <div style={{ display: 'flex', gap: '20px', fontSize: '0.9rem', color: '#64748b' }}>
-              <span>⚡ 3 active</span>
+              <span>⚡ 4 active</span>
               <span>🕐 Last updated: {currentTime}</span>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
             <div style={{
               background: '#1e293b',
               borderRadius: '12px',
@@ -241,6 +241,77 @@ export default function Home() {
                 Launch <span>↗</span>
               </button>
             </div>
+
+            <div style={{
+              background: '#1e293b',
+              borderRadius: '12px',
+              padding: '32px',
+              border: '1px solid #334155',
+              position: 'relative'
+            }}>
+              <div style={{ position: 'absolute', top: '20px', right: '20px', padding: '4px 12px', background: '#10b981', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '600' }}>active</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ width: '48px', height: '48px', background: '#8b5cf6', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>🎓</div>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>Agentic LMS</h3>
+              </div>
+              <p style={{ color: '#94a3b8', lineHeight: '1.6', marginBottom: '24px', fontSize: '0.95rem' }}>
+                • AI Course Discovery<br/>
+                • Natural Language Enrollment<br/>
+                • Progress Tracking<br/>
+                • LangGraph Agents
+              </p>
+              <button onClick={() => { if (!token) { setShowAuth(true); setIsLogin(true); } else { window.open('/apps/agentic-lms', '_blank'); } }} style={{ padding: '12px 28px', background: '#8b5cf6', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer', fontWeight: '600', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                Launch <span>↗</span>
+              </button>
+            </div>
+
+            <div style={{
+              background: '#1e293b',
+              borderRadius: '12px',
+              padding: '32px',
+              border: '1px solid #334155',
+              position: 'relative',
+              opacity: 0.6
+            }}>
+              <div style={{ position: 'absolute', top: '20px', right: '20px', padding: '4px 12px', background: '#64748b', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '600' }}>soon</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ width: '48px', height: '48px', background: '#64748b', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>🚀</div>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>Coming Soon</h3>
+              </div>
+              <p style={{ color: '#94a3b8', lineHeight: '1.6', marginBottom: '24px', fontSize: '0.95rem' }}>
+                • New AI Application<br/>
+                • Advanced Features<br/>
+                • Enhanced Capabilities<br/>
+                • Stay Tuned
+              </p>
+              <button disabled style={{ padding: '12px 28px', background: '#64748b', border: 'none', borderRadius: '8px', color: 'white', cursor: 'not-allowed', fontWeight: '600', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                Coming Soon
+              </button>
+            </div>
+
+            <div style={{
+              background: '#1e293b',
+              borderRadius: '12px',
+              padding: '32px',
+              border: '1px solid #334155',
+              position: 'relative',
+              opacity: 0.6
+            }}>
+              <div style={{ position: 'absolute', top: '20px', right: '20px', padding: '4px 12px', background: '#64748b', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '600' }}>soon</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ width: '48px', height: '48px', background: '#64748b', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>✨</div>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>Coming Soon</h3>
+              </div>
+              <p style={{ color: '#94a3b8', lineHeight: '1.6', marginBottom: '24px', fontSize: '0.95rem' }}>
+                • New AI Application<br/>
+                • Advanced Features<br/>
+                • Enhanced Capabilities<br/>
+                • Stay Tuned
+              </p>
+              <button disabled style={{ padding: '12px 28px', background: '#64748b', border: 'none', borderRadius: '8px', color: 'white', cursor: 'not-allowed', fontWeight: '600', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                Coming Soon
+              </button>
+            </div>
           </div>
         </section>
 
@@ -285,7 +356,7 @@ export default function Home() {
             <h2 style={{ fontSize: '2rem', marginBottom: '40px', fontWeight: 'bold' }}>Platform Metrics</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '40px', maxWidth: '800px', margin: '0 auto' }}>
               <div>
-                <div style={{ fontSize: '3rem', fontWeight: 'bold', color: '#6366f1', marginBottom: '8px' }}>3</div>
+                <div style={{ fontSize: '3rem', fontWeight: 'bold', color: '#6366f1', marginBottom: '8px' }}>4</div>
                 <div style={{ fontSize: '1.1rem', color: '#94a3b8' }}>Applications</div>
               </div>
               <div>

@@ -69,6 +69,12 @@ A multi-AI chat application with FastAPI backend, Next.js frontend, deployed on 
 ### Insurance Claims
 ![Insurance Claims](screenshots/6.png)
 
+### Learning Management System
+![Learning Management System](screenshots/6.1.png)
+
+### LMS Screen2
+![LMS Screen2](screenshots/6.2.png)
+
 ### AWS EKS Screen
 ![AWS EKS](screenshots/7.png)
 
