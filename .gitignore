@@ -1,9 +1,17 @@
 # Environment
 .env
 .env.local
+.env.bak
+.env.production
+
+# Allow .env.example to be committed
+!.env.example
 
 # Kubernetes secrets
 k8s/secrets.yaml
+
+# Allow secrets.yaml.template to be committed
+!k8s/secrets.yaml.template
 
 # Python
 __pycache__/

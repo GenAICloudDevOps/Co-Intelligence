@@ -14,12 +14,12 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/co-intelligence-frontend:latest
+        image: 991150654740.dkr.ecr.us-east-1.amazonaws.com/co-intelligence-frontend:latest
         ports:
         - containerPort: 3000
         env:
         - name: NEXT_PUBLIC_API_URL
-          value: "http://backend:8000"
+          value: "http://a715629627f1b4484a0e19c9e76cc391-1971076872.us-east-1.elb.amazonaws.com:8000"
         resources:
           requests:
             memory: "256Mi"

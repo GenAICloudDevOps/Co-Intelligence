@@ -153,8 +153,8 @@ export default function Home() {
 
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '40px 40px' }}>
         {/* Hero Section */}
-        <section style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <h1 style={{ fontSize: '4.5rem', fontWeight: 'bold', marginBottom: '16px', lineHeight: '1.2' }}>
+        <section style={{ textAlign: 'center', marginBottom: '30px' }}>
+          <h1 style={{ fontSize: '4rem', fontWeight: 'bold', marginBottom: '12px', lineHeight: '1.2' }}>
             Where Human Meets<br/>
             <span style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>AI Intelligence</span>
           </h1>
@@ -168,7 +168,7 @@ export default function Home() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
             <h2 style={{ fontSize: '2rem', fontWeight: 'bold' }}>AI Applications</h2>
             <div style={{ display: 'flex', gap: '20px', fontSize: '0.9rem', color: '#64748b' }}>
-              <span>⚡ 2 active</span>
+              <span>⚡ 3 active</span>
               <span>🕐 Last updated: {currentTime}</span>
             </div>
           </div>
@@ -181,9 +181,11 @@ export default function Home() {
               position: 'relative'
             }}>
               <div style={{ position: 'absolute', top: '20px', right: '20px', padding: '4px 12px', background: '#10b981', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '600' }}>active</div>
-              <div style={{ width: '48px', height: '48px', background: '#6366f1', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', marginBottom: '20px' }}>💬</div>
-              <h3 style={{ fontSize: '1.5rem', marginBottom: '12px', fontWeight: 'bold' }}>Chat</h3>
-              <p style={{ color: '#94a3b8', lineHeight: '1.6', marginBottom: '24px', fontSize: '0.95rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ width: '48px', height: '48px', background: '#6366f1', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>💬</div>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>Chat</h3>
+              </div>
+              <p style={{ color: '#94a3b8', lineHeight: '1.6', marginBottom: '24px', fontSize: '0.95rem', paddingLeft: '64px' }}>
                 • AI Chat<br/>
                 • Document Analysis<br/>
                 • Web Search<br/>
@@ -202,9 +204,11 @@ export default function Home() {
               position: 'relative'
             }}>
               <div style={{ position: 'absolute', top: '20px', right: '20px', padding: '4px 12px', background: '#10b981', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '600' }}>active</div>
-              <div style={{ width: '48px', height: '48px', background: '#f97316', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', marginBottom: '20px' }}>☕</div>
-              <h3 style={{ fontSize: '1.5rem', marginBottom: '12px', fontWeight: 'bold' }}>Agentic Barista</h3>
-              <p style={{ color: '#94a3b8', lineHeight: '1.6', marginBottom: '24px', fontSize: '0.95rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ width: '48px', height: '48px', background: '#f97316', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>☕</div>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>Agentic Barista</h3>
+              </div>
+              <p style={{ color: '#94a3b8', lineHeight: '1.6', marginBottom: '24px', fontSize: '0.95rem', paddingLeft: '64px' }}>
                 • Natural Language Ordering<br/>
                 • Menu Discovery<br/>
                 • Smart Cart Management<br/>
@@ -214,14 +218,37 @@ export default function Home() {
                 Launch <span>↗</span>
               </button>
             </div>
+
+            <div style={{
+              background: '#1e293b',
+              borderRadius: '12px',
+              padding: '32px',
+              border: '1px solid #334155',
+              position: 'relative'
+            }}>
+              <div style={{ position: 'absolute', top: '20px', right: '20px', padding: '4px 12px', background: '#10b981', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '600' }}>active</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ width: '48px', height: '48px', background: '#06b6d4', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>🚗</div>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>Insurance Claims</h3>
+              </div>
+              <p style={{ color: '#94a3b8', lineHeight: '1.6', marginBottom: '24px', fontSize: '0.95rem', paddingLeft: '64px' }}>
+                • Role-Based Workflow<br/>
+                • Policy Management<br/>
+                • Claims Processing<br/>
+                • Status Tracking
+              </p>
+              <button onClick={() => { if (!token) { setShowAuth(true); setIsLogin(true); } else { window.open('/apps/insurance-claims', '_blank'); } }} style={{ padding: '12px 28px', background: '#06b6d4', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer', fontWeight: '600', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                Launch <span>↗</span>
+              </button>
+            </div>
           </div>
         </section>
 
         {/* Platform Features Section */}
-        <section>
+        <section style={{ marginBottom: '60px' }}>
           <div style={{ background: '#1e293b', borderRadius: '16px', padding: '50px', border: '1px solid #334155' }}>
             <h2 style={{ fontSize: '2rem', marginBottom: '50px', textAlign: 'center', fontWeight: 'bold' }}>Platform Features</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '30px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '30px' }}>
               {[
                 { icon: '☸️', title: 'Kubernetes (AWS EKS)', desc: 'Container orchestration with auto-scaling and health monitoring', color: '#3b82f6' },
                 { icon: '⚡', title: 'FastAPI Backend', desc: 'High-performance async Python API with automatic documentation', color: '#f97316' },
@@ -230,7 +257,9 @@ export default function Home() {
                 { icon: '🔐', title: 'JWT Authentication', desc: 'Secure user registration, login, and session management', color: '#10b981' },
                 { icon: '☁️', title: 'AI/Cloud First', desc: 'Built for AWS with intelligent automation and cloud-native architecture', color: '#ec4899' },
                 { icon: '🧩', title: 'Modular Architecture', desc: 'Scalable, maintainable design with independent components', color: '#f59e0b' },
-                { icon: '🤝', title: 'Co-Intelligence', desc: 'Collaborative intelligence combining human insight and AI capabilities', color: '#6366f1' }
+                { icon: '🤝', title: 'Co-Intelligence', desc: 'Collaborative intelligence combining human insight and AI capabilities', color: '#6366f1' },
+                { icon: '🔄', title: 'LangGraph Workflows', desc: 'Multi-agent orchestration with state management and conditional routing', color: '#ec4899' },
+                { icon: '🤖', title: 'Multi-AI Support', desc: '8 AI models across 3 providers (Gemini, Groq, AWS Bedrock)', color: '#14b8a6' }
               ].map((feature, idx) => (
                 <div key={idx} style={{
                   background: '#0f172a',
@@ -249,7 +278,47 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        {/* Platform Metrics Section */}
+        <section style={{ marginBottom: '60px' }}>
+          <div style={{ background: '#1e293b', borderRadius: '16px', padding: '50px', border: '1px solid #334155', textAlign: 'center' }}>
+            <h2 style={{ fontSize: '2rem', marginBottom: '40px', fontWeight: 'bold' }}>Platform Metrics</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '40px', maxWidth: '800px', margin: '0 auto' }}>
+              <div>
+                <div style={{ fontSize: '3rem', fontWeight: 'bold', color: '#6366f1', marginBottom: '8px' }}>3</div>
+                <div style={{ fontSize: '1.1rem', color: '#94a3b8' }}>Applications</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '3rem', fontWeight: 'bold', color: '#10b981', marginBottom: '8px' }}>8</div>
+                <div style={{ fontSize: '1.1rem', color: '#94a3b8' }}>AI Models</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#f59e0b', marginBottom: '8px' }}>Role-Based Access</div>
+                <div style={{ fontSize: '0.95rem', color: '#94a3b8' }}>Platform + App Roles</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#06b6d4', marginBottom: '8px' }}>Cloud Native</div>
+                <div style={{ fontSize: '0.95rem', color: '#94a3b8' }}>AWS EKS + RDS + ECR</div>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
+
+      {/* Footer */}
+      <footer style={{ background: '#0f172a', borderTop: '1px solid #1e293b', padding: '40px 0', textAlign: 'center' }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 40px' }}>
+          <div style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '12px', color: '#a78bfa' }}>
+            Co-Intelligence V1.0 Beta
+          </div>
+          <div style={{ fontSize: '0.95rem', color: '#64748b', marginBottom: '8px' }}>
+            Built with ❤️ on AWS
+          </div>
+          <div style={{ fontSize: '0.85rem', color: '#475569' }}>
+            © 2025 All rights reserved
+          </div>
+        </div>
+      </footer>
 
       {/* Auth Modal */}
       {showAuth && (

@@ -39,6 +39,32 @@ A multi-AI chat application with FastAPI backend, Next.js frontend, deployed on 
 - ☁️ **Cloud Native** - Deployed on AWS EKS with auto-scaling
 - 🧩 **Modular Architecture** - Easy to add new AI applications
 
+## Screenshots
+
+### Homepage
+![Homepage](screenshots/1.png)
+
+### Platform Features
+![Platform Features](screenshots/2.png)
+
+### Platform Metrics
+![Platform Metrics](screenshots/3.png)
+
+### AI Chat
+![AI Chat](screenshots/4.png)
+
+### Agentic Barista
+![Agentic Barista](screenshots/5.png)
+
+### Insurance Claims
+![Insurance Claims](screenshots/6.png)
+
+### AWS EKS Screen
+![AWS EKS](screenshots/7.png)
+
+### Design
+![Design](screenshots/8.png)
+
 ## Prerequisites
 
 - AWS CLI configured

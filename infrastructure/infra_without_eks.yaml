@@ -126,6 +126,18 @@ Resources:
         - Key: Name
           Value: co-intelligence-eks-sg
 
+  RDSParameterGroup:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      DBParameterGroupName: co-intelligence-pg
+      Description: Parameter group to disable SSL requirement
+      Family: postgres17
+      Parameters:
+        rds.force_ssl: '0'
+      Tags:
+        - Key: Name
+          Value: co-intelligence-pg
+
   RDSInstance:
     Type: AWS::RDS::DBInstance
     Properties:
@@ -138,6 +150,7 @@ Resources:
       MasterUsername: !Ref DBUsername
       MasterUserPassword: !Ref DBPassword
       DBSubnetGroupName: !Ref DBSubnetGroup
+      DBParameterGroupName: !Ref RDSParameterGroup
       VPCSecurityGroups:
         - !Ref DBSecurityGroup
       PubliclyAccessible: false
