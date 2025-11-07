@@ -32,6 +32,16 @@ A multi-AI chat application with FastAPI backend, Next.js frontend, deployed on 
 - ✅ **Order Confirmation** - Complete orders with database persistence
 - 💬 **Floating Chat UI** - Modal popup interface with agent status display
 
+### 3. Insurance Claims
+- 🏥 **Role-Based Workflow** - Multi-role system (customer, agent, adjuster, manager, admin)
+- 📋 **Policy Management** - Create and manage insurance policies
+- 📝 **Claim Submission** - Submit claims with incident details
+- 🔄 **Status Workflow** - Role-based claim status transitions
+- 👥 **Adjuster Assignment** - Managers assign claims to adjusters
+- 💰 **Damage Assessment** - Track estimated and approved amounts
+- 📎 **Notes & Documents** - Add notes and attachments to claims
+- 🔐 **Access Control** - Role-based permissions and data visibility
+
 ## Platform Features
 
 - 🔐 **Secure Authentication** - JWT-based user authentication
