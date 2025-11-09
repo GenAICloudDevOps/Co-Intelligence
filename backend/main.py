@@ -10,6 +10,7 @@ import apps.ai_chat
 import apps.agentic_barista
 import apps.insurance_claims
 import apps.agentic_lms
+import apps.agentic_tutor
 
 from apps.registry import registry
 

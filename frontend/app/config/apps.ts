@@ -69,5 +69,20 @@ export const apps: AppConfig[] = [
     route: '/apps/agentic-lms',
     status: 'active',
     requiresAuth: true
+  },
+  {
+    id: 'agentic-tutor',
+    name: 'Agentic Tutor',
+    description: [
+      'Interactive Learning',
+      'Practice Assessments',
+      'Multi-Agent System',
+      'Progress Tracking'
+    ],
+    icon: '👨‍🏫',
+    color: '#f59e0b',
+    route: '/apps/agentic-tutor',
+    status: 'active',
+    requiresAuth: true
   }
 ]

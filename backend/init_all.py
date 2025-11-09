@@ -11,6 +11,7 @@ import apps.ai_chat
 import apps.agentic_barista
 import apps.insurance_claims
 import apps.agentic_lms
+import apps.agentic_tutor
 
 from apps.registry import registry
 
@@ -56,6 +57,14 @@ async def init_all():
         print("✓ Insurance users seeded")
     except Exception as e:
         print(f"⚠ Insurance seed skipped: {e}")
+    
+    # Seed tutor topics
+    try:
+        from apps.agentic_tutor.seed_topics import seed_topics
+        await seed_topics()
+        print("✓ Tutor topics seeded")
+    except Exception as e:
+        print(f"⚠ Tutor topics seed skipped: {e}")
     
     await Tortoise.close_connections()
     print("\n✅ Initialization complete!")

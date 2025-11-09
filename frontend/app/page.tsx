@@ -80,8 +80,11 @@ export default function Home() {
         }, 1000)
       }
     } catch (error: any) {
-      console.error('Auth error:', error.response?.data)
-      setMessage(error.response?.data?.detail || 'Authentication failed')
+      console.error('Auth error:', error)
+      console.error('Error response:', error.response)
+      console.error('Error data:', error.response?.data)
+      const errorMsg = error.response?.data?.detail || error.message || 'Authentication failed'
+      setMessage(errorMsg)
     }
     setLoading(false)
   }

@@ -86,6 +86,12 @@ A scalable multi-AI platform with FastAPI backend, Next.js frontend, deployed on
 ### LMS Screen2
 ![LMS Screen2](screenshots/6.2.png)
 
+### Agentic Tutor
+![Agentic Tutor](screenshots/6.3.png)
+
+### Agentic Tutor - Learning
+![Agentic Tutor Learning](screenshots/6.4.png)
+
 ### AWS EKS Screen
 ![AWS EKS](screenshots/7.png)
 
