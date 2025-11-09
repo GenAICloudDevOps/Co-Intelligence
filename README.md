@@ -48,6 +48,13 @@ A scalable multi-AI platform with FastAPI backend, Next.js frontend, deployed on
 - 📊 **Progress Tracking** - Track learning progress
 - 🤖 **LangGraph Agents** - Multi-agent orchestration for learning
 
+### 5. Agentic Tutor
+- 🎯 **Interactive Learning** - AI tutor for Python, AI, Data Science, and more
+- 📝 **Practice Assessments** - Generate quizzes and coding challenges
+- 🤖 **Multi-Agent System** - Tutor, Assessor, Grader, Hint, and Progress agents
+- 📊 **Progress Tracking** - Track scores, strengths, and improvement areas
+- 📚 **15 Topics** - Across 5 categories with beginner to advanced levels
+
 ## Platform Features
 
 - 🔐 **Secure Authentication** - JWT-based user authentication
@@ -64,6 +71,9 @@ A scalable multi-AI platform with FastAPI backend, Next.js frontend, deployed on
 
 ### Homepage
 ![Homepage](screenshots/1.png)
+
+### Co-Intelligence - AI Applications
+![Co-Intelligence - AI Applications](screenshots/1.1.png)
 
 ### Platform Features
 ![Platform Features](screenshots/2.png)
