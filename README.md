@@ -2,12 +2,12 @@
 
 **Where Human Meets AI Intelligence**
 
-A multi-AI chat application with FastAPI backend, Next.js frontend, deployed on AWS EKS.
+A scalable multi-AI platform with FastAPI backend, Next.js frontend, deployed on AWS EKS.
 
 ## Architecture
 
-- **Backend**: FastAPI + Tortoise ORM + LangGraph 1.0.1
-- **Frontend**: Next.js 14 (App Router)
+- **Backend**: FastAPI + Tortoise ORM + LangGraph 1.0.1 + App Registry System
+- **Frontend**: Next.js 14 (App Router) + Reusable Components
 - **Database**: AWS RDS PostgreSQL
 - **AI Models**: Gemini 2.5 Flash Lite, Groq Mixtral, AWS Bedrock Nova
 - **Code Execution**: AWS Lambda (autonomous Python execution)
@@ -16,9 +16,9 @@ A multi-AI chat application with FastAPI backend, Next.js frontend, deployed on 
 
 ## Applications
 
-### 1. AI Chat
-- 🤖 **Multi-AI Chat** - Switch between Gemini, Groq, and Bedrock models
-- 📄 **Document Upload** - PDF, DOCX, TXT support with text extraction
+### 1. Chat
+- 🤖 **AI Chat** - Switch between 8 AI models across 3 providers
+- 📄 **Document Analysis** - PDF, DOCX, TXT support with text extraction
 - 🌐 **Web Search** - Real-time internet search (Tavily integration)
 - ⚡ **Code Execution** - AI automatically runs Python code when needed
 - 💬 **Streaming Responses** - Real-time AI responses
@@ -26,7 +26,7 @@ A multi-AI chat application with FastAPI backend, Next.js frontend, deployed on 
 ### 2. Agentic Barista
 - ☕ **LangGraph Workflow** - Multi-agent system with state management
 - 🤖 **3 Specialized Agents** - Menu, Order, and Confirmation agents
-- 🧠 **AI Reasoning** - Intent detection with conversational handling for general questions
+- 🧠 **AI Reasoning** - Intent detection with conversational handling
 - 🛒 **Cart Management** - Add/remove items, view totals
 - 📋 **Menu Discovery** - Browse coffee, pastries, and food items
 - ✅ **Order Confirmation** - Complete orders with database persistence
@@ -42,12 +42,23 @@ A multi-AI chat application with FastAPI backend, Next.js frontend, deployed on 
 - 📎 **Notes & Documents** - Add notes and attachments to claims
 - 🔐 **Access Control** - Role-based permissions and data visibility
 
+### 4. Agentic LMS
+- 🎓 **AI Course Discovery** - Natural language course search
+- 📚 **Natural Language Enrollment** - Conversational enrollment process
+- 📊 **Progress Tracking** - Track learning progress
+- 🤖 **LangGraph Agents** - Multi-agent orchestration for learning
+
 ## Platform Features
 
 - 🔐 **Secure Authentication** - JWT-based user authentication
 - 👤 **User Profile Header** - Reusable AppHeader component with logout functionality
 - ☁️ **Cloud Native** - Deployed on AWS EKS with auto-scaling
-- 🧩 **Modular Architecture** - Easy to add new AI applications
+- 🧩 **Modular Architecture** - Add new apps in 10 minutes
+- 🔄 **App Registry System** - Auto-discovery and registration of apps
+- 🎨 **Component Library** - Reusable UI components (Card, Modal, Button)
+- 🪝 **Custom Hooks** - useAuth hook for centralized authentication
+- 📦 **Shared Base Models** - Timestamp and soft delete mixins
+- 🛠️ **App Scaffolding** - CLI tool to generate new apps instantly
 
 ## Screenshots
 
@@ -259,11 +270,38 @@ aws cloudformation delete-stack --stack-name co-intelligence --region us-east-1
 
 ## Adding New Apps
 
-1. Create new app directory in `backend/apps/`
-2. Add models, routes, and logic
-3. Register router in `backend/main.py`
-4. Add frontend page in `frontend/app/apps/`
-5. Add card to homepage
+### Quick Method (10 minutes)
+
+```bash
+# 1. Scaffold new app
+./create_app.sh my-app "My App" "🚀" "#ec4899"
+
+# 2. Add import to backend/main.py
+import apps.my_app
+
+# 3. Add to frontend/app/config/apps.ts
+{
+  id: 'my-app',
+  name: 'My App',
+  description: ['Feature 1', 'Feature 2', 'Feature 3', 'Feature 4'],
+  icon: '🚀',
+  color: '#ec4899',
+  route: '/apps/my-app',
+  status: 'active',
+  requiresAuth: true
+}
+
+# Done! App is live.
+```
+
+See `docs/NEW_APP_TEMPLATE.md` for detailed guide.
+
+### What You Get
+- ✅ Auto-registered backend routes
+- ✅ Database models with timestamps
+- ✅ Frontend page with auth
+- ✅ Appears on homepage automatically
+- ✅ Reusable components available
 
 ## License
 
