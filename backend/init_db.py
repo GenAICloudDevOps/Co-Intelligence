@@ -1,4 +1,5 @@
 import asyncio
+import re
 from tortoise import Tortoise
 from config import settings
 from apps.agentic_barista.seed_menu import seed_menu
@@ -39,16 +40,55 @@ async def seed_test_roles():
             print(f"✅ Assigned customer role to user {user.username}")
 
 async def init():
-    await Tortoise.init(
-        db_url=settings.DATABASE_URL,
-        modules={'models': [
-            'auth.models',
-            'apps.ai_chat.models',
-            'apps.agentic_barista.models',
-            'apps.insurance_claims.models',
-            'models.app_role'
-        ]}
-    )
+    # Parse DATABASE_URL and disable SSL
+    db_url = settings.DATABASE_URL
+    match = re.match(r'postgres://([^:]+):([^@]+)@([^:]+):(\d+)/([^\?]+)', db_url)
+    
+    if match:
+        user, password, host, port, database = match.groups()
+        db_config = {
+            'connections': {
+                'default': {
+                    'engine': 'tortoise.backends.asyncpg',
+                    'credentials': {
+                        'host': host,
+                        'port': int(port),
+                        'user': user,
+                        'password': password,
+                        'database': database,
+                        'ssl': None  # Disable SSL
+                    }
+                }
+            },
+            'apps': {
+                'models': {
+                    'models': [
+                        'auth.models',
+                        'apps.ai_chat.models',
+                        'apps.agentic_barista.models',
+                        'apps.insurance_claims.models',
+                        'apps.agentic_lms.models',
+                        'models.app_role'
+                    ],
+                    'default_connection': 'default'
+                }
+            }
+        }
+        await Tortoise.init(config=db_config)
+    else:
+        # Fallback
+        await Tortoise.init(
+            db_url=settings.DATABASE_URL,
+            modules={'models': [
+                'auth.models',
+                'apps.ai_chat.models',
+                'apps.agentic_barista.models',
+                'apps.insurance_claims.models',
+                'apps.agentic_lms.models',
+                'models.app_role'
+            ]}
+        )
+    
     await Tortoise.generate_schemas()
     await migrate()
     await seed_menu()

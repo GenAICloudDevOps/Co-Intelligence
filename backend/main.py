@@ -4,27 +4,61 @@ from contextlib import asynccontextmanager
 from tortoise import Tortoise
 from config import settings
 from auth.routes import router as auth_router
-from apps.ai_chat.routes import router as ai_chat_router
-from apps.agentic_barista.routes import router as barista_router
-from apps.insurance_claims.routes import router as insurance_router
-from apps.agentic_lms.routes import router as lms_router
-from apps.agentic_lms.database import init_lms_db
+
+# Import apps to trigger registration
+import apps.ai_chat
+import apps.agentic_barista
+import apps.insurance_claims
+import apps.agentic_lms
+
+from apps.registry import registry
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await Tortoise.init(
-        db_url=settings.DATABASE_URL,
-        modules={'models': [
-            'auth.models',
-            'apps.ai_chat.models',
-            'apps.agentic_barista.models',
-            'apps.insurance_claims.models',
-            'apps.agentic_lms.models',
-            'models.app_role'
-        ]}
-    )
+    # Build model modules list from registry
+    model_modules = ['auth.models', 'models.app_role'] + registry.get_model_modules()
+    
+    # Parse DATABASE_URL
+    import re
+    db_url = settings.DATABASE_URL
+    match = re.match(r'postgres://([^:]+):([^@]+)@([^:]+):(\d+)/([^\?]+)', db_url)
+    
+    if match:
+        user, password, host, port, database = match.groups()
+        db_config = {
+            'connections': {
+                'default': {
+                    'engine': 'tortoise.backends.asyncpg',
+                    'credentials': {
+                        'host': host,
+                        'port': int(port),
+                        'user': user,
+                        'password': password,
+                        'database': database,
+                        'ssl': None  # Disable SSL
+                    }
+                }
+            },
+            'apps': {
+                'models': {
+                    'models': model_modules,
+                    'default_connection': 'default'
+                }
+            }
+        }
+        await Tortoise.init(config=db_config)
+    else:
+        # Fallback to URL-based init
+        await Tortoise.init(
+            db_url=settings.DATABASE_URL,
+            modules={'models': model_modules}
+        )
+    
     await Tortoise.generate_schemas()
-    await init_lms_db()
+    
+    # Initialize all apps
+    await registry.initialize_apps()
+    
     yield
     await Tortoise.close_connections()
 
@@ -38,11 +72,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Register auth router
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
-app.include_router(ai_chat_router, prefix="/api/apps/ai-chat", tags=["ai-chat"])
-app.include_router(barista_router, prefix="/api/apps/agentic-barista", tags=["agentic-barista"])
-app.include_router(insurance_router, prefix="/api/apps/insurance-claims", tags=["insurance-claims"])
-app.include_router(lms_router, prefix="/api/apps/agentic-lms", tags=["agentic-lms"])
+
+# Auto-register all app routers
+for router, prefix, tags in registry.get_routers():
+    app.include_router(router, prefix=prefix, tags=tags)
 
 @app.get("/")
 async def root():

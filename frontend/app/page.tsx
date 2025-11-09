@@ -3,6 +3,9 @@
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import AppCard from './components/AppCard'
+import Modal from './components/Modal'
+import { apps } from './config/apps'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -173,145 +176,20 @@ export default function Home() {
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
-            <div style={{
-              background: '#1e293b',
-              borderRadius: '12px',
-              padding: '32px',
-              border: '1px solid #334155',
-              position: 'relative'
-            }}>
-              <div style={{ position: 'absolute', top: '20px', right: '20px', padding: '4px 12px', background: '#10b981', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '600' }}>active</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-                <div style={{ width: '48px', height: '48px', background: '#6366f1', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>💬</div>
-                <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>Chat</h3>
-              </div>
-              <p style={{ color: '#94a3b8', lineHeight: '1.6', marginBottom: '24px', fontSize: '0.95rem' }}>
-                • AI Chat<br/>
-                • Document Analysis<br/>
-                • Web Search<br/>
-                • Code Execution
-              </p>
-              <button onClick={handleLaunchChat} style={{ padding: '12px 28px', background: '#6366f1', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer', fontWeight: '600', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                Launch <span>↗</span>
-              </button>
-            </div>
-
-            <div style={{
-              background: '#1e293b',
-              borderRadius: '12px',
-              padding: '32px',
-              border: '1px solid #334155',
-              position: 'relative'
-            }}>
-              <div style={{ position: 'absolute', top: '20px', right: '20px', padding: '4px 12px', background: '#10b981', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '600' }}>active</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-                <div style={{ width: '48px', height: '48px', background: '#f97316', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>☕</div>
-                <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>Agentic Barista</h3>
-              </div>
-              <p style={{ color: '#94a3b8', lineHeight: '1.6', marginBottom: '24px', fontSize: '0.95rem' }}>
-                • Natural Language Ordering<br/>
-                • Menu Discovery<br/>
-                • Smart Cart Management<br/>
-                • Order Confirmation
-              </p>
-              <button onClick={() => window.open('/apps/agentic-barista', '_blank')} style={{ padding: '12px 28px', background: '#f97316', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer', fontWeight: '600', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                Launch <span>↗</span>
-              </button>
-            </div>
-
-            <div style={{
-              background: '#1e293b',
-              borderRadius: '12px',
-              padding: '32px',
-              border: '1px solid #334155',
-              position: 'relative'
-            }}>
-              <div style={{ position: 'absolute', top: '20px', right: '20px', padding: '4px 12px', background: '#10b981', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '600' }}>active</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-                <div style={{ width: '48px', height: '48px', background: '#06b6d4', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>🚗</div>
-                <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>Insurance Claims</h3>
-              </div>
-              <p style={{ color: '#94a3b8', lineHeight: '1.6', marginBottom: '24px', fontSize: '0.95rem' }}>
-                • Role-Based Workflow<br/>
-                • Policy Management<br/>
-                • Claims Processing<br/>
-                • Status Tracking
-              </p>
-              <button onClick={() => { if (!token) { setShowAuth(true); setIsLogin(true); } else { window.open('/apps/insurance-claims', '_blank'); } }} style={{ padding: '12px 28px', background: '#06b6d4', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer', fontWeight: '600', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                Launch <span>↗</span>
-              </button>
-            </div>
-
-            <div style={{
-              background: '#1e293b',
-              borderRadius: '12px',
-              padding: '32px',
-              border: '1px solid #334155',
-              position: 'relative'
-            }}>
-              <div style={{ position: 'absolute', top: '20px', right: '20px', padding: '4px 12px', background: '#10b981', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '600' }}>active</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-                <div style={{ width: '48px', height: '48px', background: '#8b5cf6', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>🎓</div>
-                <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>Agentic LMS</h3>
-              </div>
-              <p style={{ color: '#94a3b8', lineHeight: '1.6', marginBottom: '24px', fontSize: '0.95rem' }}>
-                • AI Course Discovery<br/>
-                • Natural Language Enrollment<br/>
-                • Progress Tracking<br/>
-                • LangGraph Agents
-              </p>
-              <button onClick={() => { if (!token) { setShowAuth(true); setIsLogin(true); } else { window.open('/apps/agentic-lms', '_blank'); } }} style={{ padding: '12px 28px', background: '#8b5cf6', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer', fontWeight: '600', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                Launch <span>↗</span>
-              </button>
-            </div>
-
-            <div style={{
-              background: '#1e293b',
-              borderRadius: '12px',
-              padding: '32px',
-              border: '1px solid #334155',
-              position: 'relative',
-              opacity: 0.6
-            }}>
-              <div style={{ position: 'absolute', top: '20px', right: '20px', padding: '4px 12px', background: '#64748b', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '600' }}>soon</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-                <div style={{ width: '48px', height: '48px', background: '#64748b', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>🚀</div>
-                <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>Coming Soon</h3>
-              </div>
-              <p style={{ color: '#94a3b8', lineHeight: '1.6', marginBottom: '24px', fontSize: '0.95rem' }}>
-                • New AI Application<br/>
-                • Advanced Features<br/>
-                • Enhanced Capabilities<br/>
-                • Stay Tuned
-              </p>
-              <button disabled style={{ padding: '12px 28px', background: '#64748b', border: 'none', borderRadius: '8px', color: 'white', cursor: 'not-allowed', fontWeight: '600', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                Coming Soon
-              </button>
-            </div>
-
-            <div style={{
-              background: '#1e293b',
-              borderRadius: '12px',
-              padding: '32px',
-              border: '1px solid #334155',
-              position: 'relative',
-              opacity: 0.6
-            }}>
-              <div style={{ position: 'absolute', top: '20px', right: '20px', padding: '4px 12px', background: '#64748b', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '600' }}>soon</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-                <div style={{ width: '48px', height: '48px', background: '#64748b', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>✨</div>
-                <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>Coming Soon</h3>
-              </div>
-              <p style={{ color: '#94a3b8', lineHeight: '1.6', marginBottom: '24px', fontSize: '0.95rem' }}>
-                • New AI Application<br/>
-                • Advanced Features<br/>
-                • Enhanced Capabilities<br/>
-                • Stay Tuned
-              </p>
-              <button disabled style={{ padding: '12px 28px', background: '#64748b', border: 'none', borderRadius: '8px', color: 'white', cursor: 'not-allowed', fontWeight: '600', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                Coming Soon
-              </button>
-            </div>
+            {apps.map(app => (
+              <AppCard
+                key={app.id}
+                app={app}
+                onLaunch={(app) => {
+                  if (app.requiresAuth && !token) {
+                    setShowAuth(true)
+                    setIsLogin(true)
+                  } else {
+                    window.open(app.route, '_blank')
+                  }
+                }}
+              />
+            ))}
           </div>
         </section>
 
@@ -356,7 +234,7 @@ export default function Home() {
             <h2 style={{ fontSize: '2rem', marginBottom: '40px', fontWeight: 'bold' }}>Platform Metrics</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '40px', maxWidth: '800px', margin: '0 auto' }}>
               <div>
-                <div style={{ fontSize: '3rem', fontWeight: 'bold', color: '#6366f1', marginBottom: '8px' }}>4</div>
+                <div style={{ fontSize: '3rem', fontWeight: 'bold', color: '#6366f1', marginBottom: '8px' }}>{apps.filter(a => a.status === 'active').length}</div>
                 <div style={{ fontSize: '1.1rem', color: '#94a3b8' }}>Applications</div>
               </div>
               <div>
@@ -392,55 +270,50 @@ export default function Home() {
       </footer>
 
       {/* Auth Modal */}
-      {showAuth && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowAuth(false)}>
-          <div style={{ background: '#1e293b', padding: '40px', borderRadius: '16px', width: '400px', maxWidth: '90%', border: '1px solid #334155' }} onClick={(e) => e.stopPropagation()}>
-            <h2 style={{ marginBottom: '30px', fontSize: '1.8rem' }}>{isLogin ? 'Login' : 'Register'}</h2>
-            <input 
-              type="email" 
-              placeholder="Email" 
-              value={formData.email}
-              onChange={(e) => setFormData({...formData, email: e.target.value})}
-              style={{ width: '100%', padding: '12px', marginBottom: '15px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white' }} 
-            />
-            {!isLogin && (
-              <input 
-                type="text" 
-                placeholder="Username" 
-                value={formData.username}
-                onChange={(e) => setFormData({...formData, username: e.target.value})}
-                style={{ width: '100%', padding: '12px', marginBottom: '15px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white' }} 
-              />
-            )}
-            <input 
-              type="password" 
-              placeholder="Password" 
-              value={formData.password}
-              onChange={(e) => setFormData({...formData, password: e.target.value})}
-              onKeyPress={(e) => e.key === 'Enter' && handleAuth()}
-              style={{ width: '100%', padding: '12px', marginBottom: '20px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white' }} 
-            />
-            {message && (
-              <p style={{ marginBottom: '15px', color: message.includes('successful') ? '#10b981' : '#ef4444', textAlign: 'center' }}>
-                {message}
-              </p>
-            )}
-            <button 
-              onClick={handleAuth}
-              disabled={loading}
-              style={{ width: '100%', padding: '12px', background: loading ? '#475569' : '#6366f1', border: 'none', borderRadius: '6px', color: 'white', fontSize: '1rem', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: '600', marginBottom: '15px' }}
-            >
-              {loading ? 'Processing...' : (isLogin ? 'Login' : 'Register')}
-            </button>
-            <p style={{ textAlign: 'center', fontSize: '0.9rem', color: '#64748b' }}>
-              {isLogin ? "Don't have an account? " : "Already have an account? "}
-              <span onClick={() => { setIsLogin(!isLogin); setMessage(''); }} style={{ color: '#6366f1', cursor: 'pointer', textDecoration: 'underline' }}>
-                {isLogin ? 'Register' : 'Login'}
-              </span>
-            </p>
-          </div>
-        </div>
-      )}
+      <Modal isOpen={showAuth} onClose={() => setShowAuth(false)} title={isLogin ? 'Login' : 'Register'} maxWidth="400px">
+        <input 
+          type="email" 
+          placeholder="Email" 
+          value={formData.email}
+          onChange={(e) => setFormData({...formData, email: e.target.value})}
+          style={{ width: '100%', padding: '12px', marginBottom: '15px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white' }} 
+        />
+        {!isLogin && (
+          <input 
+            type="text" 
+            placeholder="Username" 
+            value={formData.username}
+            onChange={(e) => setFormData({...formData, username: e.target.value})}
+            style={{ width: '100%', padding: '12px', marginBottom: '15px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white' }} 
+          />
+        )}
+        <input 
+          type="password" 
+          placeholder="Password" 
+          value={formData.password}
+          onChange={(e) => setFormData({...formData, password: e.target.value})}
+          onKeyPress={(e) => e.key === 'Enter' && handleAuth()}
+          style={{ width: '100%', padding: '12px', marginBottom: '20px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white' }} 
+        />
+        {message && (
+          <p style={{ marginBottom: '15px', color: message.includes('successful') ? '#10b981' : '#ef4444', textAlign: 'center' }}>
+            {message}
+          </p>
+        )}
+        <button 
+          onClick={handleAuth}
+          disabled={loading}
+          style={{ width: '100%', padding: '12px', background: loading ? '#475569' : '#6366f1', border: 'none', borderRadius: '6px', color: 'white', fontSize: '1rem', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: '600', marginBottom: '15px' }}
+        >
+          {loading ? 'Processing...' : (isLogin ? 'Login' : 'Register')}
+        </button>
+        <p style={{ textAlign: 'center', fontSize: '0.9rem', color: '#64748b' }}>
+          {isLogin ? "Don't have an account? " : "Already have an account? "}
+          <span onClick={() => { setIsLogin(!isLogin); setMessage(''); }} style={{ color: '#6366f1', cursor: 'pointer', textDecoration: 'underline' }}>
+            {isLogin ? 'Register' : 'Login'}
+          </span>
+        </p>
+      </Modal>
     </div>
   )
 }
