@@ -102,6 +102,9 @@ A scalable multi-AI platform with FastAPI backend, Next.js frontend, deployed on
 ### Agentic Tutor - Learning
 ![Agentic Tutor Learning](screenshots/6.4.png)
 
+### Agentic Tutor - Agent Flow
+![Agentic Tutor - Agent Flow](screenshots/6.21.png)
+
 ### AWS EKS Screen
 ![AWS EKS](screenshots/7.png)
 
