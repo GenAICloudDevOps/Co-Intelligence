@@ -14,6 +14,7 @@ class ChatRequest(BaseModel):
     session_id: int | None = None
     topic_id: int
     message: str
+    model: str = "gemini-2.5-flash-lite"
 
 class SessionCreate(BaseModel):
     topic_id: int
@@ -81,7 +82,8 @@ async def chat(data: ChatRequest, current_user: User = Depends(get_current_user)
         'intent': '',
         'response': '',
         'current_question': {},
-        'assessment_mode': assessment_mode
+        'assessment_mode': assessment_mode,
+        'model': data.model
     }
     
     result = tutor_graph.invoke(state)

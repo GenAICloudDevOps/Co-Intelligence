@@ -4,7 +4,6 @@ import google.generativeai as genai
 from config import settings
 
 genai.configure(api_key=settings.GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-2.0-flash-exp')
 
 class TutorState(TypedDict):
     user_id: int
@@ -17,6 +16,7 @@ class TutorState(TypedDict):
     response: str
     current_question: dict
     assessment_mode: bool
+    model: str
 
 def detect_intent(state: TutorState) -> TutorState:
     """Detect user intent"""
@@ -37,6 +37,7 @@ def detect_intent(state: TutorState) -> TutorState:
 
 def tutor_agent(state: TutorState) -> TutorState:
     """Main teaching agent"""
+    model = genai.GenerativeModel(state.get('model', 'gemini-2.5-flash-lite'))
     prompt = f"""You are an expert tutor teaching {state['topic']}.
 Difficulty level: {state['difficulty']}
 
@@ -53,6 +54,7 @@ Provide a clear, concise explanation with examples. Be encouraging and adaptive.
 
 def assessor_agent(state: TutorState) -> TutorState:
     """Generate assessment questions"""
+    model = genai.GenerativeModel(state.get('model', 'gemini-2.5-flash-lite'))
     prompt = f"""Generate a {state['difficulty']} level question about {state['topic']}.
 
 Format:
@@ -77,6 +79,7 @@ Make it practical and test understanding."""
 
 def grader_agent(state: TutorState) -> TutorState:
     """Grade student answers"""
+    model = genai.GenerativeModel(state.get('model', 'gemini-2.5-flash-lite'))
     prompt = f"""Question: {state['current_question'].get('question', 'Previous question')}
 Student Answer: {state['user_message']}
 
@@ -95,6 +98,7 @@ Be constructive and encouraging."""
 
 def hint_agent(state: TutorState) -> TutorState:
     """Provide progressive hints"""
+    model = genai.GenerativeModel(state.get('model', 'gemini-2.5-flash-lite'))
     prompt = f"""Student is stuck on: {state['current_question'].get('question', state['user_message'])}
 
 Provide a helpful hint that:

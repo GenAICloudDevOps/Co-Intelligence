@@ -16,8 +16,19 @@ from apps.registry import registry
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Build model modules list from registry
-    model_modules = ['auth.models', 'models.app_role'] + registry.get_model_modules()
+    print("=== LIFESPAN START ===")
+    # Build model modules list
+    model_modules = [
+        'auth.models',
+        'models.app_role',
+        'apps.ai_chat.models',
+        'apps.agentic_barista.models',
+        'apps.insurance_claims.models',
+        'apps.agentic_lms.models',
+        'apps.agentic_tutor.models'
+    ]
+    
+    print(f"Initializing with models: {model_modules}")
     
     # Parse DATABASE_URL
     import re
@@ -26,6 +37,7 @@ async def lifespan(app: FastAPI):
     
     if match:
         user, password, host, port, database = match.groups()
+        print(f"Database: {user}@{host}:{port}/{database}")
         db_config = {
             'connections': {
                 'default': {
@@ -36,7 +48,7 @@ async def lifespan(app: FastAPI):
                         'user': user,
                         'password': password,
                         'database': database,
-                        'ssl': None  # Disable SSL
+                        'ssl': None
                     }
                 }
             },
@@ -47,21 +59,30 @@ async def lifespan(app: FastAPI):
                 }
             }
         }
+        print("Calling Tortoise.init...")
         await Tortoise.init(config=db_config)
+        print("✓ Tortoise initialized")
     else:
-        # Fallback to URL-based init
+        print("ERROR: Could not parse DATABASE_URL")
         await Tortoise.init(
             db_url=settings.DATABASE_URL,
             modules={'models': model_modules}
         )
     
+    print("Generating schemas...")
     await Tortoise.generate_schemas()
+    print("✓ Schemas generated")
     
-    # Initialize all apps
+    print("Initializing apps...")
     await registry.initialize_apps()
+    print("✓ Apps initialized")
+    print("=== LIFESPAN READY ===")
     
     yield
+    
+    print("=== LIFESPAN SHUTDOWN ===")
     await Tortoise.close_connections()
+    print("✓ Connections closed")
 
 app = FastAPI(title="Co-Intelligence API", version="1.0.0", lifespan=lifespan)
 

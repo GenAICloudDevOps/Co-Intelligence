@@ -30,6 +30,7 @@ export default function AgenticTutor() {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState('All')
+  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash-lite')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -84,7 +85,8 @@ export default function AgenticTutor() {
         body: JSON.stringify({
           session_id: sessionId,
           topic_id: selectedTopic.id,
-          message: input
+          message: input,
+          model: selectedModel
         })
       })
       const data = await res.json()
@@ -110,7 +112,12 @@ export default function AgenticTutor() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5' }}>
-      <AppHeader appName="Agentic Tutor" />
+      <AppHeader 
+        appName="Agentic Tutor" 
+        showModelSelector={true}
+        selectedModel={selectedModel}
+        onModelChange={setSelectedModel}
+      />
       
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px' }}>
         {!selectedTopic ? (
