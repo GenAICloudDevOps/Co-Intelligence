@@ -19,7 +19,7 @@ cp .env.example .env
 **Required values:**
 ```bash
 # Database (will be filled after CloudFormation)
-DATABASE_URL=postgres://cointelligence:SecurePass123!@<RDS_ENDPOINT>:5432/postgres
+DATABASE_URL=postgres://cointelligence:SecurePass123@<RDS_ENDPOINT>:5432/postgres
 
 # AWS
 AWS_REGION=us-east-1
@@ -47,7 +47,7 @@ aws cloudformation create-stack \
   --template-body file://infra_without_eks.yaml \
   --parameters \
     ParameterKey=DBUsername,ParameterValue=cointelligence \
-    ParameterKey=DBPassword,ParameterValue=SecurePass123! \
+    ParameterKey=DBPassword,ParameterValue=SecurePass123 \
   --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
   --region us-east-1
 
