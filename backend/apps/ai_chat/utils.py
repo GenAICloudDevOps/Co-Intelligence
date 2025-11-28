@@ -2,11 +2,12 @@ import PyPDF2
 import docx
 import boto3
 import json
+import requests
 from io import BytesIO
 from tavily import TavilyClient
 from config import settings
 
-s3_client = boto3.client('s3', region_name=settings.AWS_REGION)
+s3_client = boto3.client('s3', region_name=settings.AWS_REGION) if settings.AWS_ACCESS_KEY_ID else None
 tavily_client = TavilyClient(api_key=settings.TAVILY_API_KEY) if settings.TAVILY_API_KEY else None
 
 def extract_text_from_pdf(file_content: bytes) -> str:
@@ -73,30 +74,42 @@ def search_web(query: str, max_results: int = 3) -> dict:
         return {"results": [], "error": str(e)}
 
 def execute_code(code: str, timeout: int = 30) -> dict:
-    """Execute Python code using Lambda and return results"""
-    lambda_client = boto3.client('lambda', region_name=settings.AWS_REGION)
+    """Execute Python code using HTTP endpoint or Lambda"""
     
+    # Use HTTP endpoint if configured (Azure/GCP)
+    if settings.CODE_EXECUTOR_URL:
+        try:
+            response = requests.post(
+                settings.CODE_EXECUTOR_URL,
+                json={'code': code, 'timeout': timeout},
+                timeout=timeout + 5
+            )
+            result = response.json()
+            return {
+                'success': result.get('success', False),
+                'output': result.get('output', ''),
+                'errors': result.get('errors'),
+            }
+        except Exception as e:
+            return {'success': False, 'output': '', 'errors': f"Code execution failed: {str(e)}"}
+    
+    # Fall back to AWS Lambda
+    if not settings.AWS_ACCESS_KEY_ID:
+        return {'success': False, 'output': '', 'errors': "Code execution not configured"}
+    
+    lambda_client = boto3.client('lambda', region_name=settings.AWS_REGION)
     try:
         response = lambda_client.invoke(
             FunctionName='co-intelligence-code-executor',
             InvocationType='RequestResponse',
-            Payload=json.dumps({
-                'code': code,
-                'timeout': timeout
-            })
+            Payload=json.dumps({'code': code, 'timeout': timeout})
         )
-        
         result = json.loads(response['Payload'].read())
         body = json.loads(result.get('body', '{}'))
-        
         return {
             'success': body.get('success', False),
             'output': body.get('output', ''),
             'errors': body.get('errors'),
         }
     except Exception as e:
-        return {
-            'success': False,
-            'output': '',
-            'errors': f"Lambda execution failed: {str(e)}"
-        }
+        return {'success': False, 'output': '', 'errors': f"Lambda execution failed: {str(e)}"}

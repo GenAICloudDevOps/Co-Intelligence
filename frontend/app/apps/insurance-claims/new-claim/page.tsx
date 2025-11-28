@@ -202,23 +202,14 @@ export default function NewClaim() {
               <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#94a3b8' }}>
                 Incident Location *
               </label>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <input
-                  type="text"
-                  value={formData.incident_location}
-                  onChange={(e) => setFormData({ ...formData, incident_location: e.target.value })}
-                  placeholder="e.g., Main St & 5th Ave, Seattle, WA"
-                  required
-                  style={{ flex: 1, padding: '12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => handleRewrite('incident_location')}
-                  style={{ padding: '12px 16px', background: '#8b5cf6', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600', whiteSpace: 'nowrap' }}
-                >
-                  ✨ Rewrite
-                </button>
-              </div>
+              <input
+                type="text"
+                value={formData.incident_location}
+                onChange={(e) => setFormData({ ...formData, incident_location: e.target.value })}
+                placeholder="e.g., Main St & 5th Ave, Seattle, WA"
+                required
+                style={{ width: '100%', padding: '12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white' }}
+              />
             </div>
 
             <div style={{ marginBottom: '24px' }}>

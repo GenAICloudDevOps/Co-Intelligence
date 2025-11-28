@@ -113,8 +113,68 @@ Keep it brief and supportive."""
     return state
 
 def progress_agent(state: TutorState) -> TutorState:
-    """Show progress summary"""
-    state['response'] = "Progress tracking will show your stats, scores, and recommendations."
+    """Show progress summary with nice formatting"""
+    progress_data = state.get('progress_data', [])
+    topic = state.get('topic', '')
+    
+    # Find progress for current topic
+    topic_progress = next((p for p in progress_data if p['topic'] == topic), None)
+    
+    if not topic_progress:
+        state['response'] = f"""📊 **Progress - {topic}**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📝 Quizzes Completed: 0
+🎯 Average Score: --
+📈 Progress: Not started
+
+💡 **Tip:** Say "quiz me" to take your first quiz and start tracking progress!"""
+        return state
+    
+    # Calculate progress bar
+    score = topic_progress['average_score']
+    filled = int(score / 10)
+    bar = '█' * filled + '░' * (10 - filled)
+    
+    # Determine status
+    if topic_progress['completed']:
+        status = "✅ Completed!"
+    elif score >= 80:
+        status = "🌟 Excellent - Almost there!"
+    elif score >= 60:
+        status = "📚 Good progress - Keep going!"
+    else:
+        status = "💪 Keep practicing!"
+    
+    # Build response
+    response = f"""📊 **Progress - {topic}**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📝 Quizzes Completed: {topic_progress['assessments_taken']}
+🎯 Average Score: {score:.0f}%
+📈 Progress: [{bar}] {score:.0f}%
+🏆 Status: {status}
+"""
+    
+    # Add recommendation
+    if score < 60:
+        response += "\n💡 **Recommendation:** Review the basics and try more practice quizzes."
+    elif score < 80:
+        response += "\n💡 **Recommendation:** You're doing well! A few more quizzes to master this topic."
+    elif not topic_progress['completed']:
+        response += "\n💡 **Recommendation:** Great scores! Complete one more quiz to finish this topic."
+    else:
+        response += "\n🎉 **Congratulations!** You've mastered this topic. Ready for the next challenge?"
+    
+    # Show other topics if any
+    other_progress = [p for p in progress_data if p['topic'] != topic and p['assessments_taken'] > 0]
+    if other_progress:
+        response += "\n\n**Other Topics:**\n"
+        for p in other_progress[:3]:
+            emoji = "✅" if p['completed'] else "📚"
+            response += f"{emoji} {p['topic']}: {p['average_score']:.0f}%\n"
+    
+    state['response'] = response
     return state
 
 def route_intent(state: TutorState) -> Literal["teach", "assess", "grade", "hint", "progress"]:

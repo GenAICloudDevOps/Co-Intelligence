@@ -45,6 +45,10 @@ output "storage_account" {
   value = azurerm_storage_account.storage.name
 }
 
+output "code_executor_url" {
+  value = "https://${azurerm_linux_function_app.code_executor.default_hostname}/api/execute"
+}
+
 output "storage_key" {
   value     = azurerm_storage_account.storage.primary_access_key
   sensitive = true

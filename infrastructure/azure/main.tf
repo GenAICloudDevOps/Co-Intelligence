@@ -171,6 +171,35 @@ resource "azurerm_storage_container" "uploads" {
   container_access_type = "private"
 }
 
+# Azure Function for Code Execution
+resource "azurerm_service_plan" "functions" {
+  name                = "${var.app_name}-func-plan"
+  resource_group_name = local.resource_group_name
+  location            = local.location
+  os_type             = "Linux"
+  sku_name            = "Y1"
+}
+
+resource "azurerm_linux_function_app" "code_executor" {
+  name                = "${var.app_name}-executor-${random_id.suffix.hex}"
+  resource_group_name = local.resource_group_name
+  location            = local.location
+  service_plan_id     = azurerm_service_plan.functions.id
+
+  storage_account_name       = azurerm_storage_account.storage.name
+  storage_account_access_key = azurerm_storage_account.storage.primary_access_key
+
+  site_config {
+    application_stack {
+      python_version = "3.11"
+    }
+  }
+
+  app_settings = {
+    "FUNCTIONS_WORKER_RUNTIME" = "python"
+  }
+}
+
 # Key Vault
 resource "azurerm_key_vault" "kv" {
   name                = "coikv${random_id.suffix.hex}"

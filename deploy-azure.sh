@@ -39,6 +39,19 @@ if [ ! -f "$TERRAFORM_DIR/terraform.tfstate" ]; then
     cd ../..
 fi
 
+# Deploy Azure Function
+echo "Deploying Azure Function..."
+FUNC_APP_NAME=$(cd $TERRAFORM_DIR && terraform output -raw code_executor_url | sed 's|https://||' | sed 's|\..*||')
+cd $TERRAFORM_DIR/function
+zip -r ../function.zip .
+az functionapp deployment source config-zip \
+  -g $(cd .. && terraform output -raw resource_group) \
+  -n $FUNC_APP_NAME \
+  --src ../function.zip
+rm ../function.zip
+cd ../../..
+echo "✓ Azure Function deployed"
+
 # Load API keys from .env
 if [ -f ".env" ]; then
     echo "Loading API keys from .env..."
@@ -59,6 +72,7 @@ ACR_SERVER=$(terraform output -raw acr_login_server)
 ACR_USERNAME=$(terraform output -raw acr_admin_username)
 ACR_PASSWORD=$(terraform output -raw acr_admin_password)
 STORAGE_ACCOUNT=$(terraform output -raw storage_account)
+CODE_EXECUTOR_URL=$(terraform output -raw code_executor_url)
 
 cd ../..
 
@@ -124,6 +138,7 @@ kubectl create secret generic app-secrets \
     --from-literal=DATABASE_URL="postgres://$DB_USERNAME:$DB_PASSWORD@$DB_HOST:5432/$DB_NAME?sslmode=require" \
     --from-literal=SECRET_KEY="$SECRET_KEY" \
     --from-literal=AZURE_STORAGE_ACCOUNT="$STORAGE_ACCOUNT" \
+    --from-literal=CODE_EXECUTOR_URL="$CODE_EXECUTOR_URL" \
     --from-literal=GEMINI_API_KEY="${GEMINI_API_KEY:-}" \
     --from-literal=GROQ_API_KEY="${GROQ_API_KEY:-}" \
     --from-literal=TAVILY_API_KEY="${TAVILY_API_KEY:-}" \

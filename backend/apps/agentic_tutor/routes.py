@@ -71,6 +71,10 @@ async def chat(data: ChatRequest, current_user: User = Depends(get_current_user)
     last_message = messages[-1] if messages else None
     assessment_mode = last_message and last_message.agent_type == 'assessor'
     
+    # Fetch progress data for progress agent
+    progress_records = await Progress.filter(user_id=current_user.id).prefetch_related('topic')
+    progress_data = [{"topic": p.topic.name, "assessments_taken": p.assessments_taken, "average_score": p.average_score, "completed": p.completed} for p in progress_records]
+    
     # Run through LangGraph
     state = {
         'user_id': current_user.id,
@@ -83,7 +87,8 @@ async def chat(data: ChatRequest, current_user: User = Depends(get_current_user)
         'response': '',
         'current_question': {},
         'assessment_mode': assessment_mode,
-        'model': data.model
+        'model': data.model,
+        'progress_data': progress_data
     }
     
     result = tutor_graph.invoke(state)
@@ -96,6 +101,28 @@ async def chat(data: ChatRequest, current_user: User = Depends(get_current_user)
         content=result['response'],
         agent_type=agent_type
     )
+    
+    # Save progress if grading happened
+    if agent_type == 'grade':
+        # Extract score from response (look for percentage)
+        import re
+        score_match = re.search(r'(\d+)(?:\s*%|/100)', result['response'])
+        score = int(score_match.group(1)) if score_match else 70  # default score
+        
+        # Get or create progress record
+        progress, created = await Progress.get_or_create(
+            user_id=current_user.id,
+            topic_id=topic.id,
+            defaults={'assessments_taken': 0, 'average_score': 0, 'total_score': 0}
+        )
+        
+        # Update progress
+        progress.assessments_taken += 1
+        progress.total_score += score
+        progress.average_score = progress.total_score / progress.assessments_taken
+        if progress.average_score >= 80 and progress.assessments_taken >= 3:
+            progress.completed = True
+        await progress.save()
     
     return {
         "session_id": session.id,

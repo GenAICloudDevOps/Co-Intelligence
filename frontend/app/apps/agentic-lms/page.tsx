@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import AppHeader from '../../components/AppHeader'
+import { ModelSelector, DEFAULT_MODEL } from '../../config/models'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
@@ -23,6 +24,14 @@ interface Enrollment {
   completed: boolean
 }
 
+const SUBTOPICS = [
+  { id: 1, name: 'Introduction & Overview', icon: '📖' },
+  { id: 2, name: 'Core Concepts', icon: '🎯' },
+  { id: 3, name: 'Hands-on Practice', icon: '💻' },
+  { id: 4, name: 'Advanced Topics', icon: '🚀' },
+  { id: 5, name: 'Review & Assessment', icon: '✅' },
+]
+
 export default function AgenticLMS() {
   const [view, setView] = useState<'home' | 'catalog' | 'enrollments'>('home')
   const [courses, setCourses] = useState<Course[]>([])
@@ -31,10 +40,17 @@ export default function AgenticLMS() {
   const [chatMessage, setChatMessage] = useState('')
   const [chatHistory, setChatHistory] = useState<{role: string, content: string}[]>([])
   const [loading, setLoading] = useState(false)
+  const [completedSubtopics, setCompletedSubtopics] = useState<{[enrollmentId: number]: number[]}>({})
+  const [expandedEnrollment, setExpandedEnrollment] = useState<number | null>(null)
+  const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL)
 
   useEffect(() => {
     fetchCourses()
     fetchEnrollments()
+    const saved = localStorage.getItem('lms_progress')
+    if (saved) setCompletedSubtopics(JSON.parse(saved))
+    const savedModel = localStorage.getItem('lms_model')
+    if (savedModel) setSelectedModel(savedModel)
   }, [])
 
   const fetchCourses = async () => {
@@ -74,9 +90,25 @@ export default function AgenticLMS() {
     }
   }
 
+  const toggleSubtopic = (enrollmentId: number, subtopicId: number) => {
+    setCompletedSubtopics(prev => {
+      const current = prev[enrollmentId] || []
+      const updated = current.includes(subtopicId)
+        ? current.filter(id => id !== subtopicId)
+        : [...current, subtopicId]
+      const newState = { ...prev, [enrollmentId]: updated }
+      localStorage.setItem('lms_progress', JSON.stringify(newState))
+      return newState
+    })
+  }
+
+  const getProgress = (enrollmentId: number) => {
+    const completed = completedSubtopics[enrollmentId] || []
+    return Math.round((completed.length / SUBTOPICS.length) * 100)
+  }
+
   const handleChat = async () => {
     if (!chatMessage.trim()) return
-    
     setLoading(true)
     setChatHistory([...chatHistory, { role: 'user', content: chatMessage }])
     
@@ -84,28 +116,25 @@ export default function AgenticLMS() {
       const token = localStorage.getItem('token')
       const response = await axios.post(`${API_URL}/api/apps/agentic-lms/chat`, {
         message: chatMessage,
-        model: 'gemini-2.5-flash-lite'
+        model: selectedModel
       }, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      
       setChatHistory(prev => [...prev, { role: 'assistant', content: response.data.response }])
       setChatMessage('')
-      
-      // Refresh enrollments if enrollment happened
-      if (response.data.response.includes('enrolled')) {
-        await fetchEnrollments()
-      }
+      if (response.data.response.includes('enrolled')) await fetchEnrollments()
     } catch (error) {
       console.error('Chat error:', error)
     }
     setLoading(false)
   }
 
-  const isEnrolled = (courseId: number) => {
-    return enrollments.some(e => e.course.id === courseId)
+  const handleModelChange = (model: string) => {
+    setSelectedModel(model)
+    localStorage.setItem('lms_model', model)
   }
 
+  const isEnrolled = (courseId: number) => enrollments.some(e => e.course.id === courseId)
   const featuredCourses = courses.slice(0, 4)
 
   return (
@@ -113,48 +142,37 @@ export default function AgenticLMS() {
       <AppHeader appName="Agentic LMS" />
 
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '40px' }}>
-        {/* Navigation */}
-        <div style={{ display: 'flex', gap: '20px', marginBottom: '40px', borderBottom: '1px solid #334155', paddingBottom: '20px' }}>
-          <button onClick={() => setView('home')} style={{ padding: '10px 20px', background: view === 'home' ? '#6366f1' : 'transparent', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>
-            🏠 Home
-          </button>
-          <button onClick={() => setView('catalog')} style={{ padding: '10px 20px', background: view === 'catalog' ? '#6366f1' : 'transparent', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>
-            📚 Course Catalog
-          </button>
-          <button onClick={() => setView('enrollments')} style={{ padding: '10px 20px', background: view === 'enrollments' ? '#6366f1' : 'transparent', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>
-            📖 My Enrollments
-          </button>
+        <div style={{ display: 'flex', gap: '20px', marginBottom: '40px', borderBottom: '1px solid #334155', paddingBottom: '20px', alignItems: 'center' }}>
+          <button onClick={() => setView('home')} style={{ padding: '10px 20px', background: view === 'home' ? '#6366f1' : 'transparent', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>🏠 Home</button>
+          <button onClick={() => setView('catalog')} style={{ padding: '10px 20px', background: view === 'catalog' ? '#6366f1' : 'transparent', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>📚 Course Catalog</button>
+          <button onClick={() => setView('enrollments')} style={{ padding: '10px 20px', background: view === 'enrollments' ? '#6366f1' : 'transparent', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>📖 My Enrollments</button>
+          <div style={{ marginLeft: 'auto' }}>
+            <ModelSelector value={selectedModel} onChange={handleModelChange} />
+          </div>
         </div>
 
-        {/* Home View */}
         {view === 'home' && (
           <div>
             <div style={{ textAlign: 'center', marginBottom: '60px' }}>
               <h1 style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '16px' }}>Learning Management System</h1>
-              <p style={{ fontSize: '1.2rem', color: '#94a3b8', marginBottom: '8px' }}>AI-Powered</p>
-              <p style={{ fontSize: '1rem', color: '#64748b' }}>Use natural language to discover and enroll in courses</p>
+              <p style={{ fontSize: '1.2rem', color: '#94a3b8' }}>AI-Powered Course Discovery & Learning</p>
             </div>
-
             <h2 style={{ fontSize: '1.8rem', marginBottom: '30px', fontWeight: 'bold' }}>Featured Courses</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
               {featuredCourses.map(course => (
                 <div key={course.id} style={{ background: '#1e293b', borderRadius: '12px', padding: '24px', border: '1px solid #334155' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
                     <span style={{ padding: '4px 12px', background: '#6366f1', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '600' }}>{course.category}</span>
                     <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>{course.difficulty}</span>
                   </div>
                   <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '12px' }}>{course.title}</h3>
-                  <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '16px', lineHeight: '1.6' }}>{course.description}</p>
+                  <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '16px' }}>{course.description}</p>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '0.85rem', color: '#64748b' }}>⏱️ {course.duration_hours}h</span>
                     {isEnrolled(course.id) ? (
-                      <span style={{ padding: '8px 16px', background: '#334155', borderRadius: '6px', color: '#10b981', fontWeight: '600', fontSize: '0.9rem' }}>
-                        ✓ Enrolled
-                      </span>
+                      <span style={{ padding: '8px 16px', background: '#334155', borderRadius: '6px', color: '#10b981', fontWeight: '600' }}>✓ Enrolled</span>
                     ) : (
-                      <button onClick={() => handleEnroll(course.id)} style={{ padding: '8px 16px', background: '#10b981', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600', fontSize: '0.9rem' }}>
-                        Enroll Now
-                      </button>
+                      <button onClick={() => handleEnroll(course.id)} style={{ padding: '8px 16px', background: '#10b981', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>Enroll Now</button>
                     )}
                   </div>
                 </div>
@@ -163,29 +181,24 @@ export default function AgenticLMS() {
           </div>
         )}
 
-        {/* Catalog View */}
         {view === 'catalog' && (
           <div>
             <h2 style={{ fontSize: '2rem', marginBottom: '30px', fontWeight: 'bold' }}>All Courses</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
               {courses.map(course => (
                 <div key={course.id} style={{ background: '#1e293b', borderRadius: '12px', padding: '24px', border: '1px solid #334155' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
                     <span style={{ padding: '4px 12px', background: '#6366f1', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '600' }}>{course.category}</span>
                     <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>{course.difficulty}</span>
                   </div>
                   <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '12px' }}>{course.title}</h3>
-                  <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '16px', lineHeight: '1.6' }}>{course.description}</p>
+                  <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '16px' }}>{course.description}</p>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '0.85rem', color: '#64748b' }}>⏱️ {course.duration_hours}h</span>
                     {isEnrolled(course.id) ? (
-                      <span style={{ padding: '8px 16px', background: '#334155', borderRadius: '6px', color: '#10b981', fontWeight: '600', fontSize: '0.9rem' }}>
-                        ✓ Enrolled
-                      </span>
+                      <span style={{ padding: '8px 16px', background: '#334155', borderRadius: '6px', color: '#10b981', fontWeight: '600' }}>✓ Enrolled</span>
                     ) : (
-                      <button onClick={() => handleEnroll(course.id)} style={{ padding: '8px 16px', background: '#10b981', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600', fontSize: '0.9rem' }}>
-                        Enroll Now
-                      </button>
+                      <button onClick={() => handleEnroll(course.id)} style={{ padding: '8px 16px', background: '#10b981', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>Enroll Now</button>
                     )}
                   </div>
                 </div>
@@ -194,75 +207,99 @@ export default function AgenticLMS() {
           </div>
         )}
 
-        {/* Enrollments View */}
         {view === 'enrollments' && (
           <div>
             <h2 style={{ fontSize: '2rem', marginBottom: '30px', fontWeight: 'bold' }}>My Enrollments</h2>
             {enrollments.length === 0 ? (
               <p style={{ color: '#94a3b8', fontSize: '1.1rem' }}>No enrollments yet. Browse the catalog to get started!</p>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
-                {enrollments.map(enrollment => (
-                  <div key={enrollment.id} style={{ background: '#1e293b', borderRadius: '12px', padding: '24px', border: '1px solid #334155' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
-                      <span style={{ padding: '4px 12px', background: '#6366f1', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '600' }}>{enrollment.course.category}</span>
-                      <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>{enrollment.course.difficulty}</span>
-                    </div>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '12px' }}>{enrollment.course.title}</h3>
-                    <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '16px', lineHeight: '1.6' }}>{enrollment.course.description}</p>
-                    <div style={{ marginBottom: '12px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Progress</span>
-                        <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>{enrollment.progress}%</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                {enrollments.map(enrollment => {
+                  const progress = getProgress(enrollment.id)
+                  const completed = completedSubtopics[enrollment.id] || []
+                  const isExpanded = expandedEnrollment === enrollment.id
+                  
+                  return (
+                    <div key={enrollment.id} style={{ background: '#1e293b', borderRadius: '12px', border: '1px solid #334155', overflow: 'hidden' }}>
+                      <div style={{ padding: '24px', cursor: 'pointer' }} onClick={() => setExpandedEnrollment(isExpanded ? null : enrollment.id)}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
+                          <div>
+                            <span style={{ padding: '4px 12px', background: '#6366f1', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '600' }}>{enrollment.course.category}</span>
+                            <h3 style={{ fontSize: '1.3rem', fontWeight: 'bold', marginTop: '12px' }}>{enrollment.course.title}</h3>
+                          </div>
+                          <span style={{ fontSize: '1.5rem' }}>{isExpanded ? '▼' : '▶'}</span>
+                        </div>
+                        <div style={{ marginTop: '16px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <span style={{ fontSize: '0.9rem', color: '#94a3b8' }}>Progress</span>
+                            <span style={{ fontSize: '0.9rem', fontWeight: '600', color: progress === 100 ? '#10b981' : '#94a3b8' }}>{progress}%</span>
+                          </div>
+                          <div style={{ width: '100%', height: '10px', background: '#334155', borderRadius: '5px', overflow: 'hidden' }}>
+                            <div style={{ width: `${progress}%`, height: '100%', background: progress === 100 ? '#10b981' : '#6366f1', transition: 'width 0.3s' }}></div>
+                          </div>
+                        </div>
                       </div>
-                      <div style={{ width: '100%', height: '8px', background: '#334155', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div style={{ width: `${enrollment.progress}%`, height: '100%', background: '#10b981', transition: 'width 0.3s' }}></div>
-                      </div>
+                      
+                      {isExpanded && (
+                        <div style={{ padding: '0 24px 24px', borderTop: '1px solid #334155', paddingTop: '20px' }}>
+                          <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '16px', color: '#94a3b8' }}>Course Modules</h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {SUBTOPICS.map(subtopic => {
+                              const isCompleted = completed.includes(subtopic.id)
+                              return (
+                                <label key={subtopic.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: isCompleted ? '#10b98120' : '#0f172a', borderRadius: '8px', cursor: 'pointer', border: `1px solid ${isCompleted ? '#10b981' : '#334155'}` }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isCompleted}
+                                    onChange={() => toggleSubtopic(enrollment.id, subtopic.id)}
+                                    style={{ width: '20px', height: '20px', accentColor: '#10b981' }}
+                                  />
+                                  <span style={{ fontSize: '1.2rem' }}>{subtopic.icon}</span>
+                                  <span style={{ fontSize: '0.95rem', color: isCompleted ? '#10b981' : 'white' }}>{subtopic.name}</span>
+                                  {isCompleted && <span style={{ marginLeft: 'auto', color: '#10b981' }}>✓</span>}
+                                </label>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                      Enrolled: {new Date(enrollment.enrolled_at).toLocaleDateString()}
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
         )}
       </div>
 
-      {/* Chatbot */}
+      {/* Chat Button */}
+      <button onClick={() => setChatOpen(!chatOpen)} style={{ position: 'fixed', bottom: '24px', right: '24px', width: '60px', height: '60px', borderRadius: '50%', background: '#6366f1', border: 'none', color: 'white', fontSize: '1.5rem', cursor: 'pointer', boxShadow: '0 4px 12px rgba(99, 102, 241, 0.4)', zIndex: 1000 }}>
+        {chatOpen ? '✕' : '💬'}
+      </button>
+
+      {/* Chat Modal */}
       {chatOpen && (
-        <div style={{ position: 'fixed', bottom: '100px', right: '30px', width: '400px', height: '500px', background: '#1e293b', borderRadius: '12px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', zIndex: 1000 }}>
-          <div style={{ padding: '16px', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>🤖 Course Assistant</h3>
-            <button onClick={() => setChatOpen(false)} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+        <div style={{ position: 'fixed', bottom: '100px', right: '24px', width: '380px', height: '500px', background: '#1e293b', borderRadius: '16px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', zIndex: 1000 }}>
+          <div style={{ padding: '16px', borderBottom: '1px solid #334155' }}>
+            <div style={{ fontWeight: '600' }}>🤖 Course Assistant</div>
+            <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Ask about courses or say "enroll me in..."</div>
           </div>
           <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {chatHistory.length === 0 && <p style={{ color: '#64748b', textAlign: 'center', padding: '40px' }}>Ask me about courses!</p>}
             {chatHistory.map((msg, idx) => (
               <div key={idx} style={{ padding: '12px', background: msg.role === 'user' ? '#6366f1' : '#334155', borderRadius: '8px', alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
                 <p style={{ fontSize: '0.9rem', margin: 0 }}>{msg.content}</p>
               </div>
             ))}
+            {loading && <div style={{ padding: '12px', background: '#334155', borderRadius: '8px', color: '#94a3b8' }}>Thinking...</div>}
           </div>
-          <div style={{ padding: '16px', borderTop: '1px solid #334155', display: 'flex', gap: '8px' }}>
-            <input 
-              value={chatMessage}
-              onChange={(e) => setChatMessage(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleChat()}
-              placeholder="Ask about courses..."
-              style={{ flex: 1, padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white' }}
-            />
-            <button onClick={handleChat} disabled={loading} style={{ padding: '10px 20px', background: '#6366f1', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>
-              {loading ? '...' : 'Send'}
-            </button>
+          <div style={{ padding: '12px', borderTop: '1px solid #334155', display: 'flex', gap: '8px' }}>
+            <input value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleChat()}
+              placeholder="Ask about courses..." style={{ flex: 1, padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: 'white', outline: 'none' }} />
+            <button onClick={handleChat} disabled={loading} style={{ padding: '10px 16px', background: '#6366f1', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer' }}>Send</button>
           </div>
         </div>
       )}
-
-      {/* Chat Button */}
-      <button onClick={() => setChatOpen(!chatOpen)} style={{ position: 'fixed', bottom: '30px', right: '30px', width: '60px', height: '60px', borderRadius: '50%', background: '#6366f1', border: 'none', color: 'white', fontSize: '1.5rem', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', zIndex: 999 }}>
-        💬
-      </button>
     </div>
   )
 }
