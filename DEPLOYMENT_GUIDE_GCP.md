@@ -4,14 +4,58 @@ Deploy Co-Intelligence to Google Cloud Platform using GKE, Cloud SQL, and Artifa
 
 ## Prerequisites
 
-- [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) installed and configured
+- [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) installed
 - [Terraform](https://www.terraform.io/downloads) >= 1.0
 - Docker installed
 - kubectl installed
 
-## Quick Start (2 Steps)
+## Fresh Deployment
 
-### Step 1: Create Infrastructure
+### Step 1: Authenticate & Configure GCP
+
+```bash
+# Login to GCP
+gcloud auth login
+
+# Set your project
+gcloud config set project YOUR_PROJECT_ID
+
+# Set application default credentials (required for Terraform)
+gcloud auth application-default login
+
+# Enable required APIs
+gcloud services enable \
+  container.googleapis.com \
+  sqladmin.googleapis.com \
+  artifactregistry.googleapis.com \
+  secretmanager.googleapis.com \
+  servicenetworking.googleapis.com \
+  cloudfunctions.googleapis.com \
+  cloudbuild.googleapis.com \
+  compute.googleapis.com
+```
+
+### Step 2: Prepare Environment
+
+```bash
+# Copy environment template
+cp .env.example .env
+
+# Edit .env and add your API keys:
+# - GEMINI_API_KEY (from Google AI Studio)
+# - GROQ_API_KEY
+# - TAVILY_API_KEY
+```
+
+### Step 3: Clean Terraform State (if re-deploying)
+
+```bash
+cd infrastructure/gcp
+rm -f terraform.tfstate terraform.tfstate.backup
+rm -rf .terraform .terraform.lock.hcl
+```
+
+### Step 4: Create Infrastructure
 
 ```bash
 cd infrastructure/gcp
@@ -29,20 +73,26 @@ This creates:
 - ✅ Cloud SQL PostgreSQL (2 vCPU, 8GB RAM, 50GB SSD)
 - ✅ Artifact Registry (backend + frontend repos)
 - ✅ Cloud Storage bucket
-- ✅ Secret Manager secrets (auto-generated DB password + SECRET_KEY)
+- ✅ Secret Manager secrets
+- ✅ Cloud Function for code execution
 
 **Time:** ~15-20 minutes
 
-### Step 2: Deploy Application
+### Step 5: Deploy Application
 
 ```bash
 cd ../..  # Back to project root
+
+# Make script executable
+chmod +x deploy-gcp.sh
+
+# Deploy
 ./deploy-gcp.sh
 ```
 
 This will:
 - ✅ Fetch Terraform outputs
-- ✅ Generate `.env.gcp` with all config values
+- ✅ Update `.env` with infrastructure values
 - ✅ Build and push Docker images to Artifact Registry
 - ✅ Configure kubectl for GKE
 - ✅ Create Kubernetes secrets
@@ -83,6 +133,7 @@ terraform apply \
 | Artifact Registry | 2 repos (backend, frontend) | Docker images |
 | Cloud Storage | 1 bucket | File storage |
 | Secret Manager | 2 secrets | DB password, SECRET_KEY |
+| Cloud Function | Python 3.11, 512MB | Code execution |
 | VPC | 1 network + subnet | Networking |
 
 ---

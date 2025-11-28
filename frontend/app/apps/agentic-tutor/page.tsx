@@ -5,7 +5,7 @@ import AppHeader from '@/app/components/AppHeader'
 import Card from '@/app/components/Card'
 import { useState, useEffect, useRef } from 'react'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
 interface Topic {
   id: number

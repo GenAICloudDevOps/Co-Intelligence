@@ -51,3 +51,13 @@ output "bucket_name" {
 output "function_bucket" {
   value = google_storage_bucket.function_bucket.name
 }
+
+output "code_executor_url" {
+  value       = google_cloudfunctions_function.code_executor.https_trigger_url
+  description = "Cloud Function URL for code execution"
+}
+
+output "gke_service_account" {
+  value       = google_service_account.gke_sa.email
+  description = "GKE service account email"
+}

@@ -2,19 +2,41 @@
 set -e
 
 echo "=========================================="
-echo "Co-Intelligence GCP Deployment"
+echo "Co-Intelligence Azure Deployment"
 echo "=========================================="
 
-command -v gcloud >/dev/null 2>&1 || { echo "gcloud CLI required"; exit 1; }
+command -v az >/dev/null 2>&1 || { echo "Azure CLI required"; exit 1; }
 command -v terraform >/dev/null 2>&1 || { echo "terraform required"; exit 1; }
 command -v kubectl >/dev/null 2>&1 || { echo "kubectl required"; exit 1; }
 command -v docker >/dev/null 2>&1 || { echo "docker required"; exit 1; }
 
-TERRAFORM_DIR="infrastructure/gcp"
+TERRAFORM_DIR="infrastructure/azure"
 
-if [ ! -f "$TERRAFORM_DIR/terraform.tfstate" ]; then
-    echo "Error: Run 'terraform apply' first in $TERRAFORM_DIR"
+# Auto-detect resource group and location from Azure
+echo "Auto-detecting Azure resource group..."
+RG_INFO=$(az group list --query "[0].{name:name, location:location}" -o tsv 2>/dev/null)
+if [ -z "$RG_INFO" ]; then
+    echo "Error: No resource group found. Make sure you're logged in: az login"
     exit 1
+fi
+DETECTED_RG=$(echo "$RG_INFO" | cut -f1)
+DETECTED_LOCATION=$(echo "$RG_INFO" | cut -f2)
+echo "✓ Found resource group: $DETECTED_RG ($DETECTED_LOCATION)"
+
+# Update terraform variables with detected values
+cat > "$TERRAFORM_DIR/terraform.tfvars" << EOF
+resource_group_name = "$DETECTED_RG"
+location            = "$DETECTED_LOCATION"
+EOF
+echo "✓ Updated terraform.tfvars"
+
+# Initialize and apply Terraform if no state exists
+if [ ! -f "$TERRAFORM_DIR/terraform.tfstate" ]; then
+    echo "Running Terraform..."
+    cd $TERRAFORM_DIR
+    terraform init
+    terraform apply -auto-approve
+    cd ../..
 fi
 
 # Load API keys from .env
@@ -26,18 +48,17 @@ fi
 echo "Fetching Terraform outputs..."
 cd $TERRAFORM_DIR
 
-PROJECT_ID=$(terraform output -raw project_id)
-REGION=$(terraform output -raw region)
-GKE_CLUSTER=$(terraform output -raw gke_cluster_name)
-GKE_ZONE=$(terraform output -raw gke_zone)
+RESOURCE_GROUP=$(terraform output -raw resource_group)
+AKS_CLUSTER=$(terraform output -raw aks_cluster_name)
 DB_HOST=$(terraform output -raw db_host)
 DB_NAME=$(terraform output -raw db_name)
 DB_USERNAME=$(terraform output -raw db_username)
 DB_PASSWORD=$(terraform output -raw db_password)
 SECRET_KEY=$(terraform output -raw secret_key)
-BACKEND_REGISTRY=$(terraform output -raw backend_registry)
-FRONTEND_REGISTRY=$(terraform output -raw frontend_registry)
-BUCKET_NAME=$(terraform output -raw bucket_name)
+ACR_SERVER=$(terraform output -raw acr_login_server)
+ACR_USERNAME=$(terraform output -raw acr_admin_username)
+ACR_PASSWORD=$(terraform output -raw acr_admin_password)
+STORAGE_ACCOUNT=$(terraform output -raw storage_account)
 
 cd ../..
 
@@ -57,43 +78,52 @@ AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
 AWS_REGION=${AWS_REGION:-us-east-1}
 
 # Infrastructure (auto-populated)
-DATABASE_URL=postgres://$DB_USERNAME:$DB_PASSWORD@$DB_HOST:5432/$DB_NAME
+DATABASE_URL=postgres://$DB_USERNAME:$DB_PASSWORD@$DB_HOST:5432/$DB_NAME?sslmode=require
 SECRET_KEY=$SECRET_KEY
-GCS_BUCKET=$BUCKET_NAME
+AZURE_STORAGE_ACCOUNT=$STORAGE_ACCOUNT
 EOF
 echo "✓ .env updated"
 
-# Configure Docker for Artifact Registry
-echo "Configuring Docker for Artifact Registry..."
-gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
-echo "✓ Docker configured"
+# Login to ACR
+echo "Logging into Azure Container Registry..."
+docker login $ACR_SERVER -u $ACR_USERNAME -p $ACR_PASSWORD
+echo "✓ ACR login successful"
 
 # Build and push images
 echo "Building and pushing backend..."
-docker build -t $BACKEND_REGISTRY/backend:latest ./backend
-docker push $BACKEND_REGISTRY/backend:latest
+docker build -t $ACR_SERVER/backend:latest ./backend
+docker push $ACR_SERVER/backend:latest
 
 echo "Building and pushing frontend..."
-docker build -t $FRONTEND_REGISTRY/frontend:latest ./frontend
-docker push $FRONTEND_REGISTRY/frontend:latest
+docker build -t $ACR_SERVER/frontend:latest ./frontend
+docker push $ACR_SERVER/frontend:latest
 echo "✓ Images pushed"
 
 # Configure kubectl
-echo "Configuring kubectl for GKE..."
-gcloud container clusters get-credentials $GKE_CLUSTER --zone $GKE_ZONE --project $PROJECT_ID
+echo "Configuring kubectl for AKS..."
+az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_CLUSTER --overwrite-existing
 echo "✓ kubectl configured"
 
 # Create namespace
 kubectl create namespace co-intelligence --dry-run=client -o yaml | kubectl apply -f -
+
+# Create ACR pull secret (sandbox can't use managed identity)
+echo "Creating ACR pull secret..."
+kubectl create secret docker-registry acr-secret \
+    --docker-server=$ACR_SERVER \
+    --docker-username=$ACR_USERNAME \
+    --docker-password=$ACR_PASSWORD \
+    -n co-intelligence --dry-run=client -o yaml | kubectl apply -f -
+echo "✓ ACR secret created"
 
 # Create secrets
 echo "Creating Kubernetes secrets..."
 kubectl delete secret app-secrets -n co-intelligence 2>/dev/null || true
 kubectl create secret generic app-secrets \
     --namespace co-intelligence \
-    --from-literal=DATABASE_URL="postgres://$DB_USERNAME:$DB_PASSWORD@$DB_HOST:5432/$DB_NAME" \
+    --from-literal=DATABASE_URL="postgres://$DB_USERNAME:$DB_PASSWORD@$DB_HOST:5432/$DB_NAME?sslmode=require" \
     --from-literal=SECRET_KEY="$SECRET_KEY" \
-    --from-literal=GCS_BUCKET="$BUCKET_NAME" \
+    --from-literal=AZURE_STORAGE_ACCOUNT="$STORAGE_ACCOUNT" \
     --from-literal=GEMINI_API_KEY="${GEMINI_API_KEY:-}" \
     --from-literal=GROQ_API_KEY="${GROQ_API_KEY:-}" \
     --from-literal=TAVILY_API_KEY="${TAVILY_API_KEY:-}" \
@@ -104,9 +134,9 @@ echo "✓ Secrets created"
 
 # Generate K8s manifests
 echo "Generating Kubernetes manifests..."
-mkdir -p k8s-gcp
+mkdir -p k8s-azure
 
-cat > k8s-gcp/backend.yaml << EOF
+cat > k8s-azure/backend.yaml << EOF
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -124,7 +154,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: $BACKEND_REGISTRY/backend:latest
+        image: $ACR_SERVER/backend:latest
         ports:
         - containerPort: 8000
         envFrom:
@@ -152,7 +182,7 @@ spec:
   type: ClusterIP
 EOF
 
-cat > k8s-gcp/frontend.yaml << EOF
+cat > k8s-azure/frontend.yaml << EOF
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -170,7 +200,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: $FRONTEND_REGISTRY/frontend:latest
+        image: $ACR_SERVER/frontend:latest
         ports:
         - containerPort: 3000
         env:
@@ -200,7 +230,7 @@ spec:
   type: LoadBalancer
 EOF
 
-cat > k8s-gcp/hpa.yaml << EOF
+cat > k8s-azure/hpa.yaml << EOF
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -245,9 +275,9 @@ EOF
 echo "✓ Manifests generated"
 
 # Apply manifests with image substitution
-echo "Deploying to GKE..."
-for f in k8s-gcp/*.yaml; do
-    sed -e "s|GCP_PROJECT_PLACEHOLDER|$PROJECT_ID|g" -e "s|GCP_REGION|$REGION|g" "$f" | kubectl apply -f -
+echo "Deploying to AKS..."
+for f in k8s-azure/*.yaml; do
+    sed "s|ACR_SERVER_PLACEHOLDER|$ACR_SERVER|g" "$f" | kubectl apply -f -
 done
 echo "✓ Deployed"
 

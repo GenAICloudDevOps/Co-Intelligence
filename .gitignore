@@ -1,59 +1,15 @@
-# Environment
 .env
 .env.local
-.env.bak
-.env.production
-.env.gcp
-
-# Allow .env.example files to be committed
-!.env.example
-!.env.example.gcp
-
-# Kubernetes secrets
-k8s/secrets.yaml
-
-# Allow secrets.yaml.template to be committed
-!k8s/secrets.yaml.template
-
-# Python
+*.pyc
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-venv/
-env/
-ENV/
-
-# Node
 node_modules/
 .next/
-out/
-dist/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
 *.log
-
-# Terraform
-*.tfstate
-*.tfstate.backup
-*.tfstate.*
+.DS_Store
+terraform.tfstate
+terraform.tfstate.backup
 .terraform/
 .terraform.lock.hcl
-
-# Kubernetes generated manifests (contain image URLs)
-k8s-gcp/
-
-# Database
-*.db
-*.sqlite
+*.zip
+terraform.tfvars
+.env.bak

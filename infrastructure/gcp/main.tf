@@ -236,6 +236,92 @@ resource "google_storage_bucket" "function_bucket" {
   force_destroy = true
 }
 
+# Cloud Function source code
+data "archive_file" "function_zip" {
+  type        = "zip"
+  output_path = "${path.module}/function.zip"
+  source {
+    content  = <<-EOF
+import json
+import sys
+import io
+import traceback
+from contextlib import redirect_stdout, redirect_stderr
+import math, datetime, random, statistics, re, collections, itertools
+import string, decimal, fractions, uuid, hashlib, base64, textwrap
+
+def execute_code(request):
+    request_json = request.get_json(silent=True)
+    code = request_json.get('code', '') if request_json else ''
+    if not code:
+        return json.dumps({'error': 'No code provided'}), 400
+    
+    stdout_capture, stderr_capture = io.StringIO(), io.StringIO()
+    try:
+        allowed = {'math','json','datetime','random','statistics','re','collections','itertools','string','decimal','fractions','uuid','hashlib','base64','textwrap'}
+        def safe_import(name, *a, **k):
+            if name in allowed: return __import__(name, *a, **k)
+            raise ImportError(f"Module '{name}' not allowed")
+        
+        safe_globals = {
+            '__builtins__': {'__import__': safe_import, 'print': print, 'len': len, 'range': range,
+                'str': str, 'int': int, 'float': float, 'list': list, 'dict': dict, 'set': set,
+                'tuple': tuple, 'sum': sum, 'max': max, 'min': min, 'abs': abs, 'round': round,
+                'sorted': sorted, 'enumerate': enumerate, 'zip': zip, 'map': map, 'filter': filter,
+                'any': any, 'all': all, 'bool': bool, 'bytes': bytes, 'chr': chr, 'ord': ord,
+                'hex': hex, 'oct': oct, 'bin': bin, 'pow': pow, 'divmod': divmod,
+                'isinstance': isinstance, 'type': type},
+            'math': math, 'json': json, 'datetime': datetime, 'random': random,
+            'statistics': statistics, 're': re, 'collections': collections, 'itertools': itertools,
+            'string': string, 'decimal': decimal, 'fractions': fractions, 'uuid': uuid,
+            'hashlib': hashlib, 'base64': base64, 'textwrap': textwrap,
+        }
+        with redirect_stdout(stdout_capture), redirect_stderr(stderr_capture):
+            exec(code, safe_globals)
+        return json.dumps({'output': stdout_capture.getvalue(), 'errors': stderr_capture.getvalue() or None, 'success': True})
+    except Exception as e:
+        return json.dumps({'output': stdout_capture.getvalue(), 'errors': f"{type(e).__name__}: {e}\n{traceback.format_exc()}", 'success': False})
+EOF
+    filename = "main.py"
+  }
+}
+
+resource "google_storage_bucket_object" "function_source" {
+  name   = "function-${data.archive_file.function_zip.output_md5}.zip"
+  bucket = google_storage_bucket.function_bucket.name
+  source = data.archive_file.function_zip.output_path
+}
+
+resource "google_cloudfunctions_function" "code_executor" {
+  name        = "${var.app_name}-code-executor"
+  description = "Secure Python code execution sandbox"
+  runtime     = "python311"
+  region      = var.region
+
+  available_memory_mb   = 512
+  source_archive_bucket = google_storage_bucket.function_bucket.name
+  source_archive_object = google_storage_bucket_object.function_source.name
+  trigger_http          = true
+  entry_point           = "execute_code"
+  timeout               = 30
+
+  depends_on = [google_project_service.apis["cloudfunctions.googleapis.com"]]
+}
+
+# IAM for GKE to invoke Cloud Function
+resource "google_cloudfunctions_function_iam_member" "invoker" {
+  project        = var.project_id
+  region         = var.region
+  cloud_function = google_cloudfunctions_function.code_executor.name
+  role           = "roles/cloudfunctions.invoker"
+  member         = "serviceAccount:${google_service_account.gke_sa.email}"
+}
+
+resource "google_service_account" "gke_sa" {
+  account_id   = "${var.app_name}-gke-sa"
+  display_name = "GKE Service Account for Co-Intelligence"
+}
+
 # Enable required APIs
 resource "google_project_service" "apis" {
   for_each = toset([

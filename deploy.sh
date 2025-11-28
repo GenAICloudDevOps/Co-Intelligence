@@ -1,225 +1,138 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Co-Intelligence Deployment"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "=========================================="
+echo "Co-Intelligence AWS Deployment"
+echo "=========================================="
 
-# Load environment variables
-if [ ! -f .env ]; then
-    echo "❌ .env file not found!"
-    exit 1
-fi
-source .env
+command -v aws >/dev/null 2>&1 || { echo "AWS CLI required"; exit 1; }
+command -v kubectl >/dev/null 2>&1 || { echo "kubectl required"; exit 1; }
+command -v docker >/dev/null 2>&1 || { echo "docker required"; exit 1; }
 
-# Validate required variables
-if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$AWS_REGION" ]; then
-    echo "❌ AWS credentials not found in .env"
-    exit 1
-fi
-
-export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION
 STACK_NAME=${STACK_NAME:-co-intelligence}
 EKS_CLUSTER_NAME=${EKS_CLUSTER_NAME:-co-intelligence-cluster}
 
-echo "✓ Loaded configuration"
+# Load API keys from .env
+if [ -f ".env" ]; then
+    echo "Loading from .env..."
+    export $(grep -E '^(GEMINI_API_KEY|GROQ_API_KEY|TAVILY_API_KEY|AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|AWS_REGION|DB_USERNAME)=' .env | xargs)
+fi
+
+AWS_REGION=${AWS_REGION:-us-east-1}
+DB_USERNAME=${DB_USERNAME:-cointelligence}
+
+# Validate AWS credentials
+if ! aws sts get-caller-identity > /dev/null 2>&1; then
+    echo "Error: AWS credentials not configured"
+    echo "Run 'aws configure' or set AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY in .env"
+    exit 1
+fi
+
+export AWS_REGION
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+echo "✓ AWS Account: $ACCOUNT_ID"
 
 # Get CloudFormation outputs
-echo "📋 Getting CloudFormation outputs..."
-RDS_ENDPOINT=$(aws cloudformation describe-stacks \
-    --stack-name $STACK_NAME \
-    --region $AWS_REGION \
-    --query 'Stacks[0].Outputs[?OutputKey==`RDSEndpoint`].OutputValue' \
-    --output text)
+echo "Fetching CloudFormation outputs..."
+RDS_ENDPOINT=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --region $AWS_REGION \
+    --query 'Stacks[0].Outputs[?OutputKey==`RDSEndpoint`].OutputValue' --output text)
+ECR_BACKEND=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --region $AWS_REGION \
+    --query 'Stacks[0].Outputs[?OutputKey==`BackendECRUri`].OutputValue' --output text)
+ECR_FRONTEND=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --region $AWS_REGION \
+    --query 'Stacks[0].Outputs[?OutputKey==`FrontendECRUri`].OutputValue' --output text)
+S3_BUCKET_NAME=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --region $AWS_REGION \
+    --query 'Stacks[0].Outputs[?OutputKey==`S3BucketName`].OutputValue' --output text)
+LAMBDA_ARN=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --region $AWS_REGION \
+    --query 'Stacks[0].Outputs[?OutputKey==`CodeExecutorLambdaArn`].OutputValue' --output text)
 
-ECR_BACKEND=$(aws cloudformation describe-stacks \
-    --stack-name $STACK_NAME \
-    --region $AWS_REGION \
-    --query 'Stacks[0].Outputs[?OutputKey==`BackendECRUri`].OutputValue' \
-    --output text)
-
-ECR_FRONTEND=$(aws cloudformation describe-stacks \
-    --stack-name $STACK_NAME \
-    --region $AWS_REGION \
-    --query 'Stacks[0].Outputs[?OutputKey==`FrontendECRUri`].OutputValue' \
-    --output text)
-
-S3_BUCKET=$(aws cloudformation describe-stacks \
-    --stack-name $STACK_NAME \
-    --region $AWS_REGION \
-    --query 'Stacks[0].Outputs[?OutputKey==`S3BucketName`].OutputValue' \
-    --output text)
-
-# Fetch secrets from Secrets Manager
-echo "🔐 Fetching secrets from Secrets Manager..."
-SECRETS_JSON=$(aws secretsmanager get-secret-value \
-    --secret-id co-intelligence-secrets \
-    --region $AWS_REGION \
-    --query SecretString \
-    --output text)
-
+# Fetch secrets
+echo "Fetching secrets..."
+SECRETS_JSON=$(aws secretsmanager get-secret-value --secret-id co-intelligence-secrets --region $AWS_REGION --query SecretString --output text)
 DB_PASSWORD=$(echo $SECRETS_JSON | jq -r '.password // .DB_PASSWORD')
+SECRET_KEY=$(aws secretsmanager get-secret-value --secret-id co-intelligence-secret-key --region $AWS_REGION --query SecretString --output text)
 
-# Fetch SECRET_KEY from separate secret
-SECRET_KEY=$(aws secretsmanager get-secret-value \
-    --secret-id co-intelligence-secret-key \
-    --region $AWS_REGION \
-    --query SecretString \
-    --output text)
-echo "✓ Secrets retrieved"
+echo "✓ Infrastructure values retrieved"
 
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+# Update .env
+echo "Updating .env..."
+cat > .env << EOF
+# AI API Keys
+GEMINI_API_KEY=${GEMINI_API_KEY:-}
+GROQ_API_KEY=${GROQ_API_KEY:-}
+TAVILY_API_KEY=${TAVILY_API_KEY:-}
 
-echo "✓ RDS Endpoint: $RDS_ENDPOINT"
-echo "✓ ECR Backend: $ECR_BACKEND"
-echo "✓ ECR Frontend: $ECR_FRONTEND"
+# AWS Credentials
+AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+AWS_REGION=$AWS_REGION
 
-# Verify RDS is available
-echo ""
-echo "🗄️  Verifying RDS..."
-DB_INSTANCE_ID=$(aws rds describe-db-instances \
-    --region $AWS_REGION \
-    --query 'DBInstances[?Endpoint.Address==`'$RDS_ENDPOINT'`].DBInstanceIdentifier' \
-    --output text)
-
-aws rds wait db-instance-available \
-    --db-instance-identifier $DB_INSTANCE_ID \
-    --region $AWS_REGION
-
-echo "✓ RDS ready"
-
-# Configure kubectl
-echo ""
-echo "☸️  Configuring kubectl..."
-aws eks update-kubeconfig \
-    --name $EKS_CLUSTER_NAME \
-    --region $AWS_REGION
-
-kubectl get nodes > /dev/null
-echo "✓ Connected to EKS cluster"
-
-# Login to ECR
-echo ""
-echo "🔐 Logging into ECR..."
-aws ecr get-login-password --region $AWS_REGION | \
-    docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
-echo "✓ ECR login successful"
-
-# Build and push backend
-echo ""
-echo "🔨 Building backend image..."
-cd backend
-docker build -t co-intelligence-backend . > /dev/null
-docker tag co-intelligence-backend:latest $ECR_BACKEND:latest
-echo "✓ Backend image built"
-
-echo "📤 Pushing backend image..."
-docker push $ECR_BACKEND:latest > /dev/null
-echo "✓ Backend image pushed"
-cd ..
-
-# Create Kubernetes secrets
-echo ""
-echo "🔑 Creating Kubernetes secrets..."
-DB_PASSWORD_ENCODED=$(echo -n "${DB_PASSWORD}" | sed 's/!/\\%21/g')
-DATABASE_URL="postgres://${DB_USERNAME}:${DB_PASSWORD_ENCODED}@${RDS_ENDPOINT}:5432/postgres?sslmode=disable"
-
-kubectl create secret generic app-secrets \
-    --from-literal=DATABASE_URL="$DATABASE_URL" \
-    --from-literal=SECRET_KEY="${SECRET_KEY}" \
-    --from-literal=GEMINI_API_KEY="${GEMINI_API_KEY:-}" \
-    --from-literal=GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-flash-lite}" \
-    --from-literal=GROQ_API_KEY="${GROQ_API_KEY:-}" \
-    --from-literal=TAVILY_API_KEY="${TAVILY_API_KEY:-}" \
-    --from-literal=AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}" \
-    --from-literal=AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" \
-    --from-literal=AWS_REGION="${AWS_REGION}" \
-    --from-literal=S3_BUCKET_NAME="${S3_BUCKET}" \
-    --dry-run=client -o yaml | kubectl apply -f -
-
-echo "✓ Secrets created"
-
-# Deploy backend
-echo ""
-echo "🚀 Deploying backend..."
-sed "s|<ACCOUNT_ID>|$ACCOUNT_ID|g" k8s/backend-deployment.yaml | kubectl apply -f -
-kubectl apply -f k8s/backend-service.yaml
-kubectl patch svc backend -p '{"spec":{"type":"LoadBalancer"}}' > /dev/null 2>&1 || true
-
-echo "⏳ Waiting for backend LoadBalancer (2-3 min)..."
-while true; do
-    BACKEND_URL=$(kubectl get svc backend -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
-    if [ ! -z "$BACKEND_URL" ]; then
-        break
-    fi
-    sleep 5
-done
-
-echo "✓ Backend deployed at: http://$BACKEND_URL:8000"
-
-# Wait for backend to be healthy
-echo "⏳ Waiting for backend to be healthy..."
-sleep 30
-for i in {1..30}; do
-    if curl -s http://$BACKEND_URL:8000/health > /dev/null 2>&1; then
-        echo "✓ Backend is healthy"
-        break
-    fi
-    sleep 5
-done
-
-# Update .env with backend URL
-echo ""
-echo "🔧 Updating .env with backend URL..."
-sed -i.bak "s|NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=http://$BACKEND_URL:8000|" .env
+# Infrastructure (auto-populated)
+DATABASE_URL=postgres://$DB_USERNAME:$DB_PASSWORD@$RDS_ENDPOINT:5432/postgres?sslmode=disable
+SECRET_KEY=$SECRET_KEY
+S3_BUCKET_NAME=$S3_BUCKET_NAME
+CODE_EXECUTOR_URL=$LAMBDA_ARN
+EOF
 echo "✓ .env updated"
 
-# Build and push frontend
-echo ""
-echo "🔨 Building frontend image..."
-cd frontend
-docker build --build-arg NEXT_PUBLIC_API_URL=http://$BACKEND_URL:8000 -t co-intelligence-frontend . > /dev/null
-docker tag co-intelligence-frontend:latest $ECR_FRONTEND:latest
-echo "✓ Frontend image built"
+# Configure kubectl
+echo "Configuring kubectl for EKS..."
+aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_REGION
+echo "✓ kubectl configured"
 
-echo "📤 Pushing frontend image..."
-docker push $ECR_FRONTEND:latest > /dev/null
-echo "✓ Frontend image pushed"
-cd ..
+# Login to ECR
+echo "Logging into ECR..."
+aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+echo "✓ ECR login successful"
 
-# Deploy frontend
-echo ""
-echo "🚀 Deploying frontend..."
-sed -e "s|<ACCOUNT_ID>|$ACCOUNT_ID|g" \
-    -e "s|value: \".*\"|value: \"http://$BACKEND_URL:8000\"|" \
-    k8s/frontend-deployment.yaml | kubectl apply -f -
+# Build and push images
+echo "Building and pushing backend..."
+docker build -t $ECR_BACKEND:latest ./backend
+docker push $ECR_BACKEND:latest
+
+echo "Building and pushing frontend..."
+docker build -t $ECR_FRONTEND:latest ./frontend
+docker push $ECR_FRONTEND:latest
+echo "✓ Images pushed"
+
+# Create secrets
+echo "Creating Kubernetes secrets..."
+kubectl delete secret app-secrets 2>/dev/null || true
+kubectl create secret generic app-secrets \
+    --from-literal=DATABASE_URL="postgres://$DB_USERNAME:$DB_PASSWORD@$RDS_ENDPOINT:5432/postgres?sslmode=disable" \
+    --from-literal=SECRET_KEY="$SECRET_KEY" \
+    --from-literal=S3_BUCKET_NAME="$S3_BUCKET_NAME_NAME" \
+    --from-literal=CODE_EXECUTOR_URL="$LAMBDA_ARN" \
+    --from-literal=GEMINI_API_KEY="${GEMINI_API_KEY:-}" \
+    --from-literal=GROQ_API_KEY="${GROQ_API_KEY:-}" \
+    --from-literal=TAVILY_API_KEY="${TAVILY_API_KEY:-}" \
+    --from-literal=AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-}" \
+    --from-literal=AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-}" \
+    --from-literal=AWS_REGION="$AWS_REGION"
+echo "✓ Secrets created"
+
+# Update K8s manifests with image URIs
+echo "Deploying to EKS..."
+sed "s|<ACCOUNT_ID>|$ACCOUNT_ID|g" k8s/backend-deployment.yaml | kubectl apply -f -
+kubectl apply -f k8s/backend-service.yaml
+
+sed "s|<ACCOUNT_ID>|$ACCOUNT_ID|g" k8s/frontend-deployment.yaml | kubectl apply -f -
 kubectl apply -f k8s/frontend-service.yaml
+echo "✓ Deployed"
 
-echo "⏳ Waiting for frontend LoadBalancer (2-3 min)..."
-while true; do
+# Wait for LoadBalancer
+echo "Waiting for LoadBalancer..."
+for i in {1..30}; do
     FRONTEND_URL=$(kubectl get svc frontend -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
-    if [ ! -z "$FRONTEND_URL" ]; then
-        break
-    fi
-    sleep 5
+    if [ -n "$FRONTEND_URL" ]; then break; fi
+    sleep 10
 done
 
-echo "✓ Frontend deployed at: http://$FRONTEND_URL"
-
-# Verify deployment
 echo ""
-echo "✅ Verifying deployment..."
-kubectl get pods
-echo ""
-
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🎉 Deployment Complete!"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
+echo "=========================================="
+echo "Deployment Complete!"
+echo "=========================================="
 echo "Frontend: http://$FRONTEND_URL"
-echo "Backend:  http://$BACKEND_URL:8000"
 echo ""
-echo "Next steps:"
-echo "1. Open http://$FRONTEND_URL in your browser"
-echo "2. Click 'Register' to create an account"
-echo "3. Launch AI Chat and start chatting!"
-echo ""
+echo "Commands:"
+echo "  kubectl get pods"
+echo "  kubectl logs -f deployment/backend"
