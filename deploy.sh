@@ -43,6 +43,24 @@ ECR_FRONTEND=$(aws cloudformation describe-stacks \
     --query 'Stacks[0].Outputs[?OutputKey==`FrontendECRUri`].OutputValue' \
     --output text)
 
+S3_BUCKET=$(aws cloudformation describe-stacks \
+    --stack-name $STACK_NAME \
+    --region $AWS_REGION \
+    --query 'Stacks[0].Outputs[?OutputKey==`S3BucketName`].OutputValue' \
+    --output text)
+
+# Fetch secrets from Secrets Manager
+echo "🔐 Fetching secrets from Secrets Manager..."
+SECRETS_JSON=$(aws secretsmanager get-secret-value \
+    --secret-id co-intelligence-secrets \
+    --region $AWS_REGION \
+    --query SecretString \
+    --output text)
+
+DB_PASSWORD=$(echo $SECRETS_JSON | jq -r '.DB_PASSWORD')
+SECRET_KEY=$(echo $SECRETS_JSON | jq -r '.SECRET_KEY')
+echo "✓ Secrets retrieved"
+
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
 echo "✓ RDS Endpoint: $RDS_ENDPOINT"
@@ -97,16 +115,19 @@ cd ..
 echo ""
 echo "🔑 Creating Kubernetes secrets..."
 DB_PASSWORD_ENCODED=$(echo -n "${DB_PASSWORD}" | sed 's/!/\\%21/g')
-DATABASE_URL="postgres://${DB_USERNAME}:${DB_PASSWORD_ENCODED}@${RDS_ENDPOINT}:5432/postgres?ssl=require"
+DATABASE_URL="postgres://${DB_USERNAME}:${DB_PASSWORD_ENCODED}@${RDS_ENDPOINT}:5432/postgres?sslmode=disable"
 
 kubectl create secret generic app-secrets \
     --from-literal=DATABASE_URL="$DATABASE_URL" \
     --from-literal=SECRET_KEY="${SECRET_KEY}" \
     --from-literal=GEMINI_API_KEY="${GEMINI_API_KEY:-}" \
+    --from-literal=GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-flash-lite}" \
     --from-literal=GROQ_API_KEY="${GROQ_API_KEY:-}" \
+    --from-literal=TAVILY_API_KEY="${TAVILY_API_KEY:-}" \
     --from-literal=AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}" \
     --from-literal=AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" \
     --from-literal=AWS_REGION="${AWS_REGION}" \
+    --from-literal=S3_BUCKET_NAME="${S3_BUCKET}" \
     --dry-run=client -o yaml | kubectl apply -f -
 
 echo "✓ Secrets created"

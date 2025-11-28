@@ -3,12 +3,17 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from auth.utils import get_current_user
 from auth.models import User
-from apps.ai_chat.models import ChatSession, ChatMessage, ChatDocument
 from apps.ai_chat.agent import stream_model
 from apps.ai_chat.utils import extract_text_from_file, upload_to_s3
+from tortoise import Tortoise
 import json
 
 router = APIRouter()
+
+def get_models():
+    """Get models from Tortoise.apps to ensure they have DB connection"""
+    models = Tortoise.apps.get('models', {})
+    return models.get('ChatSession'), models.get('ChatMessage'), models.get('ChatDocument')
 
 class ChatRequest(BaseModel):
     session_id: int | None = None
@@ -22,16 +27,19 @@ class SessionCreate(BaseModel):
 
 @router.post("/sessions")
 async def create_session(data: SessionCreate, current_user: User = Depends(get_current_user)):
+    ChatSession, ChatMessage, ChatDocument = get_models()
     session = await ChatSession.create(user_id=current_user.id, title=data.title)
     return {"id": session.id, "title": session.title, "created_at": session.created_at}
 
 @router.get("/sessions")
 async def get_sessions(current_user: User = Depends(get_current_user)):
+    ChatSession, ChatMessage, ChatDocument = get_models()
     sessions = await ChatSession.filter(user_id=current_user.id).order_by("-created_at")
     return [{"id": s.id, "title": s.title, "created_at": s.created_at} for s in sessions]
 
 @router.get("/sessions/{session_id}/messages")
 async def get_messages(session_id: int, current_user: User = Depends(get_current_user)):
+    ChatSession, ChatMessage, ChatDocument = get_models()
     session = await ChatSession.get_or_none(id=session_id, user_id=current_user.id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -41,6 +49,7 @@ async def get_messages(session_id: int, current_user: User = Depends(get_current
 
 @router.delete("/sessions/{session_id}")
 async def delete_session(session_id: int, current_user: User = Depends(get_current_user)):
+    ChatSession, ChatMessage, ChatDocument = get_models()
     session = await ChatSession.get_or_none(id=session_id, user_id=current_user.id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -56,6 +65,7 @@ async def upload_document(
     session_id: int = Form(...),
     current_user: User = Depends(get_current_user)
 ):
+    ChatSession, ChatMessage, ChatDocument = get_models()
     session = await ChatSession.get_or_none(id=session_id, user_id=current_user.id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -73,7 +83,7 @@ async def upload_document(
             file_size=file_size,
             file_type=file.content_type or "application/octet-stream",
             s3_url=s3_url,
-            extracted_text=extracted_text[:50000]  # Limit to 50k chars
+            extracted_text=extracted_text[:50000]
         )
         
         return {
@@ -88,6 +98,7 @@ async def upload_document(
 
 @router.get("/sessions/{session_id}/documents")
 async def get_documents(session_id: int, current_user: User = Depends(get_current_user)):
+    ChatSession, ChatMessage, ChatDocument = get_models()
     session = await ChatSession.get_or_none(id=session_id, user_id=current_user.id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -103,6 +114,7 @@ async def get_documents(session_id: int, current_user: User = Depends(get_curren
 
 @router.delete("/documents/{document_id}")
 async def delete_document(document_id: int, current_user: User = Depends(get_current_user)):
+    ChatSession, ChatMessage, ChatDocument = get_models()
     document = await ChatDocument.get_or_none(id=document_id)
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -116,6 +128,7 @@ async def delete_document(document_id: int, current_user: User = Depends(get_cur
 
 @router.post("/chat")
 async def chat(data: ChatRequest, current_user: User = Depends(get_current_user)):
+    ChatSession, ChatMessage, ChatDocument = get_models()
     if not data.session_id:
         session = await ChatSession.create(user_id=current_user.id)
         session_id = session.id
@@ -126,14 +139,6 @@ async def chat(data: ChatRequest, current_user: User = Depends(get_current_user)
         session_id = data.session_id
     
     await ChatMessage.create(session_id=session_id, role="user", content=data.message)
-    
-    # Non-streaming endpoint - deprecated, use /chat/stream instead
-    # result = await chat_graph.ainvoke({
-    #     "messages": [{"role": "user", "content": data.message}],
-    #     "model": data.model
-    # })
-    # response_text = result["response"]
-    
     response_text = "Please use /chat/stream endpoint for responses"
     await ChatMessage.create(session_id=session_id, role="assistant", content=response_text, model=data.model)
     
@@ -141,6 +146,9 @@ async def chat(data: ChatRequest, current_user: User = Depends(get_current_user)
 
 @router.post("/chat/stream")
 async def chat_stream(data: ChatRequest, current_user: User = Depends(get_current_user)):
+    ChatSession, ChatMessage, ChatDocument = get_models()
+    
+    # Get or create session
     if not data.session_id:
         session = await ChatSession.create(user_id=current_user.id)
         session_id = session.id
@@ -150,6 +158,7 @@ async def chat_stream(data: ChatRequest, current_user: User = Depends(get_curren
             raise HTTPException(status_code=404, detail="Session not found")
         session_id = data.session_id
     
+    # Save user message
     await ChatMessage.create(session_id=session_id, role="user", content=data.message)
     
     # Get context messages
@@ -161,23 +170,24 @@ async def chat_stream(data: ChatRequest, current_user: User = Depends(get_curren
     document_context = ""
     if documents:
         document_context = "\n\n---\n\n".join([
-            f"Document: {d.filename}\n{d.extracted_text[:5000]}"  # First 5k chars per doc
+            f"Document: {d.filename}\n{d.extracted_text[:5000]}"
             for d in documents
         ])
     
     async def generate():
+        ChatSession, ChatMessage, ChatDocument = get_models()
         full_response = ""
         async for chunk in stream_model(
             [{"role": "user", "content": data.message}],
             data.model,
-            context_messages[:-1],  # Exclude the user message we just added
+            context_messages[:-1],
             document_context,
             data.web_search
         ):
             full_response += chunk
             yield f"data: {json.dumps({'chunk': chunk, 'session_id': session_id})}\n\n"
         
-        # Save complete response
+        # Save response
         await ChatMessage.create(session_id=session_id, role="assistant", content=full_response, model=data.model)
         yield f"data: {json.dumps({'done': True, 'session_id': session_id})}\n\n"
     
@@ -185,6 +195,7 @@ async def chat_stream(data: ChatRequest, current_user: User = Depends(get_curren
 
 @router.get("/sessions/{session_id}/context")
 async def get_context_info(session_id: int, context_size: int = 10, current_user: User = Depends(get_current_user)):
+    ChatSession, ChatMessage, ChatDocument = get_models()
     session = await ChatSession.get_or_none(id=session_id, user_id=current_user.id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")

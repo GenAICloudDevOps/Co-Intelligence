@@ -3,6 +3,7 @@ import re
 from tortoise import Tortoise
 from config import settings
 from apps.agentic_barista.seed_menu import seed_menu
+from apps.agentic_tutor.seed_topics import seed_topics
 
 async def migrate():
     """Run database migrations"""
@@ -68,6 +69,7 @@ async def init():
                         'apps.agentic_barista.models',
                         'apps.insurance_claims.models',
                         'apps.agentic_lms.models',
+                        'apps.agentic_tutor.models',
                         'models.app_role'
                     ],
                     'default_connection': 'default'
@@ -85,6 +87,7 @@ async def init():
                 'apps.agentic_barista.models',
                 'apps.insurance_claims.models',
                 'apps.agentic_lms.models',
+                'apps.agentic_tutor.models',
                 'models.app_role'
             ]}
         )
@@ -92,9 +95,10 @@ async def init():
     await Tortoise.generate_schemas()
     await migrate()
     await seed_menu()
+    await seed_topics()
     await seed_test_roles()
     await Tortoise.close_connections()
-    print("✅ Database initialized, menu seeded, and test roles created")
+    print("✅ Database initialized, menu and topics seeded")
 
 if __name__ == "__main__":
     asyncio.run(init())

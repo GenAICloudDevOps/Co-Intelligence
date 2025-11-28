@@ -4,20 +4,11 @@ import asyncio
 import os
 
 async def seed_menu():
-    # Initialize database
-    db_url = os.getenv("DATABASE_URL", "sqlite://db.sqlite3")
-    
-    await Tortoise.init(
-        db_url=db_url,
-        modules={'models': ['apps.agentic_barista.models']}
-    )
-    await Tortoise.generate_schemas()
-    
+    """Seed menu items - idempotent, safe to call multiple times"""
     # Check if menu already exists
     existing = await MenuItem.all().count()
     if existing > 0:
         print(f"Menu already seeded with {existing} items")
-        await Tortoise.close_connections()
         return
     
     # Seed menu items
@@ -38,7 +29,14 @@ async def seed_menu():
         await MenuItem.create(**item_data)
     
     print(f"✅ Seeded {len(menu_items)} menu items")
+
+async def run_standalone():
+    """Run as standalone script"""
+    db_url = os.getenv("DATABASE_URL", "sqlite://db.sqlite3")
+    await Tortoise.init(db_url=db_url, modules={'models': ['apps.agentic_barista.models']})
+    await Tortoise.generate_schemas()
+    await seed_menu()
     await Tortoise.close_connections()
 
 if __name__ == "__main__":
-    asyncio.run(seed_menu())
+    asyncio.run(run_standalone())

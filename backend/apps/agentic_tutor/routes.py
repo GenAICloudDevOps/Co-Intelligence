@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from auth.utils import get_current_user
 from auth.models import User
-from .models import Topic, TutorSession, Assessment, Progress, ChatMessage
+from .models import Topic, TutorSession, Assessment, Progress, TutorChatMessage
 from .graph import create_tutor_graph
 import json
 
@@ -45,7 +45,7 @@ async def get_messages(session_id: int, current_user: User = Depends(get_current
     if not session:
         return []
     
-    messages = await ChatMessage.filter(session_id=session_id).order_by('created_at')
+    messages = await TutorChatMessage.filter(session_id=session_id).order_by('created_at')
     return [{"role": m.role, "content": m.content, "agent_type": m.agent_type} for m in messages]
 
 @router.post("/chat")
@@ -61,11 +61,11 @@ async def chat(data: ChatRequest, current_user: User = Depends(get_current_user)
     topic = await session.topic
     
     # Get conversation history
-    messages = await ChatMessage.filter(session_id=session.id).order_by('created_at')
+    messages = await TutorChatMessage.filter(session_id=session.id).order_by('created_at')
     history = [{"role": m.role, "content": m.content} for m in messages[-6:]]
     
     # Save user message
-    await ChatMessage.create(session_id=session.id, role='user', content=data.message)
+    await TutorChatMessage.create(session_id=session.id, role='user', content=data.message)
     
     # Check if in assessment mode
     last_message = messages[-1] if messages else None
@@ -90,7 +90,7 @@ async def chat(data: ChatRequest, current_user: User = Depends(get_current_user)
     
     # Save assistant response
     agent_type = result.get('intent', 'teach')
-    await ChatMessage.create(
+    await TutorChatMessage.create(
         session_id=session.id,
         role='assistant',
         content=result['response'],

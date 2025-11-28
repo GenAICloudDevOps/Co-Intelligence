@@ -1,0 +1,265 @@
+# New Deployment Guide - From Scratch
+
+## Prerequisites
+- AWS CLI configured with credentials
+- Docker installed
+- kubectl installed
+- jq installed (for JSON parsing)
+- Node.js 20+ (for local dev)
+- Python 3.11+ (for local dev)
+
+---
+
+## Step 1: Configure Environment
+
+```bash
+cp .env.example .env
+# Edit .env with your AWS credentials and API keys
+```
+
+**Required values in .env:**
+```bash
+# Database username (password is in AWS Secrets Manager)
+DB_USERNAME=cointelligence
+
+# AWS Credentials
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=<your-key>
+AWS_SECRET_ACCESS_KEY=<your-secret>
+
+# API Keys (user-provided)
+GEMINI_API_KEY=<your-key>
+GROQ_API_KEY=<your-key>
+TAVILY_API_KEY=<your-key>  # Optional, for web search
+```
+
+**Note:** `DB_PASSWORD` and `SECRET_KEY` are automatically managed by AWS Secrets Manager.
+
+---
+
+## Step 2: Deploy CloudFormation Stack (20-25 minutes)
+
+```bash
+cd infrastructure
+
+aws cloudformation create-stack \
+  --stack-name co-intelligence \
+  --template-body file://infra.yaml \
+  --parameters \
+    ParameterKey=DBUsername,ParameterValue=cointelligence \
+    ParameterKey=DBPassword,ParameterValue=YourSecurePassword123 \
+  --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+  --region us-east-1
+
+# Wait for completion
+aws cloudformation wait stack-create-complete \
+  --stack-name co-intelligence \
+  --region us-east-1
+
+# Get outputs
+aws cloudformation describe-stacks \
+  --stack-name co-intelligence \
+  --region us-east-1 \
+  --query 'Stacks[0].Outputs'
+```
+
+**What gets created:**
+- ✅ VPC with public subnets
+- ✅ RDS PostgreSQL 15.10 (with SSL disabled via parameter group)
+- ✅ EKS Cluster (co-intelligence-cluster, K8s 1.34)
+- ✅ EKS Node Group (2-3 t3.medium instances)
+- ✅ ECR repositories (backend, frontend)
+- ✅ S3 bucket
+- ✅ Lambda function for code execution
+- ✅ Secrets Manager (DB_PASSWORD + auto-generated SECRET_KEY)
+- ✅ IAM roles and security groups
+
+---
+
+## Step 3: Configure kubectl
+
+```bash
+aws eks update-kubeconfig \
+  --name co-intelligence-cluster \
+  --region us-east-1
+
+# Verify connection
+kubectl get nodes
+```
+
+**Expected output:**
+```
+NAME                         STATUS   ROLES    AGE   VERSION
+ip-10-0-x-x.ec2.internal     Ready    <none>   1m    v1.34.x
+ip-10-0-x-x.ec2.internal     Ready    <none>   1m    v1.34.x
+```
+
+---
+
+## Step 4: Automated Deployment (12-15 minutes)
+
+```bash
+# Run automated deployment script
+./deploy.sh
+```
+
+**What deploy.sh does:**
+1. ✅ Verifies CloudFormation stack exists
+2. ✅ Waits for RDS to be available
+3. ✅ Gets AWS account ID automatically
+4. ✅ Logs into ECR
+5. ✅ Builds and pushes backend Docker image
+6. ✅ Creates Kubernetes secrets from .env
+7. ✅ Deploys backend to EKS
+8. ✅ Waits for backend LoadBalancer
+9. ✅ Builds and pushes frontend Docker image
+10. ✅ Deploys frontend to EKS
+11. ✅ Waits for frontend LoadBalancer
+12. ✅ Displays access URLs
+
+---
+
+## Step 5: Access Application
+
+After deployment completes:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎉 Deployment Complete!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Frontend: http://<frontend-lb>.us-east-1.elb.amazonaws.com
+Backend:  http://<backend-lb>.us-east-1.elb.amazonaws.com:8000
+```
+
+**Test it:**
+```bash
+# Check backend health
+curl http://<backend-lb>:8000/health
+
+# Open frontend in browser
+open http://<frontend-lb>
+```
+
+---
+
+## Architecture
+
+```
+User → Frontend (EKS) → Backend (EKS) → RDS PostgreSQL
+                    ↓
+                  Lambda (Code Execution)
+                    ↓
+                  S3 (File Storage)
+```
+
+---
+
+## Key Features
+
+### ✅ Full Infrastructure as Code
+- Single CloudFormation template creates everything
+- EKS cluster and node group included
+- No manual AWS Console steps needed
+
+### ✅ SSL Handled Automatically
+- RDS created with `rds.force_ssl=0`
+- DATABASE_URL uses `?sslmode=disable`
+
+### ✅ Secrets Managed Automatically
+- `deploy.sh` creates Kubernetes secrets from `.env`
+- All environment variables injected properly
+
+---
+
+## Verification Commands
+
+```bash
+# Check pods
+kubectl get pods
+
+# Expected output:
+# NAME                        READY   STATUS    RESTARTS   AGE
+# backend-xxxxxxxxxx-xxxxx    1/1     Running   0          2m
+# frontend-xxxxxxxxxx-xxxxx   1/1     Running   0          2m
+
+# Check services
+kubectl get svc
+
+# Check logs
+kubectl logs -f deployment/backend
+kubectl logs -f deployment/frontend
+
+# Check HPA
+kubectl get hpa
+```
+
+---
+
+## Time Estimates
+
+| Step | Time |
+|------|------|
+| CloudFormation (VPC, RDS, EKS, Lambda) | 20-25 min |
+| deploy.sh | 12-15 min |
+| **Total** | **32-40 min** |
+
+---
+
+## Troubleshooting
+
+### Backend CrashLoopBackOff
+```bash
+kubectl logs deployment/backend
+
+# Common issues:
+# - Wrong DATABASE_URL in .env
+# - Missing API keys
+# - RDS not accessible
+```
+
+### Frontend ErrImagePull
+```bash
+kubectl describe pod <frontend-pod>
+
+# Common issues:
+# - ECR login expired
+# - Image not pushed
+```
+
+### LoadBalancer Pending
+```bash
+kubectl describe svc frontend
+
+# Usually takes 2-3 minutes to provision
+```
+
+---
+
+## Cleanup
+
+```bash
+# Delete Kubernetes resources
+kubectl delete -f k8s/
+
+# Delete CloudFormation stack (deletes everything)
+aws cloudformation delete-stack \
+  --stack-name co-intelligence \
+  --region us-east-1
+
+# Wait for deletion
+aws cloudformation wait stack-delete-complete \
+  --stack-name co-intelligence \
+  --region us-east-1
+```
+
+---
+
+## Next Steps
+
+1. **Register/Login** at frontend URL
+2. **Try AI Chat** - Multi-model chat with document upload
+3. **Try Agentic Barista** - LangGraph workflow demo
+4. **Try Insurance Claims** - Role-based workflow app
+5. **Try Agentic LMS** - AI-powered learning management
+6. **Try Agentic Tutor** - Interactive AI tutoring

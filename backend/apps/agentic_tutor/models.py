@@ -42,7 +42,7 @@ class Progress(BaseModel):
     class Meta:
         table = "tutor_progress"
 
-class ChatMessage(BaseModel):
+class TutorChatMessage(BaseModel):
     session = fields.ForeignKeyField('models.TutorSession', related_name='messages')
     role = fields.CharField(max_length=50)
     content = fields.TextField()

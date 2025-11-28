@@ -116,115 +116,15 @@ A scalable multi-AI platform with FastAPI backend, Next.js frontend, deployed on
 - AWS CLI configured
 - Docker installed
 - kubectl installed
+- jq installed
 - Node.js 20+
 - Python 3.11+
 
-## Setup Instructions
+## Deployment
 
-### Option 1: Automated Deployment (Recommended)
+See **[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)** for complete deployment instructions.
 
-After creating the CloudFormation stack and configuring `.env`:
-
-```bash
-# Run automated deployment script
-./deploy.sh
-```
-
-This script will:
-- Verify CloudFormation stack and RDS availability
-- Build and push Docker images to ECR
-- Create Kubernetes secrets
-- Deploy backend and frontend to EKS
-- Set up LoadBalancers and wait for health checks
-- Display access URLs
-
-### Option 2: Manual Deployment
-
-### 1. Deploy AWS Infrastructure
-
-```bash
-cd infrastructure
-
-# Deploy CloudFormation stack
-aws cloudformation create-stack \
-  --stack-name co-intelligence \
-  --template-body file://infra_without_eks.yaml \
-  --parameters ParameterKey=DBUsername,ParameterValue=cointelligence \
-               ParameterKey=DBPassword,ParameterValue=YourSecurePassword123 \
-  --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
-  --region us-east-1
-
-# Wait for stack creation
-aws cloudformation wait stack-create-complete \
-  --stack-name co-intelligence \
-  --region us-east-1
-
-# Get outputs
-aws cloudformation describe-stacks \
-  --stack-name co-intelligence \
-  --region us-east-1 \
-  --query 'Stacks[0].Outputs'
-```
-
-### 2. Configure Environment
-
-Copy `.env.example` to `.env` and fill in values from CloudFormation outputs:
-
-```bash
-cp .env.example .env
-# Edit .env with your values
-```
-
-### 3. Build and Push Docker Images
-
-```bash
-# Get AWS account ID
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-
-# Login to ECR
-aws ecr get-login-password --region us-east-1 | \
-  docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com
-
-# Build and push backend
-cd backend
-docker build -t co-intelligence-backend .
-docker tag co-intelligence-backend:latest $ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/co-intelligence-backend:latest
-docker push $ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/co-intelligence-backend:latest
-
-# Build and push frontend
-cd ../frontend
-docker build -t co-intelligence-frontend .
-docker tag co-intelligence-frontend:latest $ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/co-intelligence-frontend:latest
-docker push $ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/co-intelligence-frontend:latest
-```
-
-### 4. Deploy to EKS
-
-```bash
-# Update kubeconfig
-aws eks update-kubeconfig --name co-intelligence-cluster --region us-east-1
-
-# Update K8s manifests with your account ID
-cd ../k8s
-sed -i "s/<ACCOUNT_ID>/$ACCOUNT_ID/g" backend-deployment.yaml
-sed -i "s/<ACCOUNT_ID>/$ACCOUNT_ID/g" frontend-deployment.yaml
-
-# Create secrets (copy template and fill values)
-cp secrets.yaml.template secrets.yaml
-# Edit secrets.yaml with your actual values
-
-# Apply manifests
-kubectl apply -f secrets.yaml
-kubectl apply -f backend-deployment.yaml
-kubectl apply -f backend-service.yaml
-kubectl apply -f frontend-deployment.yaml
-kubectl apply -f frontend-service.yaml
-
-# Get LoadBalancer URL
-kubectl get svc frontend -w
-```
-
-### 5. Local Development
+## Local Development
 
 ```bash
 # Start local environment
@@ -255,7 +155,7 @@ docker-compose up
 
 ## Scaling
 
-- **Node Group**: Auto-scales from 1 to 3 t3.medium instances
+- **Node Group**: Auto-scales from 2 to 3 t3.medium instances
 - **Pods**: HPA scales backend/frontend from 1 to 3 replicas at 70% CPU
 
 ## Monitoring
