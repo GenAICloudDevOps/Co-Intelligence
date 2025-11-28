@@ -3,9 +3,11 @@
 .env.local
 .env.bak
 .env.production
+.env.gcp
 
-# Allow .env.example to be committed
+# Allow .env.example files to be committed
 !.env.example
+!.env.example.gcp
 
 # Kubernetes secrets
 k8s/secrets.yaml
@@ -41,6 +43,16 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Kubernetes generated manifests (contain image URLs)
+k8s-gcp/
 
 # Database
 *.db
