@@ -65,7 +65,6 @@ A scalable multi-AI platform with FastAPI backend, Next.js frontend, deployed on
 - 🎨 **Component Library** - Reusable UI components (Card, Modal, Button)
 - 🪝 **Custom Hooks** - useAuth hook for centralized authentication
 - 📦 **Shared Base Models** - Timestamp and soft delete mixins
-- 🛠️ **App Scaffolding** - CLI tool to generate new apps instantly
 
 ## Screenshots
 

@@ -6,11 +6,6 @@ Parameters:
     Type: String
     Default: cointelligence
     Description: Database master username
-  DBPassword:
-    Type: String
-    NoEcho: true
-    Description: Database master password
-    MinLength: 8
 
 Resources:
   VPC:
@@ -140,6 +135,7 @@ Resources:
 
   RDSInstance:
     Type: AWS::RDS::DBInstance
+    DependsOn: AppSecrets
     Properties:
       DBInstanceIdentifier: co-intelligence-db
       Engine: postgres
@@ -147,8 +143,8 @@ Resources:
       DBInstanceClass: db.t3.medium
       AllocatedStorage: 20
       StorageType: gp2
-      MasterUsername: !Ref DBUsername
-      MasterUserPassword: !Ref DBPassword
+      MasterUsername: !Sub '{{resolve:secretsmanager:${AppSecrets}:SecretString:username}}'
+      MasterUserPassword: !Sub '{{resolve:secretsmanager:${AppSecrets}:SecretString:password}}'
       DBSubnetGroupName: !Ref DBSubnetGroup
       DBParameterGroupName: !Ref RDSParameterGroup
       VPCSecurityGroups:
@@ -222,19 +218,39 @@ Resources:
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
 
-  # Secrets Manager for DB password and auto-generated SECRET_KEY
+  # Secrets Manager - Auto-generates DB password (uses 'username'/'password' keys for RDS attachment)
   AppSecrets:
     Type: AWS::SecretsManager::Secret
     Properties:
       Name: co-intelligence-secrets
       GenerateSecretString:
-        SecretStringTemplate: !Sub '{"DB_PASSWORD":"${DBPassword}"}'
-        GenerateStringKey: SECRET_KEY
+        SecretStringTemplate: !Sub '{"username":"${DBUsername}"}'
+        GenerateStringKey: password
+        PasswordLength: 32
+        ExcludeCharacters: '"@/\'''
+      Tags:
+        - Key: Name
+          Value: co-intelligence-secrets
+
+  # Auto-generate SECRET_KEY separately
+  AppSecretKey:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: co-intelligence-secret-key
+      GenerateSecretString:
         PasswordLength: 32
         ExcludePunctuation: true
       Tags:
         - Key: Name
-          Value: co-intelligence-secrets
+          Value: co-intelligence-secret-key
+
+  # Attach secret to RDS for rotation support
+  SecretRDSAttachment:
+    Type: AWS::SecretsManager::SecretTargetAttachment
+    Properties:
+      SecretId: !Ref AppSecrets
+      TargetId: !Ref RDSInstance
+      TargetType: AWS::RDS::DBInstance
 
   # EKS Node Group
   EKSNodeGroup:

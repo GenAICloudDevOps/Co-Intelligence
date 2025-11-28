@@ -57,8 +57,14 @@ SECRETS_JSON=$(aws secretsmanager get-secret-value \
     --query SecretString \
     --output text)
 
-DB_PASSWORD=$(echo $SECRETS_JSON | jq -r '.DB_PASSWORD')
-SECRET_KEY=$(echo $SECRETS_JSON | jq -r '.SECRET_KEY')
+DB_PASSWORD=$(echo $SECRETS_JSON | jq -r '.password // .DB_PASSWORD')
+
+# Fetch SECRET_KEY from separate secret
+SECRET_KEY=$(aws secretsmanager get-secret-value \
+    --secret-id co-intelligence-secret-key \
+    --region $AWS_REGION \
+    --query SecretString \
+    --output text)
 echo "✓ Secrets retrieved"
 
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
