@@ -97,6 +97,9 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 ### Platform Metrics
 ![Platform Metrics](screenshots/3.png)
 
+### Multi-Cloud Tech Stack
+![Multi-Cloud Tech Stack](screenshots/3.1.png)
+
 ### AI Chat
 ![AI Chat](screenshots/4.png)
 
