@@ -1,18 +1,35 @@
-# Co-Intelligence V1.0 Beta
+# Co-Intelligence V2.0 Beta
 
 **Where Human Meets AI Intelligence**
 
-A scalable multi-AI platform with FastAPI backend, Next.js frontend, deployed on AWS EKS.
+Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that scale effortlessly.
+
+## What's New in V2.0
+- **New Apps**: Agentic LMS, Agentic Tutor
+- **Multi-Cloud Support**: Added GCP and Azure deployment
+- **Serverless Execution**: AWS Lambda, GCP Cloud Functions, Azure Functions
+- **7 AI Models**: Across 3 providers (Gemini, Groq, AWS Bedrock)
 
 ## Architecture
 
 - **Backend**: FastAPI + Tortoise ORM + LangGraph 1.0.1 + App Registry System
 - **Frontend**: Next.js 14 (App Router) + Reusable Components
-- **Database**: AWS RDS PostgreSQL
+- **Database**: PostgreSQL (AWS RDS, GCP Cloud SQL, Azure Flexible Server)
 - **AI Models**: Gemini 2.5 Flash Lite, Groq Mixtral, AWS Bedrock Nova
-- **Code Execution**: AWS Lambda (autonomous Python execution)
-- **Infrastructure**: AWS EKS (t3.medium), ECR, S3, Lambda
-- **Region**: us-east-1
+- **Code Execution**: AWS Lambda, GCP Cloud Functions, Azure Functions
+- **Infrastructure**: Multi-cloud (AWS EKS, GCP GKE, Azure AKS)
+
+## Cloud Tech Stack
+
+| Service | AWS | GCP | Azure |
+|---------|-----|-----|-------|
+| **IaC** | CloudFormation | Terraform | Terraform |
+| **Kubernetes** | EKS | GKE | AKS |
+| **Database** | RDS PostgreSQL | Cloud SQL | PostgreSQL Flexible Server |
+| **Container Registry** | ECR | Artifact Registry | ACR |
+| **Serverless** | Lambda | Cloud Functions | Azure Functions |
+| **Storage** | S3 | Cloud Storage | Storage Account |
+| **Secrets** | Secrets Manager | Secret Manager | Key Vault |
 
 ## Applications
 

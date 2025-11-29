@@ -114,7 +114,7 @@ export default function Home() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ width: '40px', height: '40px', background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>✨</div>
           <div>
-            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#a78bfa' }}>Co-Intelligence V1.0 Beta</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#a78bfa' }}>Co-Intelligence V2.0 Beta</div>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>AI-Powered Applications</div>
           </div>
         </div>
@@ -165,7 +165,8 @@ export default function Home() {
             <span style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>AI Intelligence</span>
           </h1>
           <p style={{ fontSize: '1.1rem', color: '#94a3b8', maxWidth: '900px', margin: '0 auto', lineHeight: '1.8' }}>
-            A modular, container orchestration platform for rapid co-intelligence development
+            <div style={{ textAlign: 'center' }}>Build once, deploy anywhere.</div>
+            <div style={{ textAlign: 'center' }}>Multi-cloud AI platform with agentic workflows that scale effortlessly</div>
           </p>
         </section>
 
@@ -202,16 +203,16 @@ export default function Home() {
             <h2 style={{ fontSize: '2rem', marginBottom: '50px', textAlign: 'center', fontWeight: 'bold' }}>Platform Features</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '30px' }}>
               {[
-                { icon: '☸️', title: 'Kubernetes (AWS EKS)', desc: 'Container orchestration with auto-scaling and health monitoring', color: '#3b82f6' },
-                { icon: '⚡', title: 'FastAPI Backend', desc: 'High-performance async Python API with automatic documentation', color: '#f97316' },
-                { icon: '▲', title: 'Next.js Frontend', desc: 'Next.js 14 App Router with server-side rendering and optimized builds', color: '#06b6d4' },
-                { icon: '🐘', title: 'PostgreSQL Database', desc: 'Reliable AWS RDS with Tortoise ORM and automated migrations', color: '#8b5cf6' },
-                { icon: '🔐', title: 'JWT Authentication', desc: 'Secure user registration, login, and session management', color: '#10b981' },
-                { icon: '☁️', title: 'AI/Cloud First', desc: 'Built for AWS with intelligent automation and cloud-native architecture', color: '#ec4899' },
+                { icon: '☸️', title: 'Container Orchestration', desc: 'Kubernetes on any cloud with unified manifests', color: '#3b82f6' },
+                { icon: '☁️', title: 'Multi-Cloud Ready', desc: 'Deploy anywhere - AWS, GCP, or Azure with cloud-agnostic infrastructure', color: '#ec4899' },
+                { icon: '🐘', title: 'Managed Databases', desc: 'PostgreSQL on AWS RDS, GCP Cloud SQL, or Azure Flexible Server', color: '#8b5cf6' },
+                { icon: '⚡', title: 'Serverless Execution', desc: 'Run code safely via AWS Lambda, GCP Cloud Functions, or Azure Functions', color: '#f97316' },
+                { icon: '🚀', title: 'Modern Full-Stack', desc: 'FastAPI + Next.js 14 with async APIs and server-side rendering', color: '#06b6d4' },
+                { icon: '🔐', title: 'Secure Auth', desc: 'JWT authentication with role-based access control', color: '#10b981' },
                 { icon: '🧩', title: 'Modular Architecture', desc: 'Scalable, maintainable design with independent components', color: '#f59e0b' },
-                { icon: '🤝', title: 'Co-Intelligence', desc: 'Collaborative intelligence combining human insight and AI capabilities', color: '#6366f1' },
-                { icon: '🔄', title: 'LangGraph Workflows', desc: 'Multi-agent orchestration with state management and conditional routing', color: '#ec4899' },
-                { icon: '🤖', title: 'Multi-AI Support', desc: '8 AI models across 3 providers (Gemini, Groq, AWS Bedrock)', color: '#14b8a6' }
+                { icon: '🤖', title: 'Multi-AI Support', desc: '7 AI models across 3 providers (Gemini, Groq, AWS Bedrock)', color: '#14b8a6' },
+                { icon: '🔄', title: 'Agentic Workflows', desc: 'Multi-agent orchestration with state management and routing', color: '#ec4899' },
+                { icon: '🤝', title: 'Co-Intelligence', desc: 'Collaborative intelligence combining human insight and AI capabilities', color: '#6366f1' }
               ].map((feature, idx) => (
                 <div key={idx} style={{
                   background: '#0f172a',
@@ -241,7 +242,7 @@ export default function Home() {
                 <div style={{ fontSize: '1.1rem', color: '#94a3b8' }}>Applications</div>
               </div>
               <div>
-                <div style={{ fontSize: '3rem', fontWeight: 'bold', color: '#10b981', marginBottom: '8px' }}>8</div>
+                <div style={{ fontSize: '3rem', fontWeight: 'bold', color: '#10b981', marginBottom: '8px' }}>7</div>
                 <div style={{ fontSize: '1.1rem', color: '#94a3b8' }}>AI Models</div>
               </div>
               <div>
@@ -249,8 +250,8 @@ export default function Home() {
                 <div style={{ fontSize: '0.95rem', color: '#94a3b8' }}>Platform + App Roles</div>
               </div>
               <div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#06b6d4', marginBottom: '8px' }}>Cloud Native</div>
-                <div style={{ fontSize: '0.95rem', color: '#94a3b8' }}>AWS EKS + RDS + ECR</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#06b6d4', marginBottom: '8px' }}>Multi-Cloud</div>
+                <div style={{ fontSize: '0.95rem', color: '#94a3b8' }}>AWS, GCP, Azure</div>
               </div>
             </div>
           </div>
@@ -261,10 +262,10 @@ export default function Home() {
       <footer style={{ background: '#0f172a', borderTop: '1px solid #1e293b', padding: '40px 0', textAlign: 'center' }}>
         <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 40px' }}>
           <div style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '12px', color: '#a78bfa' }}>
-            Co-Intelligence V1.0 Beta
+            Co-Intelligence V2.0 Beta
           </div>
           <div style={{ fontSize: '0.95rem', color: '#64748b', marginBottom: '8px' }}>
-            Built with ❤️ on AWS
+            Built with ❤️ on AWS, GCP, Azure
           </div>
           <div style={{ fontSize: '0.85rem', color: '#475569' }}>
             © 2025 All rights reserved
