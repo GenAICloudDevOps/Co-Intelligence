@@ -118,6 +118,10 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 ### Agentic Tutor - Learning
 ![Agentic Tutor Learning](screenshots/6.4.png)
 
+### Agentic Tutor - User taking quiz - Teach and Assess agents at work
+![Agentic Tutor User taking quiz - Teach and Assess agents at work](screenshots/6.5.png)
+
+
 ### Agentic Tutor - Agent Flow
 ![Agentic Tutor - Agent Flow](screenshots/6.21.png)
 
