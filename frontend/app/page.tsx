@@ -210,7 +210,7 @@ export default function Home() {
                 { icon: '🐘', title: 'Managed Databases', desc: 'PostgreSQL on AWS RDS, GCP Cloud SQL, or Azure Flexible Server', color: '#8b5cf6' },
                 { icon: '⚡', title: 'Serverless Execution', desc: 'Run code safely via AWS Lambda, GCP Cloud Functions, or Azure Functions', color: '#f97316' },
                 { icon: '🚀', title: 'Modern Full-Stack', desc: 'FastAPI + Next.js 14 with async APIs and server-side rendering', color: '#06b6d4' },
-                { icon: '🔐', title: 'Secure Auth', desc: 'JWT authentication with role-based access control', color: '#10b981' },
+                { icon: '🔐', title: 'Secure Auth', desc: 'JWT with refresh tokens, auto-session renewal, and role-based access', color: '#10b981' },
                 { icon: '🧩', title: 'Modular Architecture', desc: 'Scalable, maintainable design with independent components', color: '#f59e0b' },
                 { icon: '🤖', title: 'Multi-AI Support', desc: '7 AI models across 3 providers (Gemini, Groq, AWS Bedrock)', color: '#14b8a6' },
                 { icon: '🔄', title: 'Agentic Workflows', desc: 'Multi-agent orchestration with state management and routing', color: '#ec4899' },
