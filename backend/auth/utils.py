@@ -1,10 +1,11 @@
 from datetime import datetime, timedelta
+import secrets
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from config import settings
-from auth.models import User
+from auth.models import User, RefreshToken
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
@@ -19,10 +20,15 @@ def create_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
-    # Ensure sub is a string
     if "sub" in to_encode:
         to_encode["sub"] = str(to_encode["sub"])
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+async def create_refresh_token(user_id: int) -> str:
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    await RefreshToken.create(user_id=user_id, token=token, expires_at=expires_at)
+    return token
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:

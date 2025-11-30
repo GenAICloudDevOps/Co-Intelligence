@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { Send, MessageCircle, Brain, Zap, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import AppHeader from '../../components/AppHeader';
+import { DEFAULT_MODEL } from '../../config/models';
+import { api } from '../../services/api';
 
 interface Message {
   id: string;
@@ -21,7 +23,7 @@ export default function AgenticBarista() {
   const [sessionId, setSessionId] = useState('');
   const [cart, setCart] = useState<Record<number, number>>({});
   const [totalAmount, setTotalAmount] = useState(0);
-  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash-lite');
+  const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -56,17 +58,11 @@ export default function AgenticBarista() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/apps/agentic-barista/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: inputText,
-          session_id: sessionId,
-          model: selectedModel
-        })
+      const data = await api.post<{response: string, agent?: string, reasoning?: string, cart?: Record<number, number>, total_amount?: number}>('/api/apps/agentic-barista/chat', {
+        message: inputText,
+        session_id: sessionId,
+        model: selectedModel
       });
-
-      const data = await response.json();
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),

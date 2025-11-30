@@ -4,8 +4,9 @@ import { useAuth } from '@/app/hooks/useAuth'
 import AppHeader from '@/app/components/AppHeader'
 import Card from '@/app/components/Card'
 import { useState, useEffect, useRef } from 'react'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
+import { DEFAULT_MODEL } from '@/app/config/models'
+import { api } from '@/app/services/api'
+import type { Message } from '@/app/types'
 
 interface Topic {
   id: number
@@ -15,9 +16,7 @@ interface Topic {
   description: string
 }
 
-interface Message {
-  role: string
-  content: string
+interface TutorMessage extends Message {
   agent_type?: string
 }
 
@@ -33,11 +32,11 @@ export default function AgenticTutor() {
   const [topics, setTopics] = useState<Topic[]>([])
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null)
   const [sessionId, setSessionId] = useState<number | null>(null)
-  const [messages, setMessages] = useState<Message[]>([])
+  const [messages, setMessages] = useState<TutorMessage[]>([])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState('All')
-  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash-lite')
+  const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL)
   const [progress, setProgress] = useState<Progress[]>([])
   const [showProgress, setShowProgress] = useState(false)
   const [currentAgent, setCurrentAgent] = useState<string>('')
@@ -55,18 +54,14 @@ export default function AgenticTutor() {
   }, [messages])
 
   const fetchTopics = async () => {
-    const res = await fetch(`${API_URL}/api/apps/agentic-tutor/topics`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-    })
-    setTopics(await res.json())
+    const data = await api.get<Topic[]>('/api/apps/agentic-tutor/topics')
+    setTopics(data)
   }
 
   const fetchProgress = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/apps/agentic-tutor/progress`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      })
-      setProgress(await res.json())
+      const data = await api.get<Progress[]>('/api/apps/agentic-tutor/progress')
+      setProgress(data)
     } catch (e) {
       console.error('Error fetching progress:', e)
     }
@@ -74,15 +69,7 @@ export default function AgenticTutor() {
 
   const startSession = async (topic: Topic) => {
     setSelectedTopic(topic)
-    const res = await fetch(`${API_URL}/api/apps/agentic-tutor/sessions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify({ topic_id: topic.id })
-    })
-    const data = await res.json()
+    const data = await api.post<{id: number}>('/api/apps/agentic-tutor/sessions', { topic_id: topic.id })
     setSessionId(data.id)
     setCurrentAgent('tutor')
     setMessages([{
@@ -102,20 +89,12 @@ export default function AgenticTutor() {
     setSending(true)
 
     try {
-      const res = await fetch(`${API_URL}/api/apps/agentic-tutor/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          session_id: sessionId,
-          topic_id: selectedTopic.id,
-          message: currentInput,
-          model: selectedModel
-        })
+      const data = await api.post<{session_id: number, agent_type: string, response: string}>('/api/apps/agentic-tutor/chat', {
+        session_id: sessionId,
+        topic_id: selectedTopic.id,
+        message: currentInput,
+        model: selectedModel
       })
-      const data = await res.json()
       
       setSessionId(data.session_id)
       setCurrentAgent(data.agent_type || 'tutor')
@@ -125,7 +104,6 @@ export default function AgenticTutor() {
         agent_type: data.agent_type
       }])
       
-      // Refresh progress after quiz/assessment
       if (data.agent_type === 'grader' || currentInput.toLowerCase().includes('progress')) {
         await fetchProgress()
       }

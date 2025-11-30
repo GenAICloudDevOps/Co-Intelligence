@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Coffee, ShoppingCart } from 'lucide-react';
+import { AI_MODELS, DEFAULT_MODEL } from '../config/models';
 
 interface AppHeaderProps {
   appName: string;
@@ -17,22 +18,12 @@ export default function AppHeader({
   appName,
   showModelSelector = false,
   showCart = false,
-  selectedModel = 'gemini-2.5-flash-lite',
+  selectedModel = DEFAULT_MODEL,
   onModelChange,
   cartCount = 0
 }: AppHeaderProps) {
   const [user, setUser] = useState<any>(null);
   const router = useRouter();
-
-  const models = [
-    { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', provider: 'Google' },
-    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google' },
-    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google' },
-    { id: 'groq/compound', name: 'Groq Compound', provider: 'Groq' },
-    { id: 'meta-llama/llama-4-scout-17b-16e-instruct', name: 'Llama 4 Scout', provider: 'Groq' },
-    { id: 'amazon.nova-lite-v1:0', name: 'Nova Lite', provider: 'AWS Bedrock' },
-    { id: 'amazon.nova-pro-v1:0', name: 'Nova Pro', provider: 'AWS Bedrock' },
-  ];
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -88,7 +79,7 @@ export default function AppHeader({
               onChange={(e) => onModelChange(e.target.value)}
               style={{ padding: '8px 16px', border: '1px solid #d6d3d1', borderRadius: '8px', background: 'white', fontSize: '14px', outline: 'none' }}
             >
-              {models.map(model => (
+              {AI_MODELS.map(model => (
                 <option key={model.id} value={model.id}>
                   {model.name} ({model.provider})
                 </option>

@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import axios from 'axios'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
+import { api } from '../../../services/api'
+import { DEFAULT_MODEL } from '../../../config/models'
 
 export default function NewClaim() {
   const router = useRouter()
@@ -25,7 +24,7 @@ export default function NewClaim() {
     rewritten: '',
     loading: false
   })
-  const [selectedModel, setSelectedModel] = useState('gemini')
+  const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL)
 
   useEffect(() => {
     const savedModel = localStorage.getItem('insurance_ai_model') || 'gemini'
@@ -49,14 +48,11 @@ export default function NewClaim() {
     setRewriteModal({ show: true, field, original: text, rewritten: '', loading: true })
 
     try {
-      const token = localStorage.getItem('token')
-      const res = await axios.post(`${API_URL}/api/apps/insurance-claims/rewrite`, {
+      const res = await api.post<{rewritten_text: string}>('/api/apps/insurance-claims/rewrite', {
         text,
         model: selectedModel
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       })
-      setRewriteModal(prev => ({ ...prev, rewritten: res.data.rewritten_text, loading: false }))
+      setRewriteModal(prev => ({ ...prev, rewritten: res.rewritten_text, loading: false }))
     } catch (error) {
       console.error('Error rewriting:', error)
       setRewriteModal(prev => ({ ...prev, loading: false }))
@@ -75,13 +71,10 @@ export default function NewClaim() {
 
   const loadPolicies = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const res = await axios.get(`${API_URL}/api/apps/insurance-claims/policies`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      setPolicies(res.data)
-      if (res.data.length > 0) {
-        setFormData(prev => ({ ...prev, policy_id: res.data[0].id.toString() }))
+      const res = await api.get<any[]>('/api/apps/insurance-claims/policies')
+      setPolicies(res)
+      if (res.length > 0) {
+        setFormData(prev => ({ ...prev, policy_id: res[0].id.toString() }))
       }
     } catch (error) {
       console.error('Error loading policies:', error)
@@ -96,13 +89,10 @@ export default function NewClaim() {
     setMessage('')
 
     try {
-      const token = localStorage.getItem('token')
-      await axios.post(`${API_URL}/api/apps/insurance-claims/claims`, {
+      await api.post('/api/apps/insurance-claims/claims', {
         ...formData,
         policy_id: parseInt(formData.policy_id),
         incident_date: new Date(formData.incident_date).toISOString()
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       })
       
       setMessage('Claim submitted successfully!')
@@ -110,7 +100,7 @@ export default function NewClaim() {
         router.push('/apps/insurance-claims')
       }, 1500)
     } catch (error: any) {
-      setMessage(error.response?.data?.detail || 'Failed to submit claim')
+      setMessage('Failed to submit claim')
     } finally {
       setLoading(false)
     }

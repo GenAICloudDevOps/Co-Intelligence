@@ -2,9 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import axios from 'axios'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
+import { api } from '../../../../services/api'
 
 export default function ClaimDetail() {
   const router = useRouter()
@@ -29,27 +27,16 @@ export default function ClaimDetail() {
 
   const loadData = async () => {
     try {
-      const token = localStorage.getItem('token')
+      const accessRes = await api.get<{roles: string[]}>('/api/apps/insurance-claims/access')
+      setRoles(accessRes.roles)
       
-      // Get roles
-      const accessRes = await axios.get(`${API_URL}/api/apps/insurance-claims/access`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      setRoles(accessRes.data.roles)
+      const claimRes = await api.get<any>(`/api/apps/insurance-claims/claims/${params.id}`)
+      setClaim(claimRes)
+      setNewStatus(claimRes.status)
       
-      // Get claim
-      const claimRes = await axios.get(`${API_URL}/api/apps/insurance-claims/claims/${params.id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      setClaim(claimRes.data)
-      setNewStatus(claimRes.data.status)
-      
-      // Get adjusters if manager
-      if (accessRes.data.roles.includes('manager')) {
-        const adjustersRes = await axios.get(`${API_URL}/api/apps/insurance-claims/adjusters`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-        setAdjusters(adjustersRes.data)
+      if (accessRes.roles.includes('manager')) {
+        const adjustersRes = await api.get<any[]>('/api/apps/insurance-claims/adjusters')
+        setAdjusters(adjustersRes)
       }
     } catch (error) {
       console.error('Error loading data:', error)
@@ -61,18 +48,15 @@ export default function ClaimDetail() {
   const handleUpdateStatus = async () => {
     setUpdating(true)
     try {
-      const token = localStorage.getItem('token')
-      await axios.put(`${API_URL}/api/apps/insurance-claims/claims/${params.id}/status`, {
+      await api.put(`/api/apps/insurance-claims/claims/${params.id}/status`, {
         status: newStatus,
         assigned_adjuster_id: assignedAdjusterId ? parseInt(assignedAdjusterId) : null,
         approved_amount: approvedAmount ? parseFloat(approvedAmount) : null
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       })
       await loadData()
       alert('Status updated successfully!')
     } catch (error: any) {
-      alert(error.response?.data?.detail || 'Failed to update status')
+      alert('Failed to update status')
     } finally {
       setUpdating(false)
     }

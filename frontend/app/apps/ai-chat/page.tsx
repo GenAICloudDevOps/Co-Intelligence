@@ -1,38 +1,23 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import axios from 'axios'
 import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import jsPDF from 'jspdf'
 import AppHeader from '../../components/AppHeader'
+import { DEFAULT_MODEL } from '../../config/models'
+import { api } from '../../services/api'
+import type { Message, Session, Document } from '../../types'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
-
-interface Message {
-  role: string
-  content: string
+interface ChatMessage extends Message {
   timestamp: Date
 }
 
-interface Session {
-  id: number
-  title: string
-  created_at: string
-}
-
-interface Document {
-  id: number
-  filename: string
-  file_size: number
-  file_type: string
-}
-
 export default function AIChat() {
-  const [messages, setMessages] = useState<Message[]>([])
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
-  const [model, setModel] = useState('gemini-2.5-flash-lite')
+  const [model, setModel] = useState(DEFAULT_MODEL)
   const [token, setToken] = useState('')
   const [sessionId, setSessionId] = useState<number | null>(null)
   const [sessions, setSessions] = useState<Session[]>([])
@@ -82,26 +67,17 @@ export default function AIChat() {
 
   const loadSessions = async (authToken: string) => {
     try {
-      const response = await axios.get(`${API_URL}/api/apps/ai-chat/sessions`, {
-        headers: { Authorization: `Bearer ${authToken}` }
-      })
-      setSessions(response.data)
+      const data = await api.get<Session[]>('/api/apps/ai-chat/sessions')
+      setSessions(data)
     } catch (error: any) {
       console.error('Failed to load sessions:', error)
-      // Don't show error to user on initial load - they might not have sessions yet
-      if (error.response?.status !== 404) {
-        // Only log non-404 errors
-        console.warn('Session load error:', error.message)
-      }
     }
   }
 
   const loadSession = async (id: number) => {
     try {
-      const response = await axios.get(`${API_URL}/api/apps/ai-chat/sessions/${id}/messages`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      setMessages(response.data.map((msg: any) => ({
+      const data = await api.get<any[]>(`/api/apps/ai-chat/sessions/${id}/messages`)
+      setMessages(data.map((msg: any) => ({
         ...msg,
         timestamp: new Date(msg.created_at)
       })))
@@ -115,10 +91,8 @@ export default function AIChat() {
 
   const loadDocuments = async (sid: number) => {
     try {
-      const response = await axios.get(`${API_URL}/api/apps/ai-chat/sessions/${sid}/documents`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      setDocuments(response.data)
+      const data = await api.get<Document[]>(`/api/apps/ai-chat/sessions/${sid}/documents`)
+      setDocuments(data)
     } catch (error) {
       console.error('Failed to load documents:', error)
     }
@@ -134,16 +108,17 @@ export default function AIChat() {
     formData.append('session_id', sessionId.toString())
 
     try {
-      const response = await axios.post(`${API_URL}/api/apps/ai-chat/upload`, formData, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data'
-        }
+      const res = await fetch(`${api.getStreamUrl('/api/apps/ai-chat/upload')}`, {
+        method: 'POST',
+        headers: api.getAuthHeaders(),
+        body: formData
       })
-      setDocuments(prev => [...prev, response.data])
+      if (!res.ok) throw new Error('Upload failed')
+      const data = await res.json()
+      setDocuments(prev => [...prev, data])
     } catch (error: any) {
       console.error('Upload failed:', error)
-      alert(error.response?.data?.detail || 'Failed to upload file')
+      alert('Failed to upload file')
     } finally {
       setIsUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -152,9 +127,7 @@ export default function AIChat() {
 
   const deleteDocument = async (docId: number) => {
     try {
-      await axios.delete(`${API_URL}/api/apps/ai-chat/documents/${docId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      await api.delete(`/api/apps/ai-chat/documents/${docId}`)
       setDocuments(prev => prev.filter(d => d.id !== docId))
     } catch (error) {
       console.error('Failed to delete document:', error)
@@ -163,9 +136,7 @@ export default function AIChat() {
 
   const deleteSession = async (id: number) => {
     try {
-      await axios.delete(`${API_URL}/api/apps/ai-chat/sessions/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      await api.delete(`/api/apps/ai-chat/sessions/${id}`)
       setSessions(sessions.filter(s => s.id !== id))
       if (sessionId === id) {
         setSessionId(null)
@@ -178,10 +149,8 @@ export default function AIChat() {
 
   const loadContextInfo = async (sid: number) => {
     try {
-      const response = await axios.get(`${API_URL}/api/apps/ai-chat/sessions/${sid}/context?context_size=${contextSize}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      setContextInfo({ total: response.data.total_messages, inContext: response.data.context_messages })
+      const data = await api.get<{total_messages: number, context_messages: number}>(`/api/apps/ai-chat/sessions/${sid}/context?context_size=${contextSize}`)
+      setContextInfo({ total: data.total_messages, inContext: data.context_messages })
     } catch (error) {
       console.error('Failed to load context info:', error)
     }
@@ -190,7 +159,7 @@ export default function AIChat() {
   const sendMessage = async () => {
     if (!input.trim() || !token || isLoading) return
 
-    const userMessage: Message = { role: 'user', content: input, timestamp: new Date() }
+    const userMessage: ChatMessage = { role: 'user', content: input, timestamp: new Date() }
     setMessages(prev => [...prev, userMessage])
     const userInput = input
     setInput('')
@@ -198,11 +167,11 @@ export default function AIChat() {
     setStreamingMessage('')
 
     try {
-      const response = await fetch(`${API_URL}/api/apps/ai-chat/chat/stream`, {
+      const response = await fetch(api.getStreamUrl('/api/apps/ai-chat/chat/stream'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          ...api.getAuthHeaders()
         },
         body: JSON.stringify({
           message: userInput,

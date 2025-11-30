@@ -10,3 +10,11 @@ class User(BaseModel):
     
     class Meta:
         table = "users"
+
+class RefreshToken(BaseModel):
+    user_id = fields.IntField()
+    token = fields.CharField(max_length=255, unique=True)
+    expires_at = fields.DatetimeField()
+    
+    class Meta:
+        table = "refresh_tokens"

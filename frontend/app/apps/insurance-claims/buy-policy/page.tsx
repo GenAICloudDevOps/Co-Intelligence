@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import axios from 'axios'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
+import { api } from '../../../services/api'
 
 export default function BuyPolicy() {
   const router = useRouter()
@@ -31,17 +29,14 @@ export default function BuyPolicy() {
     setMessage('')
 
     try {
-      const token = localStorage.getItem('token')
-      await axios.post(`${API_URL}/api/apps/insurance-claims/policies`, formData, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      await api.post('/api/apps/insurance-claims/policies', formData)
       
       setMessage('Policy created successfully!')
       setTimeout(() => {
         router.push('/apps/insurance-claims')
       }, 1500)
     } catch (error: any) {
-      setMessage(error.response?.data?.detail || 'Failed to create policy')
+      setMessage('Failed to create policy')
     } finally {
       setLoading(false)
     }

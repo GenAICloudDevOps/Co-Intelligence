@@ -1,11 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import axios from 'axios'
 import AppHeader from '../../components/AppHeader'
 import { ModelSelector, DEFAULT_MODEL } from '../../config/models'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
+import { api } from '../../services/api'
 
 interface Course {
   id: number
@@ -55,11 +53,8 @@ export default function AgenticLMS() {
 
   const fetchCourses = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await axios.get(`${API_URL}/api/apps/agentic-lms/courses`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      setCourses(response.data)
+      const data = await api.get<Course[]>('/api/apps/agentic-lms/courses')
+      setCourses(data)
     } catch (error) {
       console.error('Error fetching courses:', error)
     }
@@ -67,11 +62,8 @@ export default function AgenticLMS() {
 
   const fetchEnrollments = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await axios.get(`${API_URL}/api/apps/agentic-lms/enrollments`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      setEnrollments(response.data)
+      const data = await api.get<Enrollment[]>('/api/apps/agentic-lms/enrollments')
+      setEnrollments(data)
     } catch (error) {
       console.error('Error fetching enrollments:', error)
     }
@@ -79,14 +71,11 @@ export default function AgenticLMS() {
 
   const handleEnroll = async (courseId: number) => {
     try {
-      const token = localStorage.getItem('token')
-      await axios.post(`${API_URL}/api/apps/agentic-lms/enrollments/${courseId}`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      await api.post(`/api/apps/agentic-lms/enrollments/${courseId}`, {})
       await fetchEnrollments()
       alert('Successfully enrolled!')
     } catch (error: any) {
-      alert(error.response?.data?.detail || 'Enrollment failed')
+      alert(error.message || 'Enrollment failed')
     }
   }
 
@@ -113,16 +102,13 @@ export default function AgenticLMS() {
     setChatHistory([...chatHistory, { role: 'user', content: chatMessage }])
     
     try {
-      const token = localStorage.getItem('token')
-      const response = await axios.post(`${API_URL}/api/apps/agentic-lms/chat`, {
+      const data = await api.post<{response: string}>('/api/apps/agentic-lms/chat', {
         message: chatMessage,
         model: selectedModel
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       })
-      setChatHistory(prev => [...prev, { role: 'assistant', content: response.data.response }])
+      setChatHistory(prev => [...prev, { role: 'assistant', content: data.response }])
       setChatMessage('')
-      if (response.data.response.includes('enrolled')) await fetchEnrollments()
+      if (data.response.includes('enrolled')) await fetchEnrollments()
     } catch (error) {
       console.error('Chat error:', error)
     }

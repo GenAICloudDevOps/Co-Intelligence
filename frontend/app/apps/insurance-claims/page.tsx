@@ -2,10 +2,8 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import axios from 'axios'
 import { ModelSelector, DEFAULT_MODEL } from '../../config/models'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
+import { api } from '../../services/api'
 
 export default function InsuranceClaimsDashboard() {
   const router = useRouter()
@@ -45,23 +43,15 @@ export default function InsuranceClaimsDashboard() {
 
   const loadData = async () => {
     try {
-      const token = localStorage.getItem('token')
+      const accessRes = await api.get<{roles: string[]}>('/api/apps/insurance-claims/access')
+      setRoles(accessRes.roles)
       
-      const accessRes = await axios.get(`${API_URL}/api/apps/insurance-claims/access`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      setRoles(accessRes.data.roles)
+      const claimsRes = await api.get<any[]>('/api/apps/insurance-claims/claims')
+      setClaims(claimsRes)
       
-      const claimsRes = await axios.get(`${API_URL}/api/apps/insurance-claims/claims`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      setClaims(claimsRes.data)
-      
-      if (accessRes.data.roles.includes('customer')) {
-        const policiesRes = await axios.get(`${API_URL}/api/apps/insurance-claims/policies`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-        setPolicies(policiesRes.data)
+      if (accessRes.roles.includes('customer')) {
+        const policiesRes = await api.get<any[]>('/api/apps/insurance-claims/policies')
+        setPolicies(policiesRes)
       }
     } catch (error) {
       console.error('Error loading data:', error)
@@ -79,18 +69,15 @@ export default function InsuranceClaimsDashboard() {
     setChatLoading(true)
 
     try {
-      const token = localStorage.getItem('token')
       const context = `User has ${policies.length} policies and ${claims.length} claims. Roles: ${roles.join(', ')}.`
       
-      const res = await axios.post(`${API_URL}/api/apps/insurance-claims/chat`, {
+      const res = await api.post<{response: string}>('/api/apps/insurance-claims/chat', {
         message: userMessage,
         model: selectedModel,
         context
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       })
       
-      setChatMessages(prev => [...prev, { role: 'assistant', content: res.data.response }])
+      setChatMessages(prev => [...prev, { role: 'assistant', content: res.response }])
     } catch (error) {
       setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }])
     } finally {

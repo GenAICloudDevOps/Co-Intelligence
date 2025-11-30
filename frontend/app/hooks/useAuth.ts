@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
+import { api } from '../services/api'
 
 interface User {
   id: number
@@ -19,8 +18,6 @@ export function useAuth(requireAuth: boolean = true) {
 
   useEffect(() => {
     const storedToken = localStorage.getItem('token')
-    const username = localStorage.getItem('username')
-    const email = localStorage.getItem('email')
 
     if (!storedToken) {
       setLoading(false)
@@ -32,14 +29,7 @@ export function useAuth(requireAuth: boolean = true) {
 
     setToken(storedToken)
 
-    // Fetch user from backend
-    fetch(`${API_URL}/api/auth/me`, {
-      headers: { Authorization: `Bearer ${storedToken}` }
-    })
-      .then(res => {
-        if (!res.ok) throw new Error('Unauthorized')
-        return res.json()
-      })
+    api.get<User>('/api/auth/me')
       .then(data => {
         setUser(data)
         setLoading(false)
@@ -53,7 +43,12 @@ export function useAuth(requireAuth: boolean = true) {
       })
   }, [requireAuth, router])
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await api.post('/api/auth/logout')
+    } catch {
+      // Ignore errors, clear anyway
+    }
     localStorage.clear()
     setUser(null)
     setToken(null)

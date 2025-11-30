@@ -51,6 +51,7 @@ export default function Home() {
         const newToken = response.data.access_token
         setToken(newToken)
         localStorage.setItem('token', newToken)
+        localStorage.setItem('refresh_token', response.data.refresh_token)
         localStorage.setItem('username', formData.email.split('@')[0])
         localStorage.setItem('email', formData.email)
         setUsername(formData.email.split('@')[0])
@@ -69,6 +70,7 @@ export default function Home() {
         const newToken = response.data.access_token
         setToken(newToken)
         localStorage.setItem('token', newToken)
+        localStorage.setItem('refresh_token', response.data.refresh_token)
         localStorage.setItem('username', formData.username)
         localStorage.setItem('email', formData.email)
         setUsername(formData.username)
