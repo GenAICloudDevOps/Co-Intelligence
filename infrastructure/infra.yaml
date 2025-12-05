@@ -126,7 +126,7 @@ Resources:
     Properties:
       DBParameterGroupName: co-intelligence-pg
       Description: Parameter group to disable SSL requirement
-      Family: postgres15
+      Family: postgres17
       Parameters:
         rds.force_ssl: '0'
       Tags:
@@ -139,7 +139,7 @@ Resources:
     Properties:
       DBInstanceIdentifier: co-intelligence-db
       Engine: postgres
-      EngineVersion: '15.10'
+      EngineVersion: '17.2'
       DBInstanceClass: db.t3.medium
       AllocatedStorage: 20
       StorageType: gp2
@@ -323,7 +323,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: co-intelligence-code-executor
-      Runtime: python3.11
+      Runtime: python3.13
       Handler: index.lambda_handler
       Role: !GetAtt CodeExecutorLambdaRole.Arn
       Timeout: 30
