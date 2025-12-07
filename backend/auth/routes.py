@@ -25,30 +25,46 @@ class TokenResponse(BaseModel):
 
 @router.post("/register", response_model=TokenResponse)
 async def register(user_data: UserCreate):
-    if await User.exists(email=user_data.email):
-        raise HTTPException(status_code=400, detail="Email already registered")
-    if await User.exists(username=user_data.username):
-        raise HTTPException(status_code=400, detail="Username already taken")
-    
-    user = await User.create(
-        email=user_data.email,
-        username=user_data.username,
-        hashed_password=get_password_hash(user_data.password)
-    )
-    
-    access_token = create_access_token(data={"sub": user.id})
-    refresh_token = await create_refresh_token(user.id)
-    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+    try:
+        if await User.exists(email=user_data.email):
+            raise HTTPException(status_code=400, detail="Email already registered")
+        if await User.exists(username=user_data.username):
+            raise HTTPException(status_code=400, detail="Username already taken")
+        
+        user = await User.create(
+            email=user_data.email,
+            username=user_data.username,
+            hashed_password=get_password_hash(user_data.password)
+        )
+        
+        access_token = create_access_token(data={"sub": user.id})
+        refresh_token = await create_refresh_token(user.id)
+        return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERROR in register: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
 
 @router.post("/login", response_model=TokenResponse)
 async def login(user_data: UserLogin):
-    user = await User.get_or_none(email=user_data.email)
-    if not user or not verify_password(user_data.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    
-    access_token = create_access_token(data={"sub": user.id})
-    refresh_token = await create_refresh_token(user.id)
-    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+    try:
+        user = await User.get_or_none(email=user_data.email)
+        if not user or not verify_password(user_data.password, user.hashed_password):
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+        access_token = create_access_token(data={"sub": user.id})
+        refresh_token = await create_refresh_token(user.id)
+        return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERROR in login: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh(data: RefreshRequest):

@@ -177,7 +177,7 @@ export default function Home() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
             <h2 style={{ fontSize: '2rem', fontWeight: 'bold' }}>AI Applications</h2>
             <div style={{ display: 'flex', gap: '20px', fontSize: '0.9rem', color: '#64748b' }}>
-              <span>⚡ 4 active</span>
+              <span>⚡ {apps.filter(a => a.status === 'active').length} active</span>
               <span>🕐 Last updated: {currentTime}</span>
             </div>
           </div>

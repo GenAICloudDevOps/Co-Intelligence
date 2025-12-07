@@ -84,5 +84,20 @@ export const apps: AppConfig[] = [
     route: '/apps/agentic-tutor',
     status: 'active',
     requiresAuth: true
+  },
+  {
+    id: 'ml-predictor',
+    name: 'ML Predictor',
+    description: [
+      'Multi-Algorithm ML System',
+      'Automatic Algorithm Selection',
+      'Classification & Regression',
+      'Comprehensive Metrics'
+    ],
+    icon: '🤖',
+    color: '#8b5cf6',
+    route: '/apps/ml-predictor',
+    status: 'active',
+    requiresAuth: true
   }
 ]
