@@ -20,6 +20,13 @@ class Settings(BaseSettings):
     
     S3_BUCKET_NAME: str = ""
     CODE_EXECUTOR_URL: str = ""
+
+    # AI settings
+    AI_DEFAULT_MODEL: str = "gemini-2.5-flash"
+    AI_FAST_MODEL: str = "gemini-2.5-flash"
+    AI_QUALITY_MODEL: str = "gemini-1.5-pro"
+    AI_ALT_MODEL: str = "groq/compound"
+    AI_REQUEST_TIMEOUT: int = 60
     
     class Config:
         env_file = ".env"

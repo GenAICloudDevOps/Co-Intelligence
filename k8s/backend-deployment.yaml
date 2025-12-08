@@ -12,9 +12,11 @@ spec:
       labels:
         app: backend
     spec:
+      imagePullSecrets:
+      - name: ecr-pull
       containers:
       - name: backend
-        image: 878915883882.dkr.ecr.us-east-1.amazonaws.com/co-intelligence-backend:latest
+        image: <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/co-intelligence-backend:<IMAGE_TAG>
         ports:
         - containerPort: 8000
         envFrom:

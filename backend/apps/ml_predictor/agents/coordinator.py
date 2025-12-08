@@ -140,6 +140,7 @@ class MLPredictorCoordinator:
             df = self.data_processor.load_dataset(dataset.get("file_path", ""))
             X, y = self.data_processor.preprocess_data(df, state.get("target_variable", "target"))
             X_train, X_test, y_train, y_test = self.data_processor.split_data(X, y)
+            feature_names = list(X.columns) if hasattr(X, "columns") else list(range(X.shape[1]))
             
             await self._log_step("train_algorithms", f"Data prepared: {X_train.shape[0]} training samples, {X_test.shape[0]} test samples")
             
@@ -159,6 +160,15 @@ class MLPredictorCoordinator:
             algorithm_results = {}
             for result in results:
                 algo_name = result.get("algorithm_name")
+                # Remap and normalize feature importance to real feature names
+                fi = result.get("feature_importance") or {}
+                if fi:
+                    normalized = {}
+                    total = sum(abs(v) for v in fi.values()) or 1.0
+                    for idx, name in enumerate(feature_names):
+                        val = fi.get(f"feature_{idx}", 0.0)
+                        normalized[name] = float(abs(val)) / total
+                    result["feature_importance"] = normalized
                 algorithm_results[algo_name] = result
             
             return {
@@ -238,19 +248,35 @@ class MLPredictorCoordinator:
                         "status": "analyzing",
                         "step": "analysis",
                         "message": "Problem analysis completed. Algorithms selected.",
-                        "data": {
-                            "problem_type": data.get("problem_type"),
-                            "algorithms": data.get("selected_algorithms")
+                            "data": {
+                                "problem_type": data.get("problem_type"),
+                                "algorithms": data.get("selected_algorithms")
+                            }
                         }
-                    }
+                    if data.get("selected_algorithms"):
+                        yield {
+                            "status": "training_start",
+                            "step": "training",
+                            "message": f"Starting training for {len(data.get('selected_algorithms', []))} algorithms",
+                            "data": {
+                                "algorithms": data.get("selected_algorithms")
+                            }
+                        }
                 elif node == "train_algorithms":
                     state.update(data)
+                    algo_results = data.get("algorithm_results", {})
+                    durations = {
+                        name: f"{res.get('training_time', 0):.2f}s"
+                        for name, res in algo_results.items()
+                        if isinstance(res, dict)
+                    }
                     yield {
                         "status": "training",
                         "step": "training",
                         "message": "Model training completed.",
                         "data": {
-                            "algorithm_count": len(data.get("algorithm_results", {}))
+                            "algorithm_count": len(algo_results),
+                            "durations": durations
                         }
                     }
                 elif node == "evaluation_agent":

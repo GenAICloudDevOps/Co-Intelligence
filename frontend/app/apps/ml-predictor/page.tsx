@@ -5,68 +5,8 @@ import AppHeader from '@/app/components/AppHeader'
 import Card from '@/app/components/Card'
 import { useState, useEffect, useRef } from 'react'
 import { DEFAULT_MODEL } from '@/app/config/models'
-import { api } from '@/app/services/api'
-
-interface Dataset {
-  id: number
-  name: string
-  description: string
-  rows: number
-  columns: number
-  column_names: string[]
-}
-
-interface AlgorithmResult {
-  algorithm: string
-  display_name: string
-  metrics: Record<string, number>
-  training_time: string
-  rank: number
-}
-
-interface PredictionResult {
-  project_id: number
-  analysis: {
-    problem_type: string
-    target_variable: string
-    reasoning: string
-    analysis_method: string
-  }
-  dataset_info: {
-    name: string
-    total_rows: number
-    train_rows: number
-    test_rows: number
-    train_percentage: number
-    test_percentage: number
-    features: number
-    feature_names: string[]
-    target_column: string
-  }
-  algorithm_selection: {
-    selected_algorithms: string[]
-    reasoning: string
-    selection_criteria: string[]
-  }
-  all_results: AlgorithmResult[]
-  winner: {
-    algorithm: string
-    display_name: string
-    metrics: Record<string, number>
-    training_time: string
-    reason: string
-    margin: string
-  }
-  feature_importance: Record<string, number>
-  insights: string[]
-}
-
-interface ProgressUpdate {
-  status: string
-  step: string
-  message: string
-  data?: any
-}
+import { mlApi } from './api'
+import { Dataset, DatasetPreview, PredictionResult, ProgressUpdate, AlgorithmInfo } from './types'
 
 export default function MLPredictor() {
   const { user, loading } = useAuth(true)
@@ -78,7 +18,12 @@ export default function MLPredictor() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [progressLog, setProgressLog] = useState<ProgressUpdate[]>([])
+  const [progressStatus, setProgressStatus] = useState<string>('idle')
+  const [progressPercent, setProgressPercent] = useState<number>(0)
   const logEndRef = useRef<HTMLDivElement>(null)
+  const [datasetPreview, setDatasetPreview] = useState<DatasetPreview | null>(null)
+  const [algorithms, setAlgorithms] = useState<AlgorithmInfo[]>([])
+  const [showPipeline, setShowPipeline] = useState<boolean>(false)
   
   // Upload States
   const [uploadMode, setUploadMode] = useState<'none' | 'file' | 'text'>('none')
@@ -92,6 +37,7 @@ export default function MLPredictor() {
     dataset: false,
     selection: false,
     results: true,
+    visuals: true,
     features: false,
     predict: true
   })
@@ -100,6 +46,7 @@ export default function MLPredictor() {
     if (user) {
       loadSampleDatasets()
       loadUserDatasets()
+      loadAlgorithms()
     }
   }, [user])
 
@@ -111,10 +58,10 @@ export default function MLPredictor() {
 
   const loadSampleDatasets = async () => {
     try {
-      const data = await api.get<{ datasets: Dataset[] }>('/api/apps/ml-predictor/sample-datasets')
+      const data = await mlApi.getSampleDatasets()
       setDatasets(prev => {
         const currentIds = new Set(prev.map(p => p.id))
-        const newD = data.datasets.filter(d => !currentIds.has(d.id))
+        const newD = data.filter(d => !currentIds.has(d.id))
         return [...prev, ...newD]
       })
     } catch (err) {
@@ -122,12 +69,21 @@ export default function MLPredictor() {
     }
   }
 
+  const loadAlgorithms = async () => {
+    try {
+      const data = await mlApi.getAlgorithms()
+      setAlgorithms(data || [])
+    } catch (err) {
+      console.error('Error loading algorithms:', err)
+    }
+  }
+
   const loadUserDatasets = async () => {
     try {
-      const data = await api.get<{ datasets: Dataset[] }>('/api/apps/ml-predictor/datasets')
+      const data = await mlApi.getUserDatasets()
       setDatasets(prev => {
         const currentIds = new Set(prev.map(p => p.id))
-        const newD = data.datasets.filter(d => !currentIds.has(d.id))
+        const newD = data.filter(d => !currentIds.has(d.id))
         return [...prev, ...newD]
       })
     } catch (err) {
@@ -148,16 +104,8 @@ export default function MLPredictor() {
       const formData = new FormData()
       formData.append('file', uploadFile)
       formData.append('name', datasetName)
-      
-      const response = await fetch('/api/apps/ml-predictor/upload-dataset', {
-        method: 'POST',
-        headers: api.getAuthHeaders(),
-        body: formData
-      })
-      
-      if (!response.ok) throw new Error('Upload failed')
-      
-      const newDataset = await response.json()
+
+      const newDataset = await mlApi.uploadDataset(formData)
       setDatasets(prev => [...prev, newDataset])
       setSelectedDataset(newDataset)
       setUploadMode('none')
@@ -171,6 +119,16 @@ export default function MLPredictor() {
     }
   }
 
+  const fetchDatasetPreview = async (datasetId: number) => {
+    try {
+      const data = await mlApi.getDatasetPreview(datasetId)
+      setDatasetPreview(data)
+    } catch (err) {
+      console.error('Error loading dataset preview:', err)
+      setDatasetPreview(null)
+    }
+  }
+
   const handleTextUpload = async () => {
     if (!pasteText || !datasetName) {
       setError('Please provide text and a name')
@@ -181,7 +139,7 @@ export default function MLPredictor() {
     setError('')
     
     try {
-      const newDataset = await api.post<Dataset>('/api/apps/ml-predictor/upload-text', {
+      const newDataset = await mlApi.uploadText({
         text: pasteText,
         name: datasetName
       })
@@ -306,19 +264,15 @@ function SinglePrediction({ projectId, featureNames, problemType }: { projectId:
     setError('')
     setResults(null)
     setProgressLog([])
+    setProgressPercent(5)
+    setProgressStatus('started')
+    setShowPipeline(true)
 
     try {
-      const response = await fetch(api.getStreamUrl('/api/apps/ml-predictor/predict/stream'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...api.getAuthHeaders()
-        },
-        body: JSON.stringify({
-          dataset_id: selectedDataset.id,
-          problem_description: problemDescription,
-          model: selectedModel
-        })
+      const response = await mlApi.startPredictionStream({
+        dataset_id: selectedDataset.id,
+        problem_description: problemDescription,
+        model: selectedModel
       })
 
       if (!response.ok) {
@@ -331,35 +285,37 @@ function SinglePrediction({ projectId, featureNames, problemType }: { projectId:
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
-      let completeMessages = []
+      let streamError = ''
 
-      const processBuffer = () => {
-        // Split buffer into potential JSON messages
-        const parts = buffer.split('\n')
-        let newBuffer = ''
-        
-        for (let i = 0; i < parts.length; i++) {
-          const part = parts[i].trim()
-          if (!part) continue
-          
-          try {
-            // Try to parse as JSON
-            const update = JSON.parse(part)
-            completeMessages.push(update)
-          } catch (e) {
-            // If parsing fails, this might be a partial message
-            // Keep it in buffer for next iteration
-            if (i === parts.length - 1) {
-              // Last part might be incomplete
-              newBuffer = part
-            } else {
-              // Middle parts should be complete, log the error
-              console.error('Error parsing part:', part, 'Error:', e)
-            }
-          }
+      const statusToProgress: Record<string, number> = {
+        started: 5,
+        analyzing: 20,
+        training_start: 40,
+        training: 70,
+        evaluating: 85,
+        saved: 100,
+        completed: 100
+      }
+
+      const handleUpdate = (update: any) => {
+        const pct = statusToProgress[update.status]
+        if (pct !== undefined) {
+          setProgressPercent(pct)
+          setProgressStatus(update.status)
         }
-        
-        return newBuffer
+
+        if (update.status === 'error') {
+          streamError = update.message || 'Pipeline error'
+          return
+        }
+
+        if (update.status === 'saved') {
+          setResults(update.data)
+          setExpandedSections({ analysis: true, dataset: true, selection: true, results: true, features: true, predict: true })
+          return
+        }
+
+        setProgressLog(prev => [...prev, update])
       }
 
       while (true) {
@@ -368,33 +324,32 @@ function SinglePrediction({ projectId, featureNames, problemType }: { projectId:
 
         const chunk = decoder.decode(value, { stream: true })
         buffer += chunk
-        
-        // Process any complete messages in the buffer
-        buffer = processBuffer()
+
+        let newlineIndex
+        while ((newlineIndex = buffer.indexOf('\n')) >= 0) {
+          const line = buffer.slice(0, newlineIndex).trim()
+          buffer = buffer.slice(newlineIndex + 1)
+          if (!line) continue
+          try {
+            const update = JSON.parse(line)
+            handleUpdate(update)
+          } catch (e) {
+            console.error('Error parsing stream line:', line, e)
+          }
+        }
       }
-      
-      // Process any remaining messages after stream ends
+
       if (buffer.trim()) {
         try {
           const update = JSON.parse(buffer)
-          completeMessages.push(update)
+          handleUpdate(update)
         } catch (e) {
-          console.error('Error parsing final buffer:', buffer, 'Error:', e)
+          console.error('Error parsing final buffer:', buffer, e)
         }
       }
-      
-      // Process all complete messages
-      for (const update of completeMessages) {
-        if (update.status === 'error') {
-          throw new Error(update.message)
-        }
-        
-        if (update.status === 'saved') {
-          setResults(update.data)
-          setExpandedSections({ analysis: true, dataset: true, selection: true, results: true, features: true })
-        } else {
-          setProgressLog(prev => [...prev, update])
-        }
+
+      if (streamError) {
+        throw new Error(streamError)
       }
 
     } catch (err: any) {
@@ -402,11 +357,47 @@ function SinglePrediction({ projectId, featureNames, problemType }: { projectId:
       setError(err.message || 'Error running prediction')
     } finally {
       setIsLoading(false)
+      setProgressStatus('idle')
     }
   }
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }))
+  }
+
+  const formatMetricValue = (key: string, value: number) => {
+    const keyLower = key.toLowerCase()
+    const isPercentMetric = ['accuracy', 'precision', 'recall', 'f1', 'r2', 'r2_score', 'silhouette'].some(m => keyLower.includes(m))
+    const isErrorMetric = ['rmse', 'mae', 'mse', 'error'].some(m => keyLower.includes(m))
+    if (isPercentMetric && value <= 1) return `${(value * 100).toFixed(1)}%`
+    if (isErrorMetric) return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
+    if (value < 1 && value > 0) return `${(value * 100).toFixed(1)}%`
+    return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
+  }
+
+  const renderMetricBars = (metrics: Record<string, number>) => {
+    const entries = Object.entries(metrics || {}).slice(0, 4)
+    if (!entries.length) return null
+    const maxVal = Math.max(...entries.map(([, v]) => Math.abs(v || 0)), 1)
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {entries.map(([key, val], idx) => {
+          const normalized = Math.min(Math.abs(val) / maxVal, 1)
+          const color = ['#6366f1', '#8b5cf6', '#22c55e', '#f59e0b'][idx % 4]
+          return (
+            <div key={key}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#e2e8f0' }}>
+                <span>{key.replace(/_/g, ' ')}</span>
+                <span style={{ color }}>{formatMetricValue(key, val)}</span>
+              </div>
+              <div style={{ height: '8px', background: '#1e293b', borderRadius: '4px', overflow: 'hidden' }}>
+                <div style={{ width: `${normalized * 100}%`, height: '100%', background: color, transition: 'width 0.3s ease' }} />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
   }
 
   if (loading) {
@@ -459,6 +450,11 @@ function SinglePrediction({ projectId, featureNames, problemType }: { projectId:
                   onChange={(e) => {
                     const ds = datasets.find(d => d.id === parseInt(e.target.value))
                     setSelectedDataset(ds || null)
+                    if (ds?.id) {
+                      fetchDatasetPreview(ds.id)
+                    } else {
+                      setDatasetPreview(null)
+                    }
                   }}
                   style={{ flex: 1, padding: '12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: 'white' }}
                 >
@@ -528,26 +524,52 @@ function SinglePrediction({ projectId, featureNames, problemType }: { projectId:
                 </div>
               )}
               
-              {selectedDataset && (
-                <div style={{ marginTop: '8px', padding: '10px', background: '#1e293b', borderRadius: '6px', fontSize: '0.85rem' }}>
-                  <div style={{ color: '#94a3b8', marginBottom: '8px' }}>
-                    {selectedDataset.rows} rows × {selectedDataset.columns} columns
-                  </div>
-                  {selectedDataset.column_names && (
-                    <div style={{ marginBottom: '8px' }}>
-                      <div style={{ color: '#64748b', fontSize: '0.75rem', marginBottom: '4px' }}>Columns:</div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                        {selectedDataset.column_names.slice(0, 8).map((col, i) => (
-                          <span key={i} style={{ padding: '2px 6px', background: '#334155', borderRadius: '4px', fontSize: '0.75rem' }}>{col}</span>
-                        ))}
-                        {selectedDataset.column_names.length > 8 && (
-                          <span style={{ padding: '2px 6px', color: '#64748b', fontSize: '0.75rem' }}>+{selectedDataset.column_names.length - 8} more</span>
-                        )}
-                      </div>
+              {datasetPreview && (
+                <div style={{ marginTop: '8px', padding: '12px', background: '#0f172a', borderRadius: '8px', border: '1px solid #1e293b' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: '0.9rem', color: '#94a3b8' }}>Dataset Preview</div>
+                      <div style={{ fontSize: '1rem', fontWeight: 'bold' }}>{datasetPreview.name}</div>
                     </div>
-                  )}
-                  <div style={{ color: '#64748b', fontSize: '0.75rem' }}>
-                    💡 Tip: Describe what you want to predict (e.g., "predict {selectedDataset.column_names?.[selectedDataset.column_names.length - 1] || 'target'}")
+                    <div style={{ display: 'flex', gap: '12px', fontSize: '0.85rem', color: '#94a3b8' }}>
+                      <span>Rows: <strong>{datasetPreview.rows}</strong></span>
+                      <span>Columns: <strong>{datasetPreview.columns}</strong></span>
+                    </div>
+                  </div>
+                  <div style={{ overflowX: 'auto', marginBottom: '8px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                      <thead>
+                        <tr>
+                          {datasetPreview.column_names.slice(0, 6).map((col) => (
+                            <th key={col} style={{ padding: '6px', textAlign: 'left', color: '#94a3b8', borderBottom: '1px solid #1e293b' }}>{col}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {datasetPreview.preview.slice(0, 3).map((row, idx) => (
+                          <tr key={idx} style={{ borderBottom: '1px solid #1e293b' }}>
+                            {datasetPreview.column_names.slice(0, 6).map((col) => (
+                              <td key={col} style={{ padding: '6px', color: '#e2e8f0', maxWidth: '200px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                {String((row as any)[col] ?? '')}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {datasetPreview.column_names.slice(0, 8).map((col) => (
+                      <span key={col} style={{ padding: '6px 10px', background: '#1e293b', borderRadius: '6px', fontSize: '0.85rem', color: '#cbd5e1' }}>
+                        {col} <span style={{ color: '#64748b' }}>({datasetPreview.data_types?.[col] || 'unknown'})</span>
+                      </span>
+                    ))}
+                    {datasetPreview.column_names.length > 8 && (
+                      <span style={{ padding: '6px 10px', color: '#64748b', fontSize: '0.85rem' }}>+{datasetPreview.column_names.length - 8} more</span>
+                    )}
+                  </div>
+                  <div style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '8px' }}>
+                    💡 Tip: Describe what you want to predict (e.g., "predict {datasetPreview.column_names?.[datasetPreview.column_names.length - 1] || 'target'}")
                   </div>
                 </div>
               )}
@@ -562,6 +584,25 @@ function SinglePrediction({ projectId, featureNames, problemType }: { projectId:
                 style={{ width: '100%', height: '100px', padding: '12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: 'white', resize: 'vertical' }}
               />
             </div>
+
+            {algorithms.length > 0 && (
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontSize: '0.9rem', color: '#94a3b8', marginBottom: '6px' }}>Available algorithms</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px' }}>
+                  {algorithms.slice(0, 9).map(algo => (
+                    <div key={algo.name} style={{ padding: '10px', background: '#0f172a', borderRadius: '8px', border: '1px solid #1e293b' }}>
+                      <div style={{ fontWeight: 'bold', color: '#e2e8f0', marginBottom: '4px' }}>{algo.display_name}</div>
+                      <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '4px' }}>{algo.type}</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                        {algo.best_for.slice(0, 2).map((tag: string) => (
+                          <span key={tag} style={{ padding: '2px 6px', background: '#1e293b', borderRadius: '4px', fontSize: '0.75rem', color: '#cbd5e1' }}>{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {error && (
               <div style={{ marginBottom: '16px', padding: '12px', background: '#7f1d1d', borderRadius: '8px', color: '#fca5a5' }}>{error}</div>
@@ -581,31 +622,54 @@ function SinglePrediction({ projectId, featureNames, problemType }: { projectId:
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               
               {/* Progress Dashboard (Visible during loading) */}
-              {isLoading && (
+              {(isLoading || (showPipeline && progressLog.length > 0)) && (
                 <Card padding="lg">
-                  <h3 style={{ marginBottom: '16px', fontSize: '1.2rem', color: '#6366f1' }}>🔄 Processing Pipeline</h3>
-                  <div style={{ 
-                    background: '#0f172a', 
-                    padding: '16px', 
-                    borderRadius: '8px', 
-                    height: '300px', 
-                    overflowY: 'auto',
-                    fontFamily: 'monospace',
-                    fontSize: '0.9rem'
-                  }}>
-                    {progressLog.map((log, i) => (
-                      <div key={i} style={{ marginBottom: '8px', borderLeft: '2px solid #6366f1', paddingLeft: '10px' }}>
-                        <span style={{ color: '#64748b', fontSize: '0.8rem' }}>[{log.step.toUpperCase()}]</span>{' '}
-                        <span style={{ color: '#e2e8f0' }}>{log.message}</span>
-                        {log.data && (
-                          <div style={{ marginTop: '4px', padding: '8px', background: '#1e293b', borderRadius: '4px', fontSize: '0.8rem', color: '#94a3b8' }}>
-                            <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(log.data, null, 2)}</pre>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                    <div ref={logEndRef} />
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#6366f1' }}>🔄 Processing Pipeline</h3>
+                    {results && (
+                      <button
+                        onClick={() => setShowPipeline(v => !v)}
+                        style={{ background: '#1e293b', color: '#e2e8f0', border: '1px solid #334155', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', fontSize: '0.85rem' }}
+                      >
+                        {showPipeline ? 'Hide details' : 'Show details'}
+                      </button>
+                    )}
                   </div>
+                  {(isLoading || showPipeline) && (
+                    <>
+                      <div style={{ marginBottom: '12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#94a3b8' }}>
+                          <span>Status: {progressStatus}</span>
+                          <span>{progressPercent}%</span>
+                        </div>
+                        <div style={{ height: '8px', background: '#1e293b', borderRadius: '6px', overflow: 'hidden', marginTop: '6px' }}>
+                          <div style={{ width: `${progressPercent}%`, background: '#6366f1', height: '100%', transition: 'width 0.3s ease' }} />
+                        </div>
+                      </div>
+                      <div style={{ 
+                        background: '#0f172a', 
+                        padding: '16px', 
+                        borderRadius: '8px', 
+                        height: '300px', 
+                        overflowY: 'auto',
+                        fontFamily: 'monospace',
+                        fontSize: '0.9rem'
+                      }}>
+                        {progressLog.map((log, i) => (
+                          <div key={i} style={{ marginBottom: '8px', borderLeft: '2px solid #6366f1', paddingLeft: '10px' }}>
+                            <span style={{ color: '#64748b', fontSize: '0.8rem' }}>[{(log.step || log.status || 'status').toUpperCase()}]</span>{' '}
+                            <span style={{ color: '#e2e8f0' }}>{log.message}</span>
+                            {log.data && (
+                              <div style={{ marginTop: '4px', padding: '8px', background: '#1e293b', borderRadius: '4px', fontSize: '0.8rem', color: '#94a3b8' }}>
+                                <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(log.data, null, 2)}</pre>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        <div ref={logEndRef} />
+                      </div>
+                    </>
+                  )}
                 </Card>
               )}
 
@@ -806,6 +870,19 @@ function SinglePrediction({ projectId, featureNames, problemType }: { projectId:
                           </tbody>
                         </table>
                       </div>
+                    )}
+                  </Card>
+
+                  {/* Prediction Visuals */}
+                  <Card padding="lg">
+                    <SectionHeader title="Prediction Visuals" icon="📊" section="visuals" />
+                    {expandedSections.visuals && (
+                      <>
+                        {renderMetricBars(results.winner.metrics)}
+                        <div style={{ marginTop: '12px', fontSize: '0.85rem', color: '#94a3b8' }}>
+                          Visualizing top metrics for the winning model. Batch predictions will render tables below; single predictions can be run in the form at the bottom.
+                        </div>
+                      </>
                     )}
                   </Card>
 

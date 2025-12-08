@@ -163,68 +163,7 @@ class AlgorithmRegistry:
             parameters={"n_clusters": 3}
         ))
 
-        # XGBoost
-        self.register(AlgorithmMetadata(
-            name="xgboost",
-            display_name="XGBoost",
-            algorithm_type="classification",
-            best_for=["high_accuracy", "complex_patterns", "medium_large_datasets", "feature_importance"],
-            not_good_for=["very_small_datasets"],
-            description="Extreme Gradient Boosting for high performance classification",
-            parameters={"n_estimators": 100, "max_depth": 6, "learning_rate": 0.1}
-        ))
-
-        self.register(AlgorithmMetadata(
-            name="xgboost_regressor",
-            display_name="XGBoost Regressor",
-            algorithm_type="regression",
-            best_for=["high_accuracy", "complex_patterns", "medium_large_datasets", "feature_importance"],
-            not_good_for=["very_small_datasets"],
-            description="Extreme Gradient Boosting for high performance regression",
-            parameters={"n_estimators": 100, "max_depth": 6, "learning_rate": 0.1}
-        ))
-
-        # LightGBM
-        self.register(AlgorithmMetadata(
-            name="lightgbm",
-            display_name="LightGBM",
-            algorithm_type="classification",
-            best_for=["large_datasets", "fast_training", "high_accuracy", "memory_efficient"],
-            not_good_for=["very_small_datasets"],
-            description="Light Gradient Boosting Machine for fast and efficient classification",
-            parameters={"n_estimators": 100, "max_depth": 6, "learning_rate": 0.1}
-        ))
-
-        self.register(AlgorithmMetadata(
-            name="lightgbm_regressor",
-            display_name="LightGBM Regressor",
-            algorithm_type="regression",
-            best_for=["large_datasets", "fast_training", "high_accuracy", "memory_efficient"],
-            not_good_for=["very_small_datasets"],
-            description="Light Gradient Boosting Machine for fast and efficient regression",
-            parameters={"n_estimators": 100, "max_depth": 6, "learning_rate": 0.1}
-        ))
-
-        # CatBoost
-        self.register(AlgorithmMetadata(
-            name="catboost",
-            display_name="CatBoost",
-            algorithm_type="classification",
-            best_for=["categorical_features", "high_accuracy", "robust", "no_preprocessing"],
-            not_good_for=["very_small_datasets"],
-            description="Categorical Boosting for handling categorical features automatically",
-            parameters={"iterations": 100, "depth": 6, "learning_rate": 0.1}
-        ))
-
-        self.register(AlgorithmMetadata(
-            name="catboost_regressor",
-            display_name="CatBoost Regressor",
-            algorithm_type="regression",
-            best_for=["categorical_features", "high_accuracy", "robust", "no_preprocessing"],
-            not_good_for=["very_small_datasets"],
-            description="Categorical Boosting for regression with automatic categorical handling",
-            parameters={"iterations": 100, "depth": 6, "learning_rate": 0.1}
-        ))
+        # (XGBoost/LightGBM/CatBoost removed to slim dependency footprint)
 
         # Naive Bayes
         self.register(AlgorithmMetadata(

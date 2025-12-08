@@ -12,14 +12,16 @@ spec:
       labels:
         app: frontend
     spec:
+      imagePullSecrets:
+      - name: ecr-pull
       containers:
       - name: frontend
-        image: 878915883882.dkr.ecr.us-east-1.amazonaws.com/co-intelligence-frontend:latest
+        image: <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/co-intelligence-frontend:<IMAGE_TAG>
         ports:
         - containerPort: 3000
         env:
         - name: NEXT_PUBLIC_API_URL
-          value: "<BACKEND_URL>"
+          value: "http://backend:8000"
         resources:
           requests:
             memory: "256Mi"

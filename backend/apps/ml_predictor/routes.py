@@ -8,8 +8,10 @@ from auth.utils import get_current_user
 from auth.models import User
 from apps.ml_predictor.models import Dataset, MLProject, ModelResult, TrainingRun
 from apps.ml_predictor.agents.coordinator import MLPredictorCoordinator
+from apps.ml_predictor.agents.algorithm_agent import AlgorithmAgent
 from apps.ml_predictor.data_processor import DataProcessor
 from apps.ml_predictor.algorithm_registry import algorithm_registry
+from apps.ml_predictor.model_cache import model_cache, CachedModel
 from services.file_service import validate_file, save_temp_file, cleanup_file, TEMP_DIR, ALLOWED_EXTENSIONS, MAX_FILE_SIZE
 from services.streaming import safe_serialize, sse_event, create_sse_response
 
@@ -427,6 +429,12 @@ async def predict_stream(
                     total_rows = analysis["total_rows"]
                     train_rows = int(total_rows * 0.8)
                     test_rows = total_rows - train_rows
+                    feature_names_clean = [c for c in analysis["column_names"] if c != target_var]
+                    # Normalize feature importance for response
+                    fi = final_result.get("feature_importance", {}) or {}
+                    if fi:
+                        total_fi = sum(abs(v) for v in fi.values()) or 1.0
+                        fi = {k: float(abs(v)) / total_fi for k, v in fi.items()}
                     
                     response_data = {
                         "project_id": project.id,
@@ -443,8 +451,8 @@ async def predict_stream(
                             "test_rows": test_rows,
                             "train_percentage": 80,
                             "test_percentage": 20,
-                            "features": analysis["total_columns"] - 1,
-                            "feature_names": analysis["column_names"],
+                            "features": max(len(feature_names_clean), 0),
+                            "feature_names": feature_names_clean,
                             "target_column": target_var
                         },
                         "algorithm_selection": {
@@ -461,7 +469,7 @@ async def predict_stream(
                             "reason": "Best overall performance metrics",
                             "margin": margin_msg
                         },
-                        "feature_importance": final_result.get("feature_importance", {}),
+                        "feature_importance": fi,
                         "insights": [
                             f"The best model was {winner_res.get('display_name')}.",
                             f"Training was performed on {train_rows} samples.",
@@ -783,18 +791,34 @@ async def predict_single(
             raise HTTPException(status_code=400, detail="No trained models found")
         
         best_model_name = training_run.best_model
-        
-        # Load dataset and retrain best model (in production, we'd cache this)
         dataset = await Dataset.get_or_none(id=project.dataset_id)
         df = data_processor.load_dataset(dataset.file_path)
-        
+        dataset_mtime = os.path.getmtime(dataset.file_path) if os.path.exists(dataset.file_path) else 0
+
         # Prepare data
         X, y = data_processor.preprocess_data(df, project.target_variable)
-        
-        # Get algorithm and train
-        from apps.ml_predictor.agents.algorithm_agent import AlgorithmAgent
-        agent = AlgorithmAgent(best_model_name)
-        agent.algorithm.train(X, y)
+        feature_names = list(X.columns) if hasattr(X, "columns") else list(range(X.shape[1]))
+
+        # Try cache first
+        cached = model_cache.get(project.id, best_model_name, dataset.file_path)
+        if cached:
+            agent_model = cached.model
+            feature_names = cached.feature_names or feature_names
+        else:
+            agent = AlgorithmAgent(best_model_name)
+            agent.algorithm.train(X, y)
+            agent_model = agent.algorithm.model
+            model_cache.set(
+                CachedModel(
+                    project_id=project.id,
+                    model_name=best_model_name,
+                    model=agent_model,
+                    feature_names=feature_names,
+                    target_variable=project.target_variable,
+                    dataset_path=dataset.file_path,
+                    dataset_mtime=dataset_mtime
+                )
+            )
         
         # Prepare input features
         import pandas as pd
@@ -802,16 +826,16 @@ async def predict_single(
         input_df = pd.DataFrame([request.features])
         
         # Ensure columns match training data
-        for col in X.columns if hasattr(X, 'columns') else range(X.shape[1]):
+        for col in feature_names:
             if col not in input_df.columns:
                 input_df[col] = 0
         
         # Reorder columns to match training
         if hasattr(X, 'columns'):
-            input_df = input_df[X.columns]
+            input_df = input_df[feature_names]
         
         # Make prediction
-        prediction = agent.algorithm.predict(input_df.values)
+        prediction = agent_model.predict(input_df.values)
         
         result = {
             "prediction": prediction[0] if len(prediction) == 1 else prediction.tolist(),
@@ -820,9 +844,9 @@ async def predict_single(
         }
         
         # Add probability for classification
-        if project.problem_type == "classification" and hasattr(agent.algorithm.model, 'predict_proba'):
+        if project.problem_type == "classification" and hasattr(agent_model, 'predict_proba'):
             try:
-                proba = agent.algorithm.model.predict_proba(input_df.values)
+                proba = agent_model.predict_proba(input_df.values)
                 result["probabilities"] = proba[0].tolist()
                 result["confidence"] = float(max(proba[0])) * 100
             except:

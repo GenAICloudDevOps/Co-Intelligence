@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from config import settings
+from core.logging import configure_logging
 
 # Import centralized services
 from services.database import init_db, run_migrations, close_db
@@ -9,6 +10,8 @@ from services.database import init_db, run_migrations, close_db
 # Import middleware
 from middleware.logging import RequestLoggingMiddleware
 from middleware.rate_limit import RateLimitMiddleware
+from middleware.request_context import RequestContextMiddleware
+from middleware.error_handler import ErrorHandlingMiddleware
 
 from auth.routes import router as auth_router
 
@@ -56,6 +59,8 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"ERROR during shutdown: {e}")
 
+configure_logging()
+
 app = FastAPI(
     title="Co-Intelligence API",
     version="1.0.0",
@@ -66,8 +71,10 @@ app = FastAPI(
 )
 
 # Add middleware (order matters - first added = last executed)
+app.add_middleware(RequestContextMiddleware)
 app.add_middleware(RateLimitMiddleware, requests_per_minute=120, requests_per_second=20)
 app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(ErrorHandlingMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

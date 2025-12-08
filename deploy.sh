@@ -11,6 +11,7 @@ command -v docker >/dev/null 2>&1 || { echo "docker required"; exit 1; }
 
 STACK_NAME=${STACK_NAME:-co-intelligence}
 EKS_CLUSTER_NAME=${EKS_CLUSTER_NAME:-co-intelligence-cluster}
+IMAGE_TAG=${IMAGE_TAG:-$(date +%Y%m%d%H%M%S)}
 
 # Load API keys from .env
 if [ -f ".env" ]; then
@@ -86,13 +87,13 @@ echo "✓ ECR login successful"
 
 # Build and push images
 echo "Building and pushing backend..."
-docker build -t $ECR_BACKEND:latest ./backend
-docker push $ECR_BACKEND:latest
+docker build -t $ECR_BACKEND:$IMAGE_TAG ./backend
+docker push $ECR_BACKEND:$IMAGE_TAG
 
 echo "Building and pushing frontend..."
-docker build -t $ECR_FRONTEND:latest ./frontend
-docker push $ECR_FRONTEND:latest
-echo "✓ Images pushed"
+docker build -t $ECR_FRONTEND:$IMAGE_TAG ./frontend
+docker push $ECR_FRONTEND:$IMAGE_TAG
+echo "✓ Images pushed with tag $IMAGE_TAG"
 
 # Create secrets
 echo "Creating Kubernetes secrets..."
@@ -100,7 +101,7 @@ kubectl delete secret app-secrets 2>/dev/null || true
 kubectl create secret generic app-secrets \
     --from-literal=DATABASE_URL="postgres://$DB_USERNAME:$DB_PASSWORD@$RDS_ENDPOINT:5432/postgres?sslmode=disable" \
     --from-literal=SECRET_KEY="$SECRET_KEY" \
-    --from-literal=S3_BUCKET_NAME="$S3_BUCKET_NAME_NAME" \
+    --from-literal=S3_BUCKET_NAME="$S3_BUCKET_NAME" \
     --from-literal=CODE_EXECUTOR_URL="$LAMBDA_ARN" \
     --from-literal=GEMINI_API_KEY="${GEMINI_API_KEY:-}" \
     --from-literal=GROQ_API_KEY="${GROQ_API_KEY:-}" \
@@ -111,11 +112,19 @@ kubectl create secret generic app-secrets \
 echo "✓ Secrets created"
 
 # Update K8s manifests with image URIs
+echo "Creating image pull secret..."
+kubectl delete secret ecr-pull 2>/dev/null || true
+kubectl create secret docker-registry ecr-pull \
+  --docker-server="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com" \
+  --docker-username=AWS \
+  --docker-password="$(aws ecr get-login-password --region $AWS_REGION)"
+echo "✓ Image pull secret created"
+
 echo "Deploying to EKS..."
-sed "s|<ACCOUNT_ID>|$ACCOUNT_ID|g" k8s/backend-deployment.yaml | kubectl apply -f -
+sed -e "s|<ACCOUNT_ID>|$ACCOUNT_ID|g" -e "s|<IMAGE_TAG>|$IMAGE_TAG|g" k8s/backend-deployment.yaml | kubectl apply -f -
 kubectl apply -f k8s/backend-service.yaml
 
-sed "s|<ACCOUNT_ID>|$ACCOUNT_ID|g" k8s/frontend-deployment.yaml | kubectl apply -f -
+sed -e "s|<ACCOUNT_ID>|$ACCOUNT_ID|g" -e "s|<IMAGE_TAG>|$IMAGE_TAG|g" k8s/frontend-deployment.yaml | kubectl apply -f -
 kubectl apply -f k8s/frontend-service.yaml
 echo "✓ Deployed"
 
