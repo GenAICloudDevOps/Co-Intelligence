@@ -1,0 +1,27 @@
+from typing import Dict
+import numpy as np
+from sklearn.naive_bayes import GaussianNB
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from .base_algorithm import BaseAlgorithm
+import time
+
+class NaiveBayesClassifier(BaseAlgorithm):
+    def __init__(self):
+        super().__init__("naive_bayes", "classification")
+        self.model = GaussianNB()
+
+    def train(self, X_train: np.ndarray, y_train: np.ndarray) -> None:
+        start_time = time.time()
+        self.model.fit(X_train, y_train)
+        self.training_time = time.time() - start_time
+
+    def predict(self, X_test: np.ndarray) -> np.ndarray:
+        return self.model.predict(X_test)
+    
+    def get_metrics(self, y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, float]:
+        return {
+            "accuracy": float(accuracy_score(y_true, y_pred)),
+            "precision": float(precision_score(y_true, y_pred, average='weighted', zero_division=0)),
+            "recall": float(recall_score(y_true, y_pred, average='weighted', zero_division=0)),
+            "f1": float(f1_score(y_true, y_pred, average='weighted', zero_division=0))
+        }

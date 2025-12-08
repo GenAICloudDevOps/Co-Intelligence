@@ -20,10 +20,13 @@ class MLProject(BaseModel):
     dataset_id = fields.IntField()
     name = fields.CharField(max_length=255)
     problem_description = fields.TextField()
-    problem_type = fields.CharField(max_length=50)  # "classification" or "regression"
-    target_variable = fields.CharField(max_length=255)
-    status = fields.CharField(max_length=50, default="pending")  # pending, processing, completed, failed
+    problem_type = fields.CharField(max_length=50, default="classification")  # "classification" or "regression"
+    target_variable = fields.CharField(max_length=255, null=True, default="")
+    status = fields.CharField(max_length=50, default="pending")  # pending, analyzing, training, evaluating, completed, failed
+    current_step = fields.CharField(max_length=100, null=True)  # analyzing_problem, training_algorithms, evaluating_models
+    progress = fields.IntField(default=0)  # 0-100
     error_message = fields.TextField(null=True)
+    step_logs = fields.JSONField(default=list)  # list of step logs
     
     class Meta:
         table = "ml_projects"

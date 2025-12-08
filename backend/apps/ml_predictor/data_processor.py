@@ -5,8 +5,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 import json
 import io
-import PyPDF2
-from docx import Document
+from services.file_service import extract_text_from_pdf, extract_text_from_docx, load_dataframe
 
 class DataProcessor:
     def __init__(self):
@@ -16,60 +15,16 @@ class DataProcessor:
         self.target_name = None
     
     def load_dataset(self, file_path: str) -> pd.DataFrame:
-        """Load dataset from CSV, JSON, Excel, PDF, or Word"""
-        if file_path.endswith('.csv'):
-            return pd.read_csv(file_path)
-        elif file_path.endswith('.json'):
-            return pd.read_json(file_path)
-        elif file_path.endswith('.xlsx') or file_path.endswith('.xls'):
-            return pd.read_excel(file_path)
-        elif file_path.endswith('.pdf'):
-            return self._read_pdf(file_path)
-        elif file_path.endswith('.docx') or file_path.endswith('.doc'):
-            return self._read_docx(file_path)
-        elif file_path.endswith('.txt'):
-            return self._read_text_file(file_path)
-        else:
-            raise ValueError("Unsupported file format.")
+        """Load dataset from file - uses central file service"""
+        return load_dataframe(file_path)
     
     def load_data_from_text(self, text: str) -> pd.DataFrame:
         """Load data from raw text string (assuming CSV format)"""
         try:
             return pd.read_csv(io.StringIO(text))
         except:
-            # If CSV parsing fails, return as single column
             return pd.DataFrame({"raw_text": [text]})
 
-    def _read_pdf(self, file_path: str) -> pd.DataFrame:
-        """Extract text from PDF"""
-        text = ""
-        with open(file_path, 'rb') as f:
-            reader = PyPDF2.PdfReader(f)
-            for page in reader.pages:
-                text += page.extract_text() + "\n"
-        
-        # Try to parse as tabular data if possible
-        try:
-            return pd.read_csv(io.StringIO(text), sep=None, engine='python')
-        except:
-            return pd.DataFrame({"raw_text": [text]})
-
-    def _read_docx(self, file_path: str) -> pd.DataFrame:
-        """Extract text from Docx"""
-        doc = Document(file_path)
-        text = "\n".join([para.text for para in doc.paragraphs])
-        
-        # Try to parse as tabular
-        try:
-            return pd.read_csv(io.StringIO(text), sep=None, engine='python')
-        except:
-            return pd.DataFrame({"raw_text": [text]})
-
-    def _read_text_file(self, file_path: str) -> pd.DataFrame:
-        with open(file_path, 'r') as f:
-            text = f.read()
-        return self.load_data_from_text(text)
-    
     def analyze_dataset(self, df: pd.DataFrame) -> Dict[str, Any]:
         """Analyze dataset and return statistics"""
         return {
@@ -153,6 +108,39 @@ class DataProcessor:
     
     def split_data(self, X: pd.DataFrame, y: pd.Series = None, test_size: float = 0.2, random_state: int = None) -> Tuple:
         """Split data into train and test sets"""
+        from sklearn.model_selection import train_test_split
+        
+        if y is not None:
+            return train_test_split(X, y, test_size=test_size, random_state=random_state or 42)
+        return train_test_split(X, test_size=test_size, random_state=random_state or 42)
+    
+    def preprocess_features(self, df: pd.DataFrame) -> np.ndarray:
+        """Preprocess features only (for prediction on new data)"""
+        df = df.copy()
+        
+        # Handle missing values
+        for col in df.columns:
+            if df[col].isnull().sum() > 0:
+                if df[col].dtype in [np.float64, np.int64]:
+                    df[col].fillna(df[col].mean(), inplace=True)
+                else:
+                    df[col].fillna('unknown', inplace=True)
+        
+        # Encode categorical variables using stored encoders or create new
+        for col in df.columns:
+            if df[col].dtype == 'object':
+                if col in self.label_encoders:
+                    # Use existing encoder
+                    le = self.label_encoders[col]
+                    # Handle unseen labels
+                    df[col] = df[col].apply(lambda x: x if x in le.classes_ else le.classes_[0])
+                    df[col] = le.transform(df[col].astype(str))
+                else:
+                    # Create new encoder
+                    le = LabelEncoder()
+                    df[col] = le.fit_transform(df[col].astype(str))
+        
+        return df.values
         if y is None:
             # Unsupervised case: just split X
             X_train, X_test = train_test_split(

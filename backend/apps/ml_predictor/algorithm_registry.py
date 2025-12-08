@@ -162,6 +162,112 @@ class AlgorithmRegistry:
             description="Agglomerative clustering building a hierarchy",
             parameters={"n_clusters": 3}
         ))
+
+        # XGBoost
+        self.register(AlgorithmMetadata(
+            name="xgboost",
+            display_name="XGBoost",
+            algorithm_type="classification",
+            best_for=["high_accuracy", "complex_patterns", "medium_large_datasets", "feature_importance"],
+            not_good_for=["very_small_datasets"],
+            description="Extreme Gradient Boosting for high performance classification",
+            parameters={"n_estimators": 100, "max_depth": 6, "learning_rate": 0.1}
+        ))
+
+        self.register(AlgorithmMetadata(
+            name="xgboost_regressor",
+            display_name="XGBoost Regressor",
+            algorithm_type="regression",
+            best_for=["high_accuracy", "complex_patterns", "medium_large_datasets", "feature_importance"],
+            not_good_for=["very_small_datasets"],
+            description="Extreme Gradient Boosting for high performance regression",
+            parameters={"n_estimators": 100, "max_depth": 6, "learning_rate": 0.1}
+        ))
+
+        # LightGBM
+        self.register(AlgorithmMetadata(
+            name="lightgbm",
+            display_name="LightGBM",
+            algorithm_type="classification",
+            best_for=["large_datasets", "fast_training", "high_accuracy", "memory_efficient"],
+            not_good_for=["very_small_datasets"],
+            description="Light Gradient Boosting Machine for fast and efficient classification",
+            parameters={"n_estimators": 100, "max_depth": 6, "learning_rate": 0.1}
+        ))
+
+        self.register(AlgorithmMetadata(
+            name="lightgbm_regressor",
+            display_name="LightGBM Regressor",
+            algorithm_type="regression",
+            best_for=["large_datasets", "fast_training", "high_accuracy", "memory_efficient"],
+            not_good_for=["very_small_datasets"],
+            description="Light Gradient Boosting Machine for fast and efficient regression",
+            parameters={"n_estimators": 100, "max_depth": 6, "learning_rate": 0.1}
+        ))
+
+        # CatBoost
+        self.register(AlgorithmMetadata(
+            name="catboost",
+            display_name="CatBoost",
+            algorithm_type="classification",
+            best_for=["categorical_features", "high_accuracy", "robust", "no_preprocessing"],
+            not_good_for=["very_small_datasets"],
+            description="Categorical Boosting for handling categorical features automatically",
+            parameters={"iterations": 100, "depth": 6, "learning_rate": 0.1}
+        ))
+
+        self.register(AlgorithmMetadata(
+            name="catboost_regressor",
+            display_name="CatBoost Regressor",
+            algorithm_type="regression",
+            best_for=["categorical_features", "high_accuracy", "robust", "no_preprocessing"],
+            not_good_for=["very_small_datasets"],
+            description="Categorical Boosting for regression with automatic categorical handling",
+            parameters={"iterations": 100, "depth": 6, "learning_rate": 0.1}
+        ))
+
+        # Naive Bayes
+        self.register(AlgorithmMetadata(
+            name="naive_bayes",
+            display_name="Naive Bayes",
+            algorithm_type="classification",
+            best_for=["fast_training", "small_datasets", "text_classification", "probabilistic"],
+            not_good_for=["complex_dependencies"],
+            description="Probabilistic classifier based on Bayes theorem",
+            parameters={}
+        ))
+
+        # Neural Network
+        self.register(AlgorithmMetadata(
+            name="neural_network",
+            display_name="Neural Network (MLP)",
+            algorithm_type="classification",
+            best_for=["complex_patterns", "non_linear", "large_datasets"],
+            not_good_for=["small_datasets", "interpretability"],
+            description="Multi-layer Perceptron for deep learning classification",
+            parameters={"hidden_layer_sizes": [100, 50], "max_iter": 500}
+        ))
+
+        self.register(AlgorithmMetadata(
+            name="neural_network_regressor",
+            display_name="Neural Network Regressor (MLP)",
+            algorithm_type="regression",
+            best_for=["complex_patterns", "non_linear", "large_datasets"],
+            not_good_for=["small_datasets", "interpretability"],
+            description="Multi-layer Perceptron for deep learning regression",
+            parameters={"hidden_layer_sizes": [100, 50], "max_iter": 500}
+        ))
+
+        # ElasticNet
+        self.register(AlgorithmMetadata(
+            name="elasticnet",
+            display_name="ElasticNet",
+            algorithm_type="regression",
+            best_for=["regularization", "feature_selection", "multicollinearity", "sparse_features"],
+            not_good_for=["highly_non_linear"],
+            description="Combines L1 and L2 regularization for robust regression",
+            parameters={"alpha": 1.0, "l1_ratio": 0.5}
+        ))
     
     def register(self, metadata: AlgorithmMetadata):
         """Register a new algorithm"""

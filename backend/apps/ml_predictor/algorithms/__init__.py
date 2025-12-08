@@ -9,6 +9,12 @@ from .ridge_lasso import RidgeLassoAlgorithm
 from .svr import SVRAlgorithm
 from .random_forest_regressor import RandomForestRegressorAlgorithm
 from .gradient_boosting_regressor import GradientBoostingRegressorAlgorithm
+from .xgboost_algo import XGBoostClassifier, XGBoostRegressor
+from .lightgbm_algo import LightGBMClassifier, LightGBMRegressor
+from .catboost_algo import CatBoostClassifier, CatBoostRegressor
+from .naive_bayes import NaiveBayesClassifier
+from .neural_network import NeuralNetworkClassifier, NeuralNetworkRegressor
+from .elasticnet import ElasticNetRegressor
 
 __all__ = [
     'DecisionTreeAlgorithm',
@@ -21,5 +27,15 @@ __all__ = [
     'RidgeLassoAlgorithm',
     'SVRAlgorithm',
     'RandomForestRegressorAlgorithm',
-    'GradientBoostingRegressorAlgorithm'
+    'GradientBoostingRegressorAlgorithm',
+    'XGBoostClassifier',
+    'XGBoostRegressor',
+    'LightGBMClassifier',
+    'LightGBMRegressor',
+    'CatBoostClassifier',
+    'CatBoostRegressor',
+    'NaiveBayesClassifier',
+    'NeuralNetworkClassifier',
+    'NeuralNetworkRegressor',
+    'ElasticNetRegressor'
 ]

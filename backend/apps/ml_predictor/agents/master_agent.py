@@ -3,6 +3,9 @@ from services.ai_service import ai_service
 from apps.ml_predictor.algorithm_registry import algorithm_registry
 from apps.ml_predictor.data_processor import DataProcessor
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 class MasterAgent:
     """Master agent for problem analysis and algorithm selection"""
@@ -35,15 +38,21 @@ Problem Description: {problem_description}
 Dataset Info:
 {dataset_info}
 
+IMPORTANT RULES:
+- If predicting a continuous value (price, salary, amount, cost, age, score), it's REGRESSION
+- If predicting a category/class (yes/no, species, type, survived), it's CLASSIFICATION  
+- Only use CLUSTERING if explicitly asked to group/segment/cluster data without a target
+- The target variable is usually the column being predicted (often the last column)
+
 Based on the problem description and dataset, determine:
 1. Is this a CLASSIFICATION or REGRESSION problem?
-2. What is the likely TARGET VARIABLE (column name)?
+2. What is the TARGET VARIABLE (column name to predict)?
 3. Provide brief reasoning.
 
-Respond in JSON format:
+Respond ONLY in JSON format:
 {{
     "problem_type": "classification" or "regression",
-    "target_variable": "column_name",
+    "target_variable": "exact_column_name_from_dataset",
     "reasoning": "brief explanation"
 }}"""
         
@@ -58,40 +67,37 @@ Respond in JSON format:
             else:
                 result = json.loads(response)
             
+            logger.info(f"Problem Analysis: {result}")
             return result
         except Exception as e:
-            # Fallback: use heuristics
-            return self._fallback_analysis(problem_description, dataset)
-    
-    def _fallback_analysis(self, problem_description: str, dataset: Dict[str, Any]) -> Dict[str, Any]:
-        """Fallback analysis using heuristics"""
-        
-        # Determine problem type from description
-        problem_lower = problem_description.lower()
-        if any(word in problem_lower for word in ['classify', 'predict class', 'category', 'spam', 'survived', 'species']):
-            problem_type = "classification"
-        else:
-            problem_type = "regression"
-        
-        # Detect target variable
-        target = self.data_processor.detect_target_variable(
-            None, problem_description
-        ) if hasattr(self.data_processor, 'detect_target_variable') else dataset.get("column_names", ["target"])[-1]
-        
-        return {
-            "problem_type": problem_type,
-            "target_variable": target,
-            "reasoning": "Determined using heuristics"
-        }
+            logger.error(f"Problem analysis failed: {str(e)}")
+            return {
+                "problem_type": "classification",
+                "target_variable": None,
+                "reasoning": f"Analysis failed: {str(e)}"
+            }
     
     def select_algorithms(self, problem_type: str, dataset_size: int, feature_count: int) -> Dict[str, Any]:
         """Select best algorithms for the problem"""
+        selected = algorithm_registry.get_algorithms_for_problem(problem_type, dataset_size, feature_count)
         
-        selected = algorithm_registry.get_algorithms_for_problem(
-            problem_type, dataset_size, feature_count
-        )
+        algo_names = []
+        algo_details = []
+        for algo_name in selected:
+            algo_meta = algorithm_registry.get_algorithm(algo_name)
+            if algo_meta:
+                algo_names.append(algo_name)
+                algo_details.append({
+                    "name": algo_name,
+                    "display_name": algo_meta.display_name,
+                    "description": algo_meta.description
+                })
+        
+        reasoning = f"Selected {len(algo_names)} algorithms for {problem_type} problem with {dataset_size} samples and {feature_count} features"
+        logger.info(f"Algorithm Selection: {reasoning} - {algo_names}")
         
         return {
-            "selected_algorithms": selected,
-            "reasoning": f"Selected {len(selected)} best algorithms for {problem_type} problem with {dataset_size} samples and {feature_count} features"
+            "selected_algorithms": algo_names,
+            "algorithm_details": algo_details,
+            "reasoning": reasoning
         }

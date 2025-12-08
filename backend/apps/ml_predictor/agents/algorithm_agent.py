@@ -12,10 +12,18 @@ from apps.ml_predictor.algorithms import (
     SVRAlgorithm,
     RandomForestRegressorAlgorithm,
     GradientBoostingRegressorAlgorithm,
-    KMeansAlgorithm,
-    DBSCANAlgorithm,
-    HierarchicalAlgorithm
+    XGBoostClassifier,
+    XGBoostRegressor,
+    LightGBMClassifier,
+    LightGBMRegressor,
+    CatBoostClassifier,
+    CatBoostRegressor,
+    NaiveBayesClassifier,
+    NeuralNetworkClassifier,
+    NeuralNetworkRegressor,
+    ElasticNetRegressor
 )
+from apps.ml_predictor.algorithms.clustering import KMeansAlgorithm, DBSCANAlgorithm, HierarchicalAlgorithm
 
 class AlgorithmAgent:
     """Agent that trains and evaluates a specific algorithm"""
@@ -34,7 +42,17 @@ class AlgorithmAgent:
         "gradient_boosting_regressor": GradientBoostingRegressorAlgorithm,
         "kmeans": KMeansAlgorithm,
         "dbscan": DBSCANAlgorithm,
-        "hierarchical": HierarchicalAlgorithm
+        "hierarchical": HierarchicalAlgorithm,
+        "xgboost": XGBoostClassifier,
+        "xgboost_regressor": XGBoostRegressor,
+        "lightgbm": LightGBMClassifier,
+        "lightgbm_regressor": LightGBMRegressor,
+        "catboost": CatBoostClassifier,
+        "catboost_regressor": CatBoostRegressor,
+        "naive_bayes": NaiveBayesClassifier,
+        "neural_network": NeuralNetworkClassifier,
+        "neural_network_regressor": NeuralNetworkRegressor,
+        "elasticnet": ElasticNetRegressor
     }
     
     def __init__(self, algorithm_name: str):

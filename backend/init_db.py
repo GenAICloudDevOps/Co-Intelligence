@@ -24,6 +24,31 @@ async def migrate():
         except:
             pass
     
+    # Add new columns to ml_projects table
+    try:
+        await conn.execute_query(
+            "ALTER TABLE ml_projects ADD COLUMN IF NOT EXISTS current_step VARCHAR(100)"
+        )
+        print("✅ Added ml_projects.current_step")
+    except Exception as e:
+        print(f"current_step column: {e}")
+    
+    try:
+        await conn.execute_query(
+            "ALTER TABLE ml_projects ADD COLUMN IF NOT EXISTS progress INTEGER DEFAULT 0"
+        )
+        print("✅ Added ml_projects.progress")
+    except Exception as e:
+        print(f"progress column: {e}")
+    
+    try:
+        await conn.execute_query(
+            "ALTER TABLE ml_projects ADD COLUMN IF NOT EXISTS step_logs JSONB DEFAULT '[]'"
+        )
+        print("✅ Added ml_projects.step_logs")
+    except Exception as e:
+        print(f"step_logs column: {e}")
+    
     print("✅ Database migrations completed")
 
 async def seed_test_roles():
@@ -70,6 +95,7 @@ async def init():
                         'apps.insurance_claims.models',
                         'apps.agentic_lms.models',
                         'apps.agentic_tutor.models',
+                        'apps.ml_predictor.models',
                         'models.app_role'
                     ],
                     'default_connection': 'default'
@@ -88,6 +114,7 @@ async def init():
                 'apps.insurance_claims.models',
                 'apps.agentic_lms.models',
                 'apps.agentic_tutor.models',
+                'apps.ml_predictor.models',
                 'models.app_role'
             ]}
         )

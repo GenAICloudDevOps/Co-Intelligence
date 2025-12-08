@@ -2,53 +2,16 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List
-import json
-import numpy as np
-
-def safe_json_serialize(data):
-    """Safely serialize data for JSON, handling numpy types and other non-serializable objects"""
-    def default_handler(obj):
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        elif isinstance(obj, (np.int32, np.int64, np.float32, np.float64)):
-            return float(obj) if 'float' in str(type(obj)) else int(obj)
-        elif isinstance(obj, (pd.DataFrame, pd.Series)):
-            return obj.to_dict()
-        elif hasattr(obj, 'tolist'):
-            return obj.tolist()
-        elif hasattr(obj, 'item'):
-            return obj.item()
-        else:
-            return str(obj)
-    
-    return json.dumps(data, default=default_handler)
-import numpy as np
-
-def safe_json_serialize(data):
-    """Safely serialize data for JSON, handling numpy types and other non-serializable objects"""
-    def default_handler(obj):
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        elif isinstance(obj, (np.int32, np.int64, np.float32, np.float64)):
-            return float(obj) if 'float' in str(type(obj)) else int(obj)
-        elif isinstance(obj, (pd.DataFrame, pd.Series)):
-            return obj.to_dict()
-        elif hasattr(obj, 'tolist'):
-            return obj.tolist()
-        elif hasattr(obj, 'item'):
-            return obj.item()
-        else:
-            return str(obj)
-    
-    return json.dumps(data, default=default_handler)
+import os
+import uuid
 from auth.utils import get_current_user
 from auth.models import User
 from apps.ml_predictor.models import Dataset, MLProject, ModelResult, TrainingRun
 from apps.ml_predictor.agents.coordinator import MLPredictorCoordinator
 from apps.ml_predictor.data_processor import DataProcessor
 from apps.ml_predictor.algorithm_registry import algorithm_registry
-import os
-import uuid
+from services.file_service import validate_file, save_temp_file, cleanup_file, TEMP_DIR, ALLOWED_EXTENSIONS, MAX_FILE_SIZE
+from services.streaming import safe_serialize, sse_event, create_sse_response
 
 router = APIRouter()
 data_processor = DataProcessor()
@@ -77,24 +40,27 @@ async def upload_dataset(
     current_user: User = Depends(get_current_user)
 ):
     """Upload a new dataset (CSV, JSON, Excel, PDF, Word)"""
+    file_path = None
     try:
-        # Determine extension
-        ext = os.path.splitext(file.filename)[1].lower()
-        if not ext:
-            ext = ".csv" # Default to csv if no extension
-            
-        file_path = f"/tmp/{uuid.uuid4()}{ext}"
-        with open(file_path, "wb") as f:
-            content = await file.read()
-            f.write(content)
+        # Validate file
+        ext = os.path.splitext(file.filename)[1].lower() or ".csv"
+        content = await file.read()
+        
+        valid, error = validate_file(file.filename, len(content))
+        if not valid:
+            raise HTTPException(status_code=400, detail=error)
+        
+        # Save file using central service
+        file_path = await save_temp_file(content, ext)
         
         try:
             df = data_processor.load_dataset(file_path)
         except Exception as e:
-             # Clean up
-             if os.path.exists(file_path):
-                 os.remove(file_path)
-             raise HTTPException(status_code=400, detail=f"Failed to parse file: {str(e)}")
+            cleanup_file(file_path)
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Failed to parse {ext} file. Error: {str(e)}"
+            )
 
         analysis = data_processor.analyze_dataset(df)
         
@@ -120,7 +86,8 @@ async def upload_dataset(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        cleanup_file(file_path)
+        raise HTTPException(status_code=400, detail=f"Upload failed: {str(e)}")
 
 @router.post("/upload-text")
 async def upload_text(
@@ -128,11 +95,19 @@ async def upload_text(
     current_user: User = Depends(get_current_user)
 ):
     """Upload dataset from raw text"""
+    file_path = None
     try:
-        file_path = f"/tmp/{uuid.uuid4()}.csv"
+        # Validate text size
+        if len(request.text) > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Text too large. Maximum size: {MAX_FILE_SIZE // (1024*1024)}MB"
+            )
+        
         df = data_processor.load_data_from_text(request.text)
         
         # Save to file
+        file_path = os.path.join(TEMP_DIR, f"{uuid.uuid4()}.csv")
         df.to_csv(file_path, index=False)
         
         analysis = data_processor.analyze_dataset(df)
@@ -156,7 +131,11 @@ async def upload_text(
             "column_names": dataset.column_names,
             "preview": df.head(5).to_dict(orient="records")
         }
+    except HTTPException:
+        raise
     except Exception as e:
+        cleanup_file(file_path)
+        raise HTTPException(status_code=400, detail=f"Text upload failed: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/sample-datasets")
@@ -218,57 +197,73 @@ async def predict(
             problem_description=request.problem_description,
             problem_type="classification",
             target_variable="",
-            status="processing"
+            status="pending",
+            current_step="initializing",
+            progress=0,
+            step_logs=[]
         )
         
-        df = data_processor.load_dataset(dataset.file_path)
-        analysis = data_processor.get_dataset_summary(df)
-        analysis["file_path"] = dataset.file_path
+        try:
+            df = data_processor.load_dataset(dataset.file_path)
+        except Exception as e:
+            await MLProject.filter(id=project.id).update(status="failed", error_message=f"Failed to load dataset: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"Failed to load dataset: {str(e)}")
+        
+        try:
+            analysis = data_processor.get_dataset_summary(df)
+            analysis["file_path"] = dataset.file_path
+        except Exception as e:
+            await MLProject.filter(id=project.id).update(status="failed", error_message=f"Failed to analyze dataset: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"Failed to analyze dataset: {str(e)}")
         
         # Initialize state as dict
         state = {
             "dataset": analysis,
             "problem_description": request.problem_description,
             "dataset_id": request.dataset_id,
-            "dataset_size": analysis["total_rows"],
-            "feature_count": analysis["total_columns"] - 1
+            "dataset_size": analysis.get("total_rows", 0),
+            "feature_count": analysis.get("total_columns", 1) - 1
         }
         
         coordinator = MLPredictorCoordinator(request.model)
-        result = await coordinator.process(state)
+        result = await coordinator.process(state, project_id=project.id)
         
         if result.get("error"):
-            await project.update(status="failed", error_message=result["error"])
+            await MLProject.filter(id=project.id).update(status="failed", error_message=result["error"])
             raise HTTPException(status_code=500, detail=result["error"])
         
-        # Save model results
-        algorithm_results = result.get("algorithm_results", {})
-        for algo_name, algo_result in algorithm_results.items():
-            if algo_result.get("success"):
-                algo_meta = algorithm_registry.get_algorithm(algo_name)
-                await ModelResult.create(
-                    project_id=project.id,
-                    algorithm_name=algo_name,
-                    algorithm_display_name=algo_meta.display_name if algo_meta else algo_name,
-                    metrics=algo_result.get("metrics", {}),
-                    predictions=algo_result.get("predictions", []),
-                    feature_importance=algo_result.get("feature_importance", {}),
-                    training_time=algo_result.get("training_time", 0)
-                )
-        
-        await TrainingRun.create(
-            project_id=project.id,
-            algorithms_used=result.get("selected_algorithms", []),
-            best_model=result.get("best_model", ""),
-            best_metrics=result.get("best_metrics", {}),
-            comparison_report=result.get("comparison_report", {})
-        )
-        
-        await project.update(
-            status="completed",
-            problem_type=result.get("problem_type", "classification"),
-            target_variable=result.get("target_variable", "")
-        )
+        try:
+            # Save model results
+            algorithm_results = result.get("algorithm_results", {})
+            for algo_name, algo_result in algorithm_results.items():
+                if algo_result.get("success"):
+                    algo_meta = algorithm_registry.get_algorithm(algo_name)
+                    await ModelResult.create(
+                        project_id=project.id,
+                        algorithm_name=algo_name,
+                        algorithm_display_name=algo_meta.display_name if algo_meta else algo_name,
+                        metrics=algo_result.get("metrics", {}),
+                        predictions=algo_result.get("predictions", []),
+                        feature_importance=algo_result.get("feature_importance", {}),
+                        training_time=algo_result.get("training_time", 0)
+                    )
+            
+            await TrainingRun.create(
+                project_id=project.id,
+                algorithms_used=result.get("selected_algorithms", []),
+                best_model=result.get("best_model", ""),
+                best_metrics=result.get("best_metrics", {}),
+                comparison_report=result.get("comparison_report", {})
+            )
+            
+            await MLProject.filter(id=project.id).update(
+                status="completed",
+                problem_type=result.get("problem_type", "classification"),
+                target_variable=result.get("target_variable", "")
+            )
+        except Exception as e:
+            await MLProject.filter(id=project.id).update(status="failed", error_message=f"Failed to save results: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to save results: {str(e)}")
         
         return {
             "project_id": project.id,
@@ -278,6 +273,10 @@ async def predict(
             "comparison_report": result.get("comparison_report", {}),
             "reasoning": result.get("reasoning", "")
         }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     except HTTPException:
         raise
     except Exception as e:
@@ -322,21 +321,21 @@ async def predict_stream(
         async def event_generator():
             try:
                 print(f"DEBUG: Starting prediction stream for project {project.id}")
-                yield safe_json_serialize({"status": "started", "project_id": project.id}) + "\n"
+                yield safe_serialize({"status": "started", "project_id": project.id}) + "\n"
                 
                 final_result = None
                 
                 async for update in coordinator.process_stream(state):
                     print(f"DEBUG: Stream update: {update.get('status')}")
-                    yield safe_json_serialize(update) + "\n"
+                    yield safe_serialize(update) + "\n"
                     if update.get("status") == "completed":
                         final_result = update.get("result")
                 
                 if final_result:
                     if final_result.get("error"):
                         print(f"ERROR: Result contains error: {final_result['error']}")
-                        await project.update(status="failed", error_message=final_result["error"])
-                        yield safe_json_serialize({"status": "error", "message": final_result["error"]}) + "\n"
+                        await MLProject.filter(id=project.id).update(status="failed", error_message=final_result["error"])
+                        yield safe_serialize({"status": "error", "message": final_result["error"]}) + "\n"
                         return
 
                     # Save results
@@ -402,7 +401,7 @@ async def predict_stream(
                     )
                     
                     target_var = final_result.get("target_variable", "")
-                    await project.update(
+                    await MLProject.filter(id=project.id).update(
                         status="completed",
                         problem_type=problem_type,
                         target_variable=target_var
@@ -470,14 +469,14 @@ async def predict_stream(
                         ]
                     }
                     print("DEBUG: Yielding final saved data")
-                    yield safe_json_serialize({"status": "saved", "data": response_data}) + "\n"
+                    yield safe_serialize({"status": "saved", "data": response_data}) + "\n"
                     
             except Exception as e:
                 print(f"ERROR in event_generator: {str(e)}")
                 import traceback
                 traceback.print_exc()
-                await project.update(status="failed", error_message=str(e))
-                yield safe_json_serialize({"status": "error", "message": str(e)}) + "\n"
+                await MLProject.filter(id=project.id).update(status="failed", error_message=str(e))
+                yield safe_serialize({"status": "error", "message": str(e)}) + "\n"
 
         return StreamingResponse(event_generator(), media_type="application/x-ndjson")
     except Exception as e:
@@ -577,6 +576,330 @@ async def get_algorithm(algorithm_name: str):
         if not info:
             raise HTTPException(status_code=404, detail="Algorithm not found")
         return info
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/projects/{project_id}/status")
+async def get_project_status(
+    project_id: int,
+    current_user: User = Depends(get_current_user)
+):
+    """Get project processing status and logs"""
+    try:
+        project = await MLProject.get_or_none(id=project_id, user_id=current_user.id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
+        return {
+            "id": project.id,
+            "status": project.status,
+            "current_step": project.current_step,
+            "progress": project.progress,
+            "error_message": project.error_message,
+            "step_logs": project.step_logs or [],
+            "created_at": project.created_at.isoformat(),
+            "updated_at": project.updated_at.isoformat()
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/projects/{project_id}/results")
+async def get_project_results(
+    project_id: int,
+    current_user: User = Depends(get_current_user)
+):
+    """Get complete project results with all details"""
+    try:
+        project = await MLProject.get_or_none(id=project_id, user_id=current_user.id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
+        # Get all model results
+        model_results = await ModelResult.filter(project_id=project_id).all()
+        
+        # Get training run
+        training_run = await TrainingRun.get_or_none(project_id=project_id)
+        
+        # Format results
+        results_list = []
+        for result in model_results:
+            results_list.append({
+                "algorithm_name": result.algorithm_name,
+                "algorithm_display_name": result.algorithm_display_name,
+                "metrics": result.metrics,
+                "training_time": result.training_time,
+                "feature_importance": result.feature_importance
+            })
+        
+        return {
+            "project_id": project.id,
+            "status": project.status,
+            "problem_type": project.problem_type,
+            "target_variable": project.target_variable,
+            "problem_description": project.problem_description,
+            "step_logs": project.step_logs or [],
+            "models_trained": results_list,
+            "best_model": training_run.best_model if training_run else None,
+            "best_metrics": training_run.best_metrics if training_run else {},
+            "comparison_report": training_run.comparison_report if training_run else {},
+            "error_message": project.error_message,
+            "created_at": project.created_at.isoformat(),
+            "completed_at": project.updated_at.isoformat()
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================
+# Dataset Preview & Statistics
+# ============================================
+
+@router.get("/datasets/{dataset_id}/preview")
+async def get_dataset_preview(
+    dataset_id: int,
+    rows: int = 10,
+    current_user: User = Depends(get_current_user)
+):
+    """Get dataset preview with sample rows and statistics"""
+    try:
+        dataset = await Dataset.get_or_none(id=dataset_id)
+        if not dataset:
+            raise HTTPException(status_code=404, detail="Dataset not found")
+        
+        df = data_processor.load_dataset(dataset.file_path)
+        
+        # Get statistics
+        stats = {}
+        for col in df.columns:
+            col_stats = {"dtype": str(df[col].dtype), "missing": int(df[col].isnull().sum())}
+            if df[col].dtype in ['int64', 'float64']:
+                col_stats.update({
+                    "min": float(df[col].min()) if not df[col].isnull().all() else None,
+                    "max": float(df[col].max()) if not df[col].isnull().all() else None,
+                    "mean": float(df[col].mean()) if not df[col].isnull().all() else None
+                })
+            else:
+                col_stats["unique"] = int(df[col].nunique())
+                col_stats["sample_values"] = df[col].dropna().unique()[:5].tolist()
+            stats[col] = col_stats
+        
+        return {
+            "id": dataset.id,
+            "name": dataset.name,
+            "rows": dataset.rows,
+            "columns": dataset.columns,
+            "column_names": dataset.column_names,
+            "data_types": dataset.data_types,
+            "preview": df.head(rows).to_dict(orient="records"),
+            "statistics": stats
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/datasets/{dataset_id}/visualization")
+async def get_dataset_visualization(
+    dataset_id: int,
+    current_user: User = Depends(get_current_user)
+):
+    """Get data for visualization (distributions, correlations)"""
+    try:
+        dataset = await Dataset.get_or_none(id=dataset_id)
+        if not dataset:
+            raise HTTPException(status_code=404, detail="Dataset not found")
+        
+        df = data_processor.load_dataset(dataset.file_path)
+        
+        # Numeric columns for correlation
+        numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
+        
+        # Correlation matrix
+        correlation = {}
+        if len(numeric_cols) > 1:
+            corr_matrix = df[numeric_cols].corr()
+            correlation = corr_matrix.to_dict()
+        
+        # Distribution data for numeric columns
+        distributions = {}
+        for col in numeric_cols[:5]:  # Limit to 5 columns
+            distributions[col] = {
+                "histogram": df[col].dropna().tolist()[:1000],  # Limit data points
+                "min": float(df[col].min()),
+                "max": float(df[col].max()),
+                "mean": float(df[col].mean()),
+                "std": float(df[col].std())
+            }
+        
+        # Categorical distributions
+        categorical_cols = df.select_dtypes(include=['object']).columns.tolist()
+        categorical_distributions = {}
+        for col in categorical_cols[:5]:
+            value_counts = df[col].value_counts().head(10).to_dict()
+            categorical_distributions[col] = value_counts
+        
+        return {
+            "numeric_columns": numeric_cols,
+            "categorical_columns": categorical_cols,
+            "correlation": correlation,
+            "distributions": distributions,
+            "categorical_distributions": categorical_distributions
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================
+# Single Prediction
+# ============================================
+
+class SinglePredictRequest(BaseModel):
+    project_id: int
+    features: dict  # {"column_name": value, ...}
+
+@router.post("/predict/single")
+async def predict_single(
+    request: SinglePredictRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Make a single prediction using the best trained model"""
+    try:
+        project = await MLProject.get_or_none(id=request.project_id, user_id=current_user.id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
+        if project.status != "completed":
+            raise HTTPException(status_code=400, detail="Project training not completed")
+        
+        # Get best model result
+        training_run = await TrainingRun.get_or_none(project_id=project.id)
+        if not training_run:
+            raise HTTPException(status_code=400, detail="No trained models found")
+        
+        best_model_name = training_run.best_model
+        
+        # Load dataset and retrain best model (in production, we'd cache this)
+        dataset = await Dataset.get_or_none(id=project.dataset_id)
+        df = data_processor.load_dataset(dataset.file_path)
+        
+        # Prepare data
+        X, y = data_processor.preprocess_data(df, project.target_variable)
+        
+        # Get algorithm and train
+        from apps.ml_predictor.agents.algorithm_agent import AlgorithmAgent
+        agent = AlgorithmAgent(best_model_name)
+        agent.algorithm.train(X, y)
+        
+        # Prepare input features
+        import pandas as pd
+        import numpy as np
+        input_df = pd.DataFrame([request.features])
+        
+        # Ensure columns match training data
+        for col in X.columns if hasattr(X, 'columns') else range(X.shape[1]):
+            if col not in input_df.columns:
+                input_df[col] = 0
+        
+        # Reorder columns to match training
+        if hasattr(X, 'columns'):
+            input_df = input_df[X.columns]
+        
+        # Make prediction
+        prediction = agent.algorithm.predict(input_df.values)
+        
+        result = {
+            "prediction": prediction[0] if len(prediction) == 1 else prediction.tolist(),
+            "model_used": best_model_name,
+            "problem_type": project.problem_type
+        }
+        
+        # Add probability for classification
+        if project.problem_type == "classification" and hasattr(agent.algorithm.model, 'predict_proba'):
+            try:
+                proba = agent.algorithm.model.predict_proba(input_df.values)
+                result["probabilities"] = proba[0].tolist()
+                result["confidence"] = float(max(proba[0])) * 100
+            except:
+                pass
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================
+# Batch Prediction
+# ============================================
+
+@router.post("/predict/batch")
+async def predict_batch(
+    project_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Make predictions on a batch of data"""
+    try:
+        project = await MLProject.get_or_none(id=project_id, user_id=current_user.id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
+        if project.status != "completed":
+            raise HTTPException(status_code=400, detail="Project training not completed")
+        
+        # Get best model
+        training_run = await TrainingRun.get_or_none(project_id=project.id)
+        if not training_run:
+            raise HTTPException(status_code=400, detail="No trained models found")
+        
+        best_model_name = training_run.best_model
+        
+        # Load original dataset and train model
+        dataset = await Dataset.get_or_none(id=project.dataset_id)
+        df_train = data_processor.load_dataset(dataset.file_path)
+        X_train, y_train = data_processor.preprocess_data(df_train, project.target_variable)
+        
+        from apps.ml_predictor.agents.algorithm_agent import AlgorithmAgent
+        agent = AlgorithmAgent(best_model_name)
+        agent.algorithm.train(X_train, y_train)
+        
+        # Load new data
+        content = await file.read()
+        ext = os.path.splitext(file.filename)[1].lower() or ".csv"
+        temp_path = await save_temp_file(content, ext)
+        
+        try:
+            df_new = data_processor.load_dataset(temp_path)
+            
+            # Prepare features (exclude target if present)
+            if project.target_variable and project.target_variable in df_new.columns:
+                X_new = df_new.drop(columns=[project.target_variable])
+            else:
+                X_new = df_new
+            
+            # Encode categorical variables same as training
+            X_new_processed = data_processor.preprocess_features(X_new)
+            
+            # Make predictions
+            predictions = agent.algorithm.predict(X_new_processed)
+            
+            # Add predictions to dataframe
+            df_new['prediction'] = predictions
+            
+            return {
+                "total_rows": len(df_new),
+                "predictions": df_new.to_dict(orient="records"),
+                "model_used": best_model_name
+            }
+        finally:
+            cleanup_file(temp_path)
+            
     except HTTPException:
         raise
     except Exception as e:

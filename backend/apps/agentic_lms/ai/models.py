@@ -1,7 +1,6 @@
 import os
 import google.generativeai as genai
 from langchain_aws import ChatBedrock
-from langchain_mistralai import ChatMistralAI
 
 
 def get_model(model_name: str):
@@ -32,13 +31,6 @@ def get_model(model_name: str):
             model_id="anthropic.claude-3-5-sonnet-20241022-v2:0",
             region_name=os.getenv("AWS_REGION", "us-east-1"),
             credentials_profile_name=None
-        )
-    
-    elif model_name == "mistral":
-        return ChatMistralAI(
-            model="mistral-large-latest",
-            mistral_api_key=os.getenv("MISTRAL_API_KEY"),
-            temperature=0.7
         )
     
     else:

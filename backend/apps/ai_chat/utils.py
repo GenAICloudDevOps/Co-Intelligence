@@ -1,35 +1,16 @@
-import PyPDF2
-import docx
+"""AI Chat utilities - uses central services"""
 import boto3
 import json
 import requests
-from io import BytesIO
 from tavily import TavilyClient
 from config import settings
+from services.file_service import extract_text_from_pdf, extract_text_from_docx
 
 s3_client = boto3.client('s3', region_name=settings.AWS_REGION) if settings.AWS_ACCESS_KEY_ID else None
 tavily_client = TavilyClient(api_key=settings.TAVILY_API_KEY) if settings.TAVILY_API_KEY else None
 
-def extract_text_from_pdf(file_content: bytes) -> str:
-    """Extract text from PDF file"""
-    pdf_file = BytesIO(file_content)
-    pdf_reader = PyPDF2.PdfReader(pdf_file)
-    text = ""
-    for page in pdf_reader.pages:
-        text += page.extract_text() + "\n"
-    return text
-
-def extract_text_from_docx(file_content: bytes) -> str:
-    """Extract text from DOCX file"""
-    docx_file = BytesIO(file_content)
-    doc = docx.Document(docx_file)
-    text = ""
-    for paragraph in doc.paragraphs:
-        text += paragraph.text + "\n"
-    return text
-
 def extract_text_from_file(filename: str, file_content: bytes) -> str:
-    """Extract text based on file extension"""
+    """Extract text based on file extension - uses central file service"""
     if filename.endswith('.pdf'):
         return extract_text_from_pdf(file_content)
     elif filename.endswith('.docx'):
@@ -76,8 +57,8 @@ def search_web(query: str, max_results: int = 3) -> dict:
 def execute_code(code: str, timeout: int = 30) -> dict:
     """Execute Python code using HTTP endpoint or Lambda"""
     
-    # Use HTTP endpoint if configured (Azure/GCP)
-    if settings.CODE_EXECUTOR_URL:
+    # Use HTTP endpoint if configured (Azure/GCP) - skip if it's an ARN
+    if settings.CODE_EXECUTOR_URL and not settings.CODE_EXECUTOR_URL.startswith('arn:'):
         try:
             response = requests.post(
                 settings.CODE_EXECUTOR_URL,
@@ -112,4 +93,4 @@ def execute_code(code: str, timeout: int = 30) -> dict:
             'errors': body.get('errors'),
         }
     except Exception as e:
-        return {'success': False, 'output': '', 'errors': f"Lambda execution failed: {str(e)}"}
+        return {'success': False, 'output': '', 'errors': f"Code execution failed: {str(e)}"}

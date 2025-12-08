@@ -1,6 +1,6 @@
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, status, Depends
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, validator
 from auth.models import User, RefreshToken
 from auth.utils import get_password_hash, verify_password, create_access_token, create_refresh_token, get_current_user
 
@@ -10,6 +10,24 @@ class UserCreate(BaseModel):
     email: EmailStr
     username: str
     password: str
+    
+    @validator('username')
+    def username_valid(cls, v):
+        if len(v) < 3:
+            raise ValueError('Username must be at least 3 characters')
+        if len(v) > 50:
+            raise ValueError('Username must be less than 50 characters')
+        if not v.isalnum() and '_' not in v:
+            raise ValueError('Username must be alphanumeric')
+        return v
+    
+    @validator('password')
+    def password_valid(cls, v):
+        if len(v) < 6:
+            raise ValueError('Password must be at least 6 characters')
+        if len(v) > 100:
+            raise ValueError('Password must be less than 100 characters')
+        return v
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -26,20 +44,39 @@ class TokenResponse(BaseModel):
 @router.post("/register", response_model=TokenResponse)
 async def register(user_data: UserCreate):
     try:
-        if await User.exists(email=user_data.email):
+        # Validate input
+        if not user_data.email or not user_data.username or not user_data.password:
+            raise HTTPException(status_code=400, detail="Email, username, and password required")
+        
+        if len(user_data.password) < 6:
+            raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+        
+        # Check if email exists
+        existing_email = await User.exists(email=user_data.email)
+        if existing_email:
             raise HTTPException(status_code=400, detail="Email already registered")
-        if await User.exists(username=user_data.username):
+        
+        # Check if username exists
+        existing_username = await User.exists(username=user_data.username)
+        if existing_username:
             raise HTTPException(status_code=400, detail="Username already taken")
         
+        # Create user
         user = await User.create(
             email=user_data.email,
             username=user_data.username,
             hashed_password=get_password_hash(user_data.password)
         )
         
+        # Create tokens
         access_token = create_access_token(data={"sub": user.id})
         refresh_token = await create_refresh_token(user.id)
-        return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+        
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer"
+        }
     except HTTPException:
         raise
     except Exception as e:

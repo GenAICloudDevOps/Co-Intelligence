@@ -37,7 +37,7 @@ def detect_intent(state: TutorState) -> TutorState:
 
 def tutor_agent(state: TutorState) -> TutorState:
     """Main teaching agent"""
-    model = genai.GenerativeModel(state.get('model', 'gemini-2.5-flash-lite'))
+    model = genai.GenerativeModel(state.get("model", "gemini-2.5-flash-lite"))
     prompt = f"""You are an expert tutor teaching {state['topic']}.
 Difficulty level: {state['difficulty']}
 
@@ -54,7 +54,7 @@ Provide a clear, concise explanation with examples. Be encouraging and adaptive.
 
 def assessor_agent(state: TutorState) -> TutorState:
     """Generate assessment questions"""
-    model = genai.GenerativeModel(state.get('model', 'gemini-2.5-flash-lite'))
+    model = genai.GenerativeModel(state.get("model", "gemini-2.5-flash-lite"))
     prompt = f"""Generate a {state['difficulty']} level question about {state['topic']}.
 
 Format:
@@ -66,7 +66,7 @@ Correct Answer: [answer]
 Make it practical and test understanding."""
 
     response = model.generate_content(prompt)
-    text = response.text
+    text = response
     
     state['current_question'] = {
         'question': text.split('Question:')[1].split('Type:')[0].strip() if 'Question:' in text else text,
@@ -79,7 +79,7 @@ Make it practical and test understanding."""
 
 def grader_agent(state: TutorState) -> TutorState:
     """Grade student answers"""
-    model = genai.GenerativeModel(state.get('model', 'gemini-2.5-flash-lite'))
+    model = genai.GenerativeModel(state.get("model", "gemini-2.5-flash-lite"))
     prompt = f"""Question: {state['current_question'].get('question', 'Previous question')}
 Student Answer: {state['user_message']}
 
@@ -98,7 +98,7 @@ Be constructive and encouraging."""
 
 def hint_agent(state: TutorState) -> TutorState:
     """Provide progressive hints"""
-    model = genai.GenerativeModel(state.get('model', 'gemini-2.5-flash-lite'))
+    model = genai.GenerativeModel(state.get("model", "gemini-2.5-flash-lite"))
     prompt = f"""Student is stuck on: {state['current_question'].get('question', state['user_message'])}
 
 Provide a helpful hint that:
@@ -174,7 +174,7 @@ def progress_agent(state: TutorState) -> TutorState:
             emoji = "✅" if p['completed'] else "📚"
             response += f"{emoji} {p['topic']}: {p['average_score']:.0f}%\n"
     
-    state['response'] = response
+    state['response'] = response.text
     return state
 
 def route_intent(state: TutorState) -> Literal["teach", "assess", "grade", "hint", "progress"]:

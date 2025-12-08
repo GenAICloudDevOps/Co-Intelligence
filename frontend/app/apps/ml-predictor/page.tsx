@@ -92,7 +92,8 @@ export default function MLPredictor() {
     dataset: false,
     selection: false,
     results: true,
-    features: false
+    features: false,
+    predict: true
   })
 
   useEffect(() => {
@@ -197,6 +198,103 @@ export default function MLPredictor() {
       setIsUploading(false)
     }
   }
+
+// Single Prediction Component
+function SinglePrediction({ projectId, featureNames, problemType }: { projectId: number, featureNames: string[], problemType: string }) {
+  const [features, setFeatures] = useState<Record<string, string>>({})
+  const [prediction, setPrediction] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handlePredict = async () => {
+    setLoading(true)
+    setError('')
+    setPrediction(null)
+    
+    try {
+      // Convert string values to numbers where possible
+      const processedFeatures: Record<string, any> = {}
+      for (const [key, value] of Object.entries(features)) {
+        const num = parseFloat(value)
+        processedFeatures[key] = isNaN(num) ? value : num
+      }
+      
+      const response = await fetch('/api/apps/ml-predictor/predict/single', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          project_id: projectId,
+          features: processedFeatures
+        })
+      })
+      
+      if (!response.ok) {
+        const err = await response.json()
+        throw new Error(err.detail || 'Prediction failed')
+      }
+      
+      const result = await response.json()
+      setPrediction(result)
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ padding: '0 8px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '16px' }}>
+        {featureNames.map((feature) => (
+          <div key={feature}>
+            <label style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '4px' }}>{feature}</label>
+            <input
+              type="text"
+              value={features[feature] || ''}
+              onChange={(e) => setFeatures(prev => ({ ...prev, [feature]: e.target.value }))}
+              placeholder={`Enter ${feature}`}
+              style={{ width: '100%', padding: '8px', background: '#0f172a', border: '1px solid #334155', borderRadius: '4px', color: 'white', fontSize: '0.9rem' }}
+            />
+          </div>
+        ))}
+      </div>
+      
+      <button
+        onClick={handlePredict}
+        disabled={loading || Object.keys(features).length === 0}
+        style={{ width: '100%', padding: '12px', background: loading ? '#475569' : '#10b981', border: 'none', borderRadius: '8px', color: 'white', fontWeight: 'bold', cursor: loading ? 'not-allowed' : 'pointer', marginBottom: '12px' }}
+      >
+        {loading ? '⏳ Predicting...' : '🎯 Predict'}
+      </button>
+      
+      {error && (
+        <div style={{ padding: '12px', background: '#7f1d1d', borderRadius: '8px', color: '#fca5a5', marginBottom: '12px' }}>{error}</div>
+      )}
+      
+      {prediction && (
+        <div style={{ padding: '16px', background: '#0f172a', borderRadius: '8px', textAlign: 'center' }}>
+          <div style={{ fontSize: '0.9rem', color: '#94a3b8', marginBottom: '8px' }}>Predicted {problemType === 'regression' ? 'Value' : 'Class'}</div>
+          <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#6366f1' }}>
+            {typeof prediction.prediction === 'number' 
+              ? prediction.prediction.toLocaleString(undefined, { maximumFractionDigits: 2 })
+              : prediction.prediction}
+          </div>
+          {prediction.confidence && (
+            <div style={{ fontSize: '0.9rem', color: '#10b981', marginTop: '8px' }}>
+              Confidence: {prediction.confidence.toFixed(1)}%
+            </div>
+          )}
+          <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '8px' }}>
+            Model: {prediction.model_used}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
   const handlePredict = async () => {
     if (!selectedDataset || !problemDescription.trim()) {
@@ -431,8 +529,26 @@ export default function MLPredictor() {
               )}
               
               {selectedDataset && (
-                <div style={{ marginTop: '8px', padding: '10px', background: '#1e293b', borderRadius: '6px', fontSize: '0.85rem', color: '#94a3b8' }}>
-                  {selectedDataset.description || `Uploaded on ${new Date().toLocaleDateString()}`}
+                <div style={{ marginTop: '8px', padding: '10px', background: '#1e293b', borderRadius: '6px', fontSize: '0.85rem' }}>
+                  <div style={{ color: '#94a3b8', marginBottom: '8px' }}>
+                    {selectedDataset.rows} rows × {selectedDataset.columns} columns
+                  </div>
+                  {selectedDataset.column_names && (
+                    <div style={{ marginBottom: '8px' }}>
+                      <div style={{ color: '#64748b', fontSize: '0.75rem', marginBottom: '4px' }}>Columns:</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                        {selectedDataset.column_names.slice(0, 8).map((col, i) => (
+                          <span key={i} style={{ padding: '2px 6px', background: '#334155', borderRadius: '4px', fontSize: '0.75rem' }}>{col}</span>
+                        ))}
+                        {selectedDataset.column_names.length > 8 && (
+                          <span style={{ padding: '2px 6px', color: '#64748b', fontSize: '0.75rem' }}>+{selectedDataset.column_names.length - 8} more</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  <div style={{ color: '#64748b', fontSize: '0.75rem' }}>
+                    💡 Tip: Describe what you want to predict (e.g., "predict {selectedDataset.column_names?.[selectedDataset.column_names.length - 1] || 'target'}")
+                  </div>
                 </div>
               )}
             </div>
@@ -507,12 +623,33 @@ export default function MLPredictor() {
                         <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{results.winner.margin}</div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        {Object.entries(results.winner.metrics).slice(0, 2).map(([key, value]) => (
-                          <div key={key} style={{ marginBottom: '4px' }}>
-                            <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{key.replace('_', ' ').toUpperCase()}: </span>
-                            <span style={{ color: '#6366f1', fontWeight: 'bold' }}>{(value * 100).toFixed(1)}%</span>
-                          </div>
-                        ))}
+                        {Object.entries(results.winner.metrics).slice(0, 2).map(([key, value]) => {
+                          const keyLower = key.toLowerCase();
+                          const isPercentMetric = ['accuracy', 'precision', 'recall', 'f1', 'r2', 'r2_score', 'silhouette'].some(m => keyLower.includes(m));
+                          const isErrorMetric = ['rmse', 'mae', 'mse', 'error'].some(m => keyLower.includes(m));
+                          
+                          let displayValue;
+                          if (typeof value === 'number') {
+                            if (isPercentMetric && value <= 1) {
+                              displayValue = `${(value * 100).toFixed(1)}%`;
+                            } else if (isErrorMetric) {
+                              displayValue = value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                            } else if (value < 1 && value > 0) {
+                              displayValue = `${(value * 100).toFixed(1)}%`;
+                            } else {
+                              displayValue = value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                            }
+                          } else {
+                            displayValue = value;
+                          }
+                          
+                          return (
+                            <div key={key} style={{ marginBottom: '4px' }}>
+                              <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{key.replace(/_/g, ' ').toUpperCase()}: </span>
+                              <span style={{ color: '#6366f1', fontWeight: 'bold' }}>{displayValue}</span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   </Card>
@@ -632,14 +769,35 @@ export default function MLPredictor() {
                                 </td>
                                 <td style={{ padding: '12px' }}>
                                   <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                                    {Object.entries(r.metrics).map(([key, value]) => (
-                                      <span key={key} style={{ fontSize: '0.85rem' }}>
-                                        <span style={{ color: '#64748b' }}>{key.replace('_', ' ')}: </span>
-                                        <span style={{ color: i === 0 ? '#6366f1' : '#94a3b8', fontWeight: i === 0 ? 'bold' : 'normal' }}>
-                                          {typeof value === 'number' && value < 1 ? `${(value * 100).toFixed(1)}%` : value}
+                                    {Object.entries(r.metrics).map(([key, value]) => {
+                                      const keyLower = key.toLowerCase();
+                                      const isPercentMetric = ['accuracy', 'precision', 'recall', 'f1', 'r2', 'r2_score', 'silhouette'].some(m => keyLower.includes(m));
+                                      const isErrorMetric = ['rmse', 'mae', 'mse', 'error'].some(m => keyLower.includes(m));
+                                      
+                                      let displayValue;
+                                      if (typeof value === 'number') {
+                                        if (isPercentMetric && value <= 1) {
+                                          displayValue = `${(value * 100).toFixed(1)}%`;
+                                        } else if (isErrorMetric) {
+                                          displayValue = value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                                        } else if (value < 1 && value > 0) {
+                                          displayValue = `${(value * 100).toFixed(1)}%`;
+                                        } else {
+                                          displayValue = value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                                        }
+                                      } else {
+                                        displayValue = value;
+                                      }
+                                      
+                                      return (
+                                        <span key={key} style={{ fontSize: '0.85rem' }}>
+                                          <span style={{ color: '#64748b' }}>{key.replace(/_/g, ' ').toUpperCase()}: </span>
+                                          <span style={{ color: i === 0 ? '#6366f1' : '#94a3b8', fontWeight: i === 0 ? 'bold' : 'normal' }}>
+                                            {displayValue}
+                                          </span>
                                         </span>
-                                      </span>
-                                    ))}
+                                      );
+                                    })}
                                   </div>
                                 </td>
                                 <td style={{ padding: '12px', textAlign: 'right', color: '#64748b' }}>{r.training_time}</td>
@@ -678,6 +836,18 @@ export default function MLPredictor() {
                       )}
                     </Card>
                   )}
+
+                  {/* Single Prediction */}
+                  <Card padding="lg">
+                    <SectionHeader title="Make a Prediction" icon="🎯" section="predict" />
+                    {expandedSections.predict && (
+                      <SinglePrediction 
+                        projectId={results.project_id}
+                        featureNames={results.dataset_info.feature_names}
+                        problemType={results.analysis.problem_type}
+                      />
+                    )}
+                  </Card>
                 </>
               )}
             </div>

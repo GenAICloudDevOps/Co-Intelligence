@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/co-intelligence-frontend:latest
+        image: 878915883882.dkr.ecr.us-east-1.amazonaws.com/co-intelligence-frontend:latest
         ports:
         - containerPort: 3000
         env:
