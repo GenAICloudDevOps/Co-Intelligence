@@ -1,10 +1,28 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import AppCard from './components/AppCard'
 import Modal from './components/Modal'
 import { apps } from './config/apps'
 import { useAuth } from './hooks/useAuth'
+import { api } from './services/api'
+
+type EvalMetric = { name: string; score: number; delta: number }
+type TrendPoint = { label: string; context_precision: number; context_recall: number; response_relevancy: number; faithfulness: number }
+type Issue = { prompt: string; response: string; faithfulness: number; response_relevancy: number; created_at: string; reason: string }
+type ModelUsage = { model: string; count: number }
+type EvalSummary = {
+  run_id: string
+  run_timestamp: string
+  judge_model: string
+  metrics: EvalMetric[]
+  total_cases: number
+  trend: TrendPoint[]
+  issues: Issue[]
+  safety_blocks: { count_24h: number; change: number }
+  model_usage: ModelUsage[]
+  scope: string
+}
 
 export default function Home() {
   const { auth, loading, message, setMessage, login, register, logout, isAuthenticated } = useAuth()
@@ -13,6 +31,9 @@ export default function Home() {
   const [formData, setFormData] = useState({ email: '', username: '', password: '' })
   const [currentTime, setCurrentTime] = useState('')
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [evalSummary, setEvalSummary] = useState<EvalSummary | null>(null)
+  const [evalError, setEvalError] = useState<string | null>(null)
+  const [evalScope, setEvalScope] = useState<'all' | 'me'>('all')
 
   useEffect(() => {
     const updateTime = () => {
@@ -23,6 +44,24 @@ export default function Home() {
     const interval = setInterval(updateTime, 1000)
     return () => clearInterval(interval)
   }, [])
+
+  useEffect(() => {
+    const fetchEvalSummary = async () => {
+      if (!isAuthenticated) {
+        setEvalSummary(null)
+        return
+      }
+      try {
+        const data = await api.get<EvalSummary>(`/api/apps/evaluations/summary?scope=${evalScope}`)
+        setEvalSummary(data)
+        setEvalError(null)
+      } catch (err: any) {
+        console.error('Eval fetch error', err)
+        setEvalError('Evaluation data unavailable')
+      }
+    }
+    fetchEvalSummary()
+  }, [isAuthenticated, evalScope])
 
   const handleAuth = async () => {
     try {
@@ -181,6 +220,136 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        {/* Evaluation Dashboard (auth-gated) */}
+        {isAuthenticated && (
+          <section style={{ marginBottom: '60px' }}>
+            <div style={{ background: '#0f172a', borderRadius: '16px', padding: '40px', border: '1px solid #334155' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <h2 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '8px' }}>Evaluation Dashboard</h2>
+                  <p style={{ color: '#94a3b8' }}>
+                    Judge: {evalSummary?.judge_model || 'loading...'} • Last run: {evalSummary ? new Date(evalSummary.run_timestamp).toLocaleString() : '--'}
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div style={{ color: '#94a3b8', fontSize: '0.95rem' }}>Total cases: {evalSummary?.total_cases ?? '--'}</div>
+                  <div style={{ display: 'flex', gap: '8px', background: '#1e293b', padding: '6px', borderRadius: '10px', border: '1px solid #334155' }}>
+                    {(['all', 'me'] as const).map(scope => (
+                      <button
+                        key={scope}
+                        onClick={() => setEvalScope(scope)}
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: evalScope === scope ? '#6366f1' : 'transparent',
+                          color: evalScope === scope ? 'white' : '#94a3b8',
+                          cursor: 'pointer',
+                          fontWeight: 600
+                        }}
+                      >
+                        {scope === 'all' ? 'All' : 'Me'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {evalError && (
+                <div style={{ background: '#1e293b', borderRadius: '12px', padding: '16px', border: '1px solid #334155', color: '#f97316', marginBottom: '12px' }}>
+                  {evalError}
+                </div>
+              )}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                {(evalSummary?.metrics || [
+                  { name: 'Context Precision', score: 0, delta: 0 },
+                  { name: 'Context Recall', score: 0, delta: 0 },
+                  { name: 'Response Relevancy', score: 0, delta: 0 },
+                  { name: 'Faithfulness', score: 0, delta: 0 }
+                ]).map((metric, idx) => (
+                  <div key={idx} style={{ background: '#1e293b', borderRadius: '12px', padding: '20px', border: '1px solid #334155' }}>
+                    <div style={{ fontSize: '0.95rem', color: '#94a3b8', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                      <span>{metric.name}</span>
+                      <span style={{ color: metric.delta >= 0 ? '#10b981' : '#ef4444' }}>
+                        {metric.delta >= 0 ? '▲' : '▼'} {(metric.delta * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#a78bfa', marginBottom: '8px' }}>{(metric.score * 100).toFixed(0)}%</div>
+                    <div style={{ background: '#0f172a', borderRadius: '999px', height: '10px', overflow: 'hidden', border: '1px solid #334155' }}>
+                      <div style={{
+                        width: `${Math.max(0, Math.min(100, metric.score * 100))}%`,
+                        height: '100%',
+                        background: 'linear-gradient(90deg, #22c55e, #a78bfa)'
+                      }}></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Safety and Model usage row */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '24px', alignItems: 'stretch' }}>
+                <div style={{ background: '#1e293b', borderRadius: '12px', padding: '16px', border: '1px solid #334155' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Safety blocks (24h)</div>
+                      <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#f97316' }}>{evalSummary?.safety_blocks?.count_24h ?? 0}</div>
+                    </div>
+                    <div style={{ color: (evalSummary?.safety_blocks?.change ?? 0) <= 0 ? '#10b981' : '#f97316' }}>
+                      {(evalSummary?.safety_blocks?.change ?? 0) >= 0 ? '▲' : '▼'} {Math.abs(evalSummary?.safety_blocks?.change ?? 0)}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ background: '#1e293b', borderRadius: '12px', padding: '16px', border: '1px solid #334155' }}>
+                  <div style={{ color: '#94a3b8', marginBottom: '8px', fontSize: '0.95rem' }}>Model usage (top 5)</div>
+                  {(evalSummary?.model_usage || []).map((m, idx) => (
+                    <div key={idx} style={{ marginBottom: '6px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#cbd5e1' }}>
+                        <span>{m.model}</span>
+                        <span style={{ color: '#94a3b8' }}>{m.count}</span>
+                      </div>
+                      <div style={{ background: '#0f172a', borderRadius: '999px', height: '8px', overflow: 'hidden', border: '1px solid #334155' }}>
+                        <div style={{
+                          width: `${Math.min(100, (m.count / Math.max(1, (evalSummary?.model_usage?.[0]?.count || 1))) * 100)}%`,
+                          height: '100%',
+                          background: '#22c55e'
+                        }}></div>
+                      </div>
+                    </div>
+                  ))}
+                  {(evalSummary?.model_usage?.length ?? 0) === 0 && (
+                    <div style={{ color: '#64748b' }}>No usage data yet.</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Top issues */}
+              <div style={{ background: '#1e293b', borderRadius: '12px', padding: '16px', border: '1px solid #334155', marginTop: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <h4 style={{ margin: 0, color: 'white' }}>Top issues</h4>
+                  <span style={{ color: '#94a3b8', fontSize: '0.9rem', textAlign: 'center', width: '200px' }}>Lowest faithfulness/relevancy</span>
+                </div>
+                {(evalSummary?.issues || []).length === 0 ? (
+                  <div style={{ color: '#64748b' }}>No issues yet.</div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr', gap: '8px', color: '#cbd5e1', fontSize: '0.9rem' }}>
+                    <div style={{ color: '#94a3b8' }}>Prompt</div>
+                    <div style={{ color: '#94a3b8' }}>Response</div>
+                    <div style={{ color: '#94a3b8' }}>Faithfulness</div>
+                    <div style={{ color: '#94a3b8' }}>Relevancy</div>
+                    {(evalSummary?.issues || []).map((issue, idx) => (
+                      <React.Fragment key={idx}>
+                        <div>{issue.prompt || '—'}</div>
+                        <div>{issue.response || '—'}</div>
+                        <div style={{ color: issue.faithfulness < 0.6 ? '#f97316' : '#22c55e' }}>{(issue.faithfulness * 100).toFixed(0)}%</div>
+                        <div style={{ color: issue.response_relevancy < 0.6 ? '#f97316' : '#22c55e' }}>{(issue.response_relevancy * 100).toFixed(0)}%</div>
+                      </React.Fragment>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Platform Metrics Section */}
         <section style={{ marginBottom: '60px' }}>

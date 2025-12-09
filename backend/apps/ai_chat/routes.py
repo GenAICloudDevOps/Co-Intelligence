@@ -8,6 +8,8 @@ from apps.ai_chat.utils import extract_text_from_file, upload_to_s3
 from tortoise import Tortoise
 import json
 from services.file_service import validate_file
+from services.evaluation_service import evaluate_and_store
+from services.ai_service import AIServiceError
 
 router = APIRouter()
 
@@ -173,12 +175,16 @@ async def chat_stream(data: ChatRequest, current_user: User = Depends(get_curren
     # Get document context
     documents = await ChatDocument.filter(session_id=session_id).all()
     document_context = ""
+    context_terms: list[str] = []
+    grounded = False
     if documents:
+        context_terms = [d.filename for d in documents]
         document_context = "\n\n---\n\n".join([
             f"Document: {d.filename}\n{d.extracted_text[:5000]}"
             for d in documents
         ])
-    
+        grounded = True
+
     async def generate():
         ChatSession, ChatMessage, ChatDocument = get_models()
         full_response = ""
@@ -187,13 +193,28 @@ async def chat_stream(data: ChatRequest, current_user: User = Depends(get_curren
             data.model,
             context_messages[:-1],
             document_context,
-            data.web_search
+            data.web_search,
+            context_terms=context_terms,
+            grounded=grounded or data.web_search
         ):
             full_response += chunk
             yield f"data: {json.dumps({'chunk': chunk, 'session_id': session_id})}\n\n"
         
         # Save response
         await ChatMessage.create(session_id=session_id, role="assistant", content=full_response, model=data.model)
+        # Evaluate and store (best-effort)
+        try:
+            await evaluate_and_store(
+                user_id=current_user.id,
+                app_name="ai-chat",
+                model_used=data.model,
+                user_prompt=data.message,
+                assistant_response=full_response,
+                context=document_context,
+            )
+        except Exception:
+            # Do not block user flow on eval errors
+            pass
         yield f"data: {json.dumps({'done': True, 'session_id': session_id})}\n\n"
     
     return StreamingResponse(generate(), media_type="text/event-stream")

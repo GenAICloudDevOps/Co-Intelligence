@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     AI_QUALITY_MODEL: str = "gemini-1.5-pro"
     AI_ALT_MODEL: str = "groq/compound"
     AI_REQUEST_TIMEOUT: int = 60
+    EVAL_JUDGE_MODEL: str = "groq/compound"
 
     # CORS / API surface
     CORS_ALLOW_ORIGINS: str | None = None

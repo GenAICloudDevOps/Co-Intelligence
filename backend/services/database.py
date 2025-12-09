@@ -60,7 +60,34 @@ async def run_migrations():
         "ALTER TABLE ml_projects ADD COLUMN IF NOT EXISTS progress INTEGER DEFAULT 0",
         "ALTER TABLE ml_projects ADD COLUMN IF NOT EXISTS step_logs JSONB DEFAULT '[]'",
         "ALTER TABLE ml_projects ALTER COLUMN target_variable DROP NOT NULL",
-        "ALTER TABLE ml_projects ALTER COLUMN target_variable SET DEFAULT ''"
+        "ALTER TABLE ml_projects ALTER COLUMN target_variable SET DEFAULT ''",
+        # Evaluation table and columns
+        """
+        CREATE TABLE IF NOT EXISTS evaluation_results (
+            id SERIAL PRIMARY KEY,
+            user_id INT,
+            app_name VARCHAR(100),
+            model_used VARCHAR(200),
+            judge_model VARCHAR(200),
+            prompt TEXT,
+            response TEXT,
+            context TEXT,
+            helpfulness FLOAT DEFAULT 0,
+            grounding FLOAT DEFAULT 0,
+            safety FLOAT DEFAULT 0,
+            format_compliance FLOAT DEFAULT 0,
+            context_precision FLOAT DEFAULT 0,
+            context_recall FLOAT DEFAULT 0,
+            response_relevancy FLOAT DEFAULT 0,
+            faithfulness FLOAT DEFAULT 0,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+        )
+        """,
+        "ALTER TABLE evaluation_results ADD COLUMN IF NOT EXISTS context_precision FLOAT DEFAULT 0",
+        "ALTER TABLE evaluation_results ADD COLUMN IF NOT EXISTS context_recall FLOAT DEFAULT 0",
+        "ALTER TABLE evaluation_results ADD COLUMN IF NOT EXISTS response_relevancy FLOAT DEFAULT 0",
+        "ALTER TABLE evaluation_results ADD COLUMN IF NOT EXISTS faithfulness FLOAT DEFAULT 0"
     ]
     
     for sql in migrations:

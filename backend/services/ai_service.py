@@ -9,6 +9,7 @@ from groq import Groq
 import boto3
 from config import settings
 from core.logging import get_logger
+from services.guardrails import check_input, check_output, require_sources_footer, GuardrailDecision
 
 logger = get_logger("ai_service")
 
@@ -88,10 +89,19 @@ class AIService:
     def _cache_set(self, model: str, prompt: str, value: str) -> None:
         self._cache[(model, prompt)] = (time.time(), value)
 
-    async def generate_response(self, prompt: str, model_name: Optional[str] = None) -> str:
-        """Generate a single response (non-streaming) with routing and basic caching."""
-        if not prompt or not prompt.strip():
-            raise AIServiceError("Prompt is required")
+    async def generate_response(
+        self,
+        prompt: str,
+        model_name: Optional[str] = None,
+        require_sources: bool = False,
+        context_terms: Optional[list[str]] = None,
+        allow_urls: Optional[list[str]] = None,
+        block_pii: bool = True,
+    ) -> str:
+        """Generate a single response (non-streaming) with routing, caching, and guardrails."""
+        decision = check_input(prompt, block_pii=block_pii)
+        if not decision.allowed:
+            raise AIServiceError(f"Input blocked: {decision.reason}")
 
         resolved_model = self._resolve_model(model_name)
         cached = self._cache_get(resolved_model, prompt)
@@ -116,6 +126,16 @@ class AIService:
             duration = round((time.time() - start) * 1000, 2)
             logger.info("ai_call", extra={"model": resolved_model, "provider": provider, "duration_ms": duration})
 
+        decision = check_output(
+            text,
+            require_sources=require_sources,
+            context_terms=context_terms or [],
+            allow_urls=allow_urls,
+            block_pii=block_pii,
+        )
+        if not decision.allowed:
+            raise AIServiceError(f"Output blocked: {decision.reason}")
+
         self._cache_set(resolved_model, prompt, text)
         return text
 
@@ -124,28 +144,65 @@ class AIService:
         resolved_model = self._resolve_model(model_name)
         return await self.generate_response(prompt, resolved_model)
 
-    async def stream_model(self, model_name: str, prompt: str, messages: list = None) -> AsyncGenerator[str, None]:
-        """Streaming model call with routing."""
-        if not prompt or not prompt.strip():
-            raise AIServiceError("Prompt is required")
+    async def stream_model(
+        self,
+        model_name: str,
+        prompt: str,
+        messages: list = None,
+        require_sources: bool = False,
+        context_terms: Optional[list[str]] = None,
+        allow_urls: Optional[list[str]] = None,
+        block_pii: bool = True,
+    ) -> AsyncGenerator[str, None]:
+        """Streaming model call with routing and guardrails (buffers before emit)."""
+        decision = check_input(prompt, block_pii=block_pii)
+        if not decision.allowed:
+            raise AIServiceError(f"Input blocked: {decision.reason}")
 
         resolved_model = self._resolve_model(model_name)
         provider = self._get_provider(resolved_model)
+        buffer: list[str] = []
+
+        async def _yield_buffer():
+            for chunk in buffer:
+                yield chunk
+
         try:
             if provider == "gemini":
                 async for chunk in self._stream_gemini(resolved_model, prompt):
-                    yield chunk
+                    buffer.append(chunk)
             elif provider == "groq":
                 async for chunk in self._stream_groq(resolved_model, prompt, messages):
-                    yield chunk
+                    buffer.append(chunk)
             elif provider == "bedrock":
                 async for chunk in self._stream_bedrock(resolved_model, prompt):
-                    yield chunk
+                    buffer.append(chunk)
             else:
                 raise AIServiceError(f"Unsupported provider for model {resolved_model}")
         except Exception as exc:
             logger.error("ai_stream_failed", extra={"model": resolved_model, "provider": provider, "error": str(exc)})
             raise AIServiceError(f"AI stream failed: {exc}") from exc
+
+        full_text = "".join(buffer)
+        decision = check_output(
+            full_text,
+            require_sources=require_sources,
+            context_terms=context_terms or [],
+            allow_urls=allow_urls,
+            block_pii=block_pii,
+        )
+        if not decision.allowed:
+            logger.warning(
+                "ai_stream_output_blocked",
+                extra={
+                    "model": resolved_model,
+                    "reason": decision.reason,
+                },
+            )
+            buffer = [f"Response blocked: {decision.reason}"]
+
+        async for chunk in _yield_buffer():
+            yield chunk
 
     async def _call_gemini(self, model_name: str, prompt: str) -> str:
         model = genai.GenerativeModel(model_name)
