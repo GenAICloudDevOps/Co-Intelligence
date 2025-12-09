@@ -32,13 +32,11 @@ def detect_intent(state: TutorState) -> TutorState:
     
     return state
 
-def _get_ai_response(prompt: str, model: str = None) -> str:
-    """Get response from AI service"""
-    import asyncio
-    loop = asyncio.get_event_loop()
-    return loop.run_until_complete(ai_service.generate(prompt, model=model))
+async def _get_ai_response(prompt: str, model: str = None) -> str:
+    """Get response from AI service asynchronously"""
+    return await ai_service.generate_response(prompt, model)
 
-def tutor_agent(state: TutorState) -> TutorState:
+async def tutor_agent(state: TutorState) -> TutorState:
     """Main teaching agent"""
     prompt = f"""You are an expert tutor teaching {state['topic']}.
 Difficulty level: {state['difficulty']}
@@ -50,10 +48,10 @@ Student question: {state['user_message']}
 
 Provide a clear, concise explanation with examples. Be encouraging and adaptive."""
 
-    state['response'] = _get_ai_response(prompt, state.get('model'))
+    state['response'] = await _get_ai_response(prompt, state.get('model'))
     return state
 
-def assessor_agent(state: TutorState) -> TutorState:
+async def assessor_agent(state: TutorState) -> TutorState:
     """Generate assessment questions"""
     prompt = f"""Generate a {state['difficulty']} level question about {state['topic']}.
 
@@ -65,7 +63,7 @@ Correct Answer: [answer]
 
 Make it practical and test understanding."""
 
-    text = _get_ai_response(prompt, state.get('model'))
+    text = await _get_ai_response(prompt, state.get('model'))
     
     state['current_question'] = {
         'question': text.split('Question:')[1].split('Type:')[0].strip() if 'Question:' in text else text,
@@ -76,7 +74,7 @@ Make it practical and test understanding."""
     state['response'] = state['current_question']['question']
     return state
 
-def grader_agent(state: TutorState) -> TutorState:
+async def grader_agent(state: TutorState) -> TutorState:
     """Grade student answers"""
     prompt = f"""Question: {state['current_question'].get('question', 'Previous question')}
 Student Answer: {state['user_message']}
@@ -89,11 +87,11 @@ Evaluate the answer:
 
 Be constructive and encouraging."""
 
-    state['response'] = _get_ai_response(prompt, state.get('model'))
+    state['response'] = await _get_ai_response(prompt, state.get('model'))
     state['assessment_mode'] = False
     return state
 
-def hint_agent(state: TutorState) -> TutorState:
+async def hint_agent(state: TutorState) -> TutorState:
     """Provide progressive hints"""
     prompt = f"""Student is stuck on: {state['current_question'].get('question', state['user_message'])}
 
@@ -104,10 +102,10 @@ Provide a helpful hint that:
 
 Keep it brief and supportive."""
 
-    state['response'] = _get_ai_response(prompt, state.get('model'))
+    state['response'] = await _get_ai_response(prompt, state.get('model'))
     return state
 
-def progress_agent(state: TutorState) -> TutorState:
+async def progress_agent(state: TutorState) -> TutorState:
     """Show progress summary with nice formatting"""
     progress_data = state.get('progress_data', [])
     topic = state.get('topic', '')

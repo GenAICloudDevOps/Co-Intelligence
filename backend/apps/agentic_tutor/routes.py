@@ -91,7 +91,7 @@ async def chat(data: ChatRequest, current_user: User = Depends(get_current_user)
         'progress_data': progress_data
     }
     
-    result = tutor_graph.invoke(state)
+    result = await tutor_graph.ainvoke(state)
     
     # Save assistant response
     agent_type = result.get('intent', 'teach')
