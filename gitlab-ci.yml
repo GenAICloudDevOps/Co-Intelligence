@@ -1,0 +1,29 @@
+image: docker:27.3.1
+
+services:
+  - name: docker:27.3.1-dind
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_DRIVER: overlay2
+
+stages:
+  - deploy
+
+before_script:
+  - apk add --no-cache bash curl jq python3 py3-pip unzip
+  - python3 -m venv /tmp/venv
+  - . /tmp/venv/bin/activate
+  - pip install --no-cache-dir awscli==1.32.83
+  - curl -Lo /usr/local/bin/kubectl https://dl.k8s.io/release/v1.29.6/bin/linux/amd64/kubectl
+  - chmod +x /usr/local/bin/kubectl
+  - docker info
+
+deploy:
+  stage: deploy
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  script:
+    - chmod +x deploy.sh
+    - bash deploy.sh
