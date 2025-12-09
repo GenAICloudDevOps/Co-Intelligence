@@ -2,7 +2,14 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel, EmailStr, validator
 from auth.models import User, RefreshToken
-from auth.utils import get_password_hash, verify_password, create_access_token, create_refresh_token, get_current_user
+from auth.utils import (
+    get_password_hash,
+    verify_password,
+    create_access_token,
+    create_refresh_token,
+    get_current_user,
+    hash_refresh_token,
+)
 
 router = APIRouter()
 
@@ -105,7 +112,7 @@ async def login(user_data: UserLogin):
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh(data: RefreshRequest):
-    token_record = await RefreshToken.get_or_none(token=data.refresh_token)
+    token_record = await RefreshToken.get_or_none(token=hash_refresh_token(data.refresh_token))
     if not token_record or token_record.expires_at < datetime.utcnow():
         if token_record:
             await token_record.delete()

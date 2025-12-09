@@ -14,21 +14,17 @@ from middleware.request_context import RequestContextMiddleware
 from middleware.error_handler import ErrorHandlingMiddleware
 
 from auth.routes import router as auth_router
-
-# Import apps to trigger registration
-import apps.ai_chat
-import apps.agentic_barista
-import apps.insurance_claims
-import apps.agentic_lms
-import apps.agentic_tutor
-import apps.ml_predictor
-
+from apps import load_apps
 from apps.registry import registry
+
+# Load apps at module level so routers are registered before app starts
+load_apps()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("=== LIFESPAN START ===")
     try:
+
         # Initialize database using centralized service
         print("Initializing database...")
         await init_db()
@@ -61,6 +57,10 @@ async def lifespan(app: FastAPI):
 
 configure_logging()
 
+# Determine CORS origins from env; empty list -> allow all (no credentials)
+cors_origins = settings.cors_allowed_origins
+allow_all_origins = not cors_origins
+
 app = FastAPI(
     title="Co-Intelligence API",
     version="1.0.0",
@@ -77,8 +77,8 @@ app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(ErrorHandlingMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=cors_origins if not allow_all_origins else ["*"],
+    allow_credentials=not allow_all_origins,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["X-Response-Time", "X-RateLimit-Limit", "X-RateLimit-Remaining"]

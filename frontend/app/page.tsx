@@ -1,35 +1,20 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import axios from 'axios'
 import AppCard from './components/AppCard'
 import Modal from './components/Modal'
 import { apps } from './config/apps'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
+import { useAuth } from './hooks/useAuth'
 
 export default function Home() {
-  const router = useRouter()
+  const { auth, loading, message, setMessage, login, register, logout, isAuthenticated } = useAuth()
   const [showAuth, setShowAuth] = useState(false)
   const [isLogin, setIsLogin] = useState(true)
-  const [token, setToken] = useState('')
-  const [username, setUsername] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
   const [formData, setFormData] = useState({ email: '', username: '', password: '' })
   const [currentTime, setCurrentTime] = useState('')
   const [showUserMenu, setShowUserMenu] = useState(false)
-  const [userEmail, setUserEmail] = useState('')
 
   useEffect(() => {
-    const savedToken = localStorage.getItem('token')
-    const savedUsername = localStorage.getItem('username')
-    const savedEmail = localStorage.getItem('email')
-    if (savedToken) setToken(savedToken)
-    if (savedUsername) setUsername(savedUsername)
-    if (savedEmail) setUserEmail(savedEmail)
-    
     const updateTime = () => {
       const now = new Date()
       setCurrentTime(now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }))
@@ -40,59 +25,27 @@ export default function Home() {
   }, [])
 
   const handleAuth = async () => {
-    setLoading(true)
-    setMessage('')
     try {
       if (isLogin) {
-        const response = await axios.post(`${API_URL}/api/auth/login`, {
-          email: formData.email,
-          password: formData.password
-        })
-        const newToken = response.data.access_token
-        setToken(newToken)
-        localStorage.setItem('token', newToken)
-        localStorage.setItem('refresh_token', response.data.refresh_token)
-        localStorage.setItem('username', formData.email.split('@')[0])
-        localStorage.setItem('email', formData.email)
-        setUsername(formData.email.split('@')[0])
-        setUserEmail(formData.email)
-        setMessage('Login successful!')
+        await login(formData.email, formData.password)
         setTimeout(() => {
           setShowAuth(false)
           setFormData({ email: '', username: '', password: '' })
-        }, 1000)
+        }, 800)
       } else {
-        const response = await axios.post(`${API_URL}/api/auth/register`, {
-          email: formData.email,
-          username: formData.username,
-          password: formData.password
-        })
-        const newToken = response.data.access_token
-        setToken(newToken)
-        localStorage.setItem('token', newToken)
-        localStorage.setItem('refresh_token', response.data.refresh_token)
-        localStorage.setItem('username', formData.username)
-        localStorage.setItem('email', formData.email)
-        setUsername(formData.username)
-        setUserEmail(formData.email)
-        setMessage('Registration successful!')
+        await register(formData.email, formData.username, formData.password)
         setTimeout(() => {
           setShowAuth(false)
           setFormData({ email: '', username: '', password: '' })
-        }, 1000)
+        }, 800)
       }
     } catch (error: any) {
       console.error('Auth error:', error)
-      console.error('Error response:', error.response)
-      console.error('Error data:', error.response?.data)
-      const errorMsg = error.response?.data?.detail || error.message || 'Authentication failed'
-      setMessage(errorMsg)
     }
-    setLoading(false)
   }
 
   const handleLaunchChat = () => {
-    if (!token) {
+    if (!isAuthenticated) {
       setShowAuth(true)
       setIsLogin(true)
     } else {
@@ -101,12 +54,7 @@ export default function Home() {
   }
 
   const handleLogout = () => {
-    setToken('')
-    setUsername('')
-    setUserEmail('')
-    localStorage.removeItem('token')
-    localStorage.removeItem('username')
-    localStorage.removeItem('email')
+    logout()
   }
 
   return (
@@ -126,24 +74,24 @@ export default function Home() {
             <span style={{ fontSize: '0.9rem', color: '#94a3b8' }}>Online</span>
           </div>
           <div style={{ fontSize: '0.9rem', color: '#94a3b8' }}>Updated: {currentTime}</div>
-          {token ? (
+          {isAuthenticated ? (
             <>
               <div style={{ position: 'relative' }}>
                 <button 
                   onClick={() => setShowUserMenu(!showUserMenu)}
                   style={{ padding: '8px 16px', background: '#334155', borderRadius: '6px', fontSize: '0.9rem', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
-                  👤 {username}
+                  👤 {auth.username}
                 </button>
                 {showUserMenu && (
                   <div style={{ position: 'absolute', top: '45px', right: '0', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '12px', minWidth: '200px', zIndex: 100 }}>
                     <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '8px' }}>
                       <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Username</div>
-                      {username}
+                      {auth.username}
                     </div>
                     <div style={{ fontSize: '0.85rem', color: '#94a3b8', paddingTop: '8px', borderTop: '1px solid #334155' }}>
                       <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Email</div>
-                      {userEmail}
+                      {auth.email}
                     </div>
                   </div>
                 )}
@@ -187,7 +135,7 @@ export default function Home() {
                 key={app.id}
                 app={app}
                 onLaunch={(app) => {
-                  if (app.requiresAuth && !token) {
+                  if (app.requiresAuth && !isAuthenticated) {
                     setShowAuth(true)
                     setIsLogin(true)
                   } else {

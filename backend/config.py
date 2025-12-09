@@ -27,8 +27,19 @@ class Settings(BaseSettings):
     AI_QUALITY_MODEL: str = "gemini-1.5-pro"
     AI_ALT_MODEL: str = "groq/compound"
     AI_REQUEST_TIMEOUT: int = 60
+
+    # CORS / API surface
+    CORS_ALLOW_ORIGINS: str | None = None
+    AUTO_GENERATE_SCHEMAS: bool = True
     
     class Config:
         env_file = ".env"
+
+    @property
+    def cors_allowed_origins(self) -> list[str]:
+        """Return parsed CORS origins list; empty means allow all."""
+        if not self.CORS_ALLOW_ORIGINS:
+            return []
+        return [origin.strip() for origin in self.CORS_ALLOW_ORIGINS.split(",") if origin.strip()]
 
 settings = Settings()

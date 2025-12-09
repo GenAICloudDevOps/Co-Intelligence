@@ -2,17 +2,15 @@
 import re
 from tortoise import Tortoise
 from config import settings
+from apps import load_apps
+from apps.registry import registry
 
-MODEL_MODULES = [
-    'auth.models',
-    'models.app_role',
-    'apps.ai_chat.models',
-    'apps.agentic_barista.models',
-    'apps.insurance_claims.models',
-    'apps.agentic_lms.models',
-    'apps.agentic_tutor.models',
-    'apps.ml_predictor.models'
-]
+
+def _get_model_modules() -> list[str]:
+    """Collect model modules from registered apps plus core models."""
+    load_apps()  # Ensure apps are registered even if init_db called directly
+    base_modules = ['auth.models', 'models.app_role']
+    return base_modules + registry.get_model_modules()
 
 async def init_db():
     """Initialize database connection"""
@@ -37,7 +35,7 @@ async def init_db():
             },
             'apps': {
                 'models': {
-                    'models': MODEL_MODULES,
+                    'models': _get_model_modules(),
                     'default_connection': 'default'
                 }
             }
@@ -46,10 +44,11 @@ async def init_db():
     else:
         await Tortoise.init(
             db_url=settings.DATABASE_URL,
-            modules={'models': MODEL_MODULES}
+            modules={'models': _get_model_modules()}
         )
     
-    await Tortoise.generate_schemas()
+    if settings.AUTO_GENERATE_SCHEMAS:
+        await Tortoise.generate_schemas()
 
 async def run_migrations():
     """Run database migrations"""

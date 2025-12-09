@@ -48,7 +48,11 @@ class AIServiceError(Exception):
 class AIService:
     def __init__(self):
         self.groq_client = Groq(api_key=settings.GROQ_API_KEY) if settings.GROQ_API_KEY else None
-        self.bedrock = boto3.client('bedrock-runtime', region_name=settings.AWS_REGION)
+        self.bedrock = (
+            boto3.client('bedrock-runtime', region_name=settings.AWS_REGION)
+            if settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY
+            else None
+        )
         self._cache: Dict[Tuple[str, str], Tuple[float, str]] = {}
         self._cache_ttl = 60  # seconds
 
@@ -182,6 +186,8 @@ class AIService:
                 yield chunk.choices[0].delta.content
 
     async def _call_bedrock(self, model_name: str, prompt: str) -> str:
+        if not self.bedrock:
+            raise AIServiceError("Bedrock client not configured")
         body = json.dumps({
             "messages": [{"role": "user", "content": [{"text": prompt}]}],
             "inferenceConfig": {"max_new_tokens": 512, "temperature": 0.7},

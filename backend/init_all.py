@@ -7,17 +7,14 @@ from tortoise import Tortoise
 from config import settings
 
 # Import apps to trigger registration
-import apps.ai_chat
-import apps.agentic_barista
-import apps.insurance_claims
-import apps.agentic_lms
-import apps.agentic_tutor
-
+from apps import load_apps
 from apps.registry import registry
 
 async def init_all():
     """Initialize database and seed all apps"""
     print("🔧 Initializing database...")
+
+    load_apps()
     
     # Build model modules list from registry
     model_modules = ['auth.models', 'models.app_role'] + registry.get_model_modules()

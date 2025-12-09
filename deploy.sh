@@ -72,6 +72,10 @@ DATABASE_URL=postgres://$DB_USERNAME:$DB_PASSWORD@$RDS_ENDPOINT:5432/postgres?ss
 SECRET_KEY=$SECRET_KEY
 S3_BUCKET_NAME=$S3_BUCKET_NAME
 CODE_EXECUTOR_URL=$LAMBDA_ARN
+# CORS / API surface (comma-separated, e.g., https://app.example.com,https://admin.example.com)
+CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS:-}
+# Leave true for dev; set false and run migrations in prod
+AUTO_GENERATE_SCHEMAS=${AUTO_GENERATE_SCHEMAS:-true}
 EOF
 echo "✓ .env updated"
 
@@ -90,8 +94,30 @@ echo "Building and pushing backend..."
 docker build -t $ECR_BACKEND:$IMAGE_TAG ./backend
 docker push $ECR_BACKEND:$IMAGE_TAG
 
-echo "Building and pushing frontend..."
-docker build -t $ECR_FRONTEND:$IMAGE_TAG ./frontend
+# Deploy backend first to get LB hostname
+echo "Deploying backend..."
+sed -e "s|<ACCOUNT_ID>|$ACCOUNT_ID|g" -e "s|<IMAGE_TAG>|$IMAGE_TAG|g" k8s/backend-deployment.yaml | kubectl apply -f -
+kubectl apply -f k8s/backend-service.yaml
+echo "✓ Backend applied"
+
+# Wait for backend LoadBalancer hostname (for frontend API URL)
+echo "Waiting for backend LoadBalancer..."
+BACKEND_LB=""
+for i in {1..30}; do
+    BACKEND_LB=$(kubectl get svc backend -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
+    if [ -n "$BACKEND_LB" ]; then break; fi
+    sleep 10
+done
+if [ -n "$BACKEND_LB" ]; then
+    echo "✓ Backend LB: http://$BACKEND_LB"
+else
+    echo "⚠ Backend LB hostname not found yet; frontend API URL may need to be set manually."
+fi
+
+# Use empty NEXT_PUBLIC_API_URL so browser uses relative /api/* paths
+# Next.js rewrites will proxy to backend via BACKEND_URL env var at runtime
+echo "Building frontend with empty NEXT_PUBLIC_API_URL (uses Next.js rewrites)..."
+docker build --build-arg NEXT_PUBLIC_API_URL="" -t $ECR_FRONTEND:$IMAGE_TAG ./frontend
 docker push $ECR_FRONTEND:$IMAGE_TAG
 echo "✓ Images pushed with tag $IMAGE_TAG"
 
@@ -108,7 +134,9 @@ kubectl create secret generic app-secrets \
     --from-literal=TAVILY_API_KEY="${TAVILY_API_KEY:-}" \
     --from-literal=AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-}" \
     --from-literal=AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-}" \
-    --from-literal=AWS_REGION="$AWS_REGION"
+    --from-literal=AWS_REGION="$AWS_REGION" \
+    --from-literal=CORS_ALLOW_ORIGINS="${CORS_ALLOW_ORIGINS:-}" \
+    --from-literal=AUTO_GENERATE_SCHEMAS="${AUTO_GENERATE_SCHEMAS:-true}"
 echo "✓ Secrets created"
 
 # Update K8s manifests with image URIs
@@ -121,9 +149,6 @@ kubectl create secret docker-registry ecr-pull \
 echo "✓ Image pull secret created"
 
 echo "Deploying to EKS..."
-sed -e "s|<ACCOUNT_ID>|$ACCOUNT_ID|g" -e "s|<IMAGE_TAG>|$IMAGE_TAG|g" k8s/backend-deployment.yaml | kubectl apply -f -
-kubectl apply -f k8s/backend-service.yaml
-
 sed -e "s|<ACCOUNT_ID>|$ACCOUNT_ID|g" -e "s|<IMAGE_TAG>|$IMAGE_TAG|g" k8s/frontend-deployment.yaml | kubectl apply -f -
 kubectl apply -f k8s/frontend-service.yaml
 echo "✓ Deployed"
@@ -135,6 +160,34 @@ for i in {1..30}; do
     if [ -n "$FRONTEND_URL" ]; then break; fi
     sleep 10
 done
+if [ -n "$FRONTEND_URL" ]; then
+    echo "ℹ️  Frontend LB hostname detected: http://$FRONTEND_URL"
+    echo "ℹ️  Set CORS_ALLOW_ORIGINS to match your frontend origin."
+    echo "    Examples:"
+    echo "      CORS_ALLOW_ORIGINS=http://$FRONTEND_URL"
+    echo "      CORS_ALLOW_ORIGINS=https://app.yourdomain.com,http://localhost:3000"
+    if [ -z "$CORS_ALLOW_ORIGINS" ]; then
+        DEFAULT_ORIGIN="http://$FRONTEND_URL"
+        echo "Auto-setting CORS_ALLOW_ORIGINS to $DEFAULT_ORIGIN and updating secret..."
+        kubectl create secret generic app-secrets \
+            --dry-run=client -o yaml \
+            --from-literal=DATABASE_URL="postgres://$DB_USERNAME:$DB_PASSWORD@$RDS_ENDPOINT:5432/postgres?sslmode=disable" \
+            --from-literal=SECRET_KEY="$SECRET_KEY" \
+            --from-literal=S3_BUCKET_NAME="$S3_BUCKET_NAME" \
+            --from-literal=CODE_EXECUTOR_URL="$LAMBDA_ARN" \
+            --from-literal=GEMINI_API_KEY="${GEMINI_API_KEY:-}" \
+            --from-literal=GROQ_API_KEY="${GROQ_API_KEY:-}" \
+            --from-literal=TAVILY_API_KEY="${TAVILY_API_KEY:-}" \
+            --from-literal=AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-}" \
+            --from-literal=AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-}" \
+            --from-literal=AWS_REGION="$AWS_REGION" \
+            --from-literal=CORS_ALLOW_ORIGINS="$DEFAULT_ORIGIN" \
+            --from-literal=AUTO_GENERATE_SCHEMAS="${AUTO_GENERATE_SCHEMAS:-true}" \
+            | kubectl apply -f -
+        kubectl rollout restart deployment/backend
+        echo "✓ Backend restarted with CORS_ALLOW_ORIGINS=$DEFAULT_ORIGIN"
+    fi
+fi
 
 echo ""
 echo "=========================================="

@@ -7,6 +7,7 @@ from apps.ai_chat.agent import stream_model
 from apps.ai_chat.utils import extract_text_from_file, upload_to_s3
 from tortoise import Tortoise
 import json
+from services.file_service import validate_file
 
 router = APIRouter()
 
@@ -69,10 +70,14 @@ async def upload_document(
     session = await ChatSession.get_or_none(id=session_id, user_id=current_user.id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    
+
     file_content = await file.read()
     file_size = len(file_content)
-    
+
+    valid, error = validate_file(file.filename, file_size)
+    if not valid:
+        raise HTTPException(status_code=400, detail=error)
+
     try:
         extracted_text = extract_text_from_file(file.filename, file_content)
         s3_url = upload_to_s3(file_content, file.filename, session_id)

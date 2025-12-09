@@ -275,12 +275,6 @@ async def predict(
             "comparison_report": result.get("comparison_report", {}),
             "reasoning": result.get("reasoning", "")
         }
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

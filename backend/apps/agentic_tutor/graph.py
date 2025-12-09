@@ -1,9 +1,6 @@
 from typing import TypedDict, Literal
 from langgraph.graph import StateGraph, END
-import google.generativeai as genai
-from config import settings
-
-genai.configure(api_key=settings.GEMINI_API_KEY)
+from services.ai_service import ai_service
 
 class TutorState(TypedDict):
     user_id: int
@@ -35,9 +32,14 @@ def detect_intent(state: TutorState) -> TutorState:
     
     return state
 
+def _get_ai_response(prompt: str, model: str = None) -> str:
+    """Get response from AI service"""
+    import asyncio
+    loop = asyncio.get_event_loop()
+    return loop.run_until_complete(ai_service.generate(prompt, model=model))
+
 def tutor_agent(state: TutorState) -> TutorState:
     """Main teaching agent"""
-    model = genai.GenerativeModel(state.get("model", "gemini-2.5-flash-lite"))
     prompt = f"""You are an expert tutor teaching {state['topic']}.
 Difficulty level: {state['difficulty']}
 
@@ -48,13 +50,11 @@ Student question: {state['user_message']}
 
 Provide a clear, concise explanation with examples. Be encouraging and adaptive."""
 
-    response = model.generate_content(prompt)
-    state['response'] = response.text
+    state['response'] = _get_ai_response(prompt, state.get('model'))
     return state
 
 def assessor_agent(state: TutorState) -> TutorState:
     """Generate assessment questions"""
-    model = genai.GenerativeModel(state.get("model", "gemini-2.5-flash-lite"))
     prompt = f"""Generate a {state['difficulty']} level question about {state['topic']}.
 
 Format:
@@ -65,8 +65,7 @@ Correct Answer: [answer]
 
 Make it practical and test understanding."""
 
-    response = model.generate_content(prompt)
-    text = response
+    text = _get_ai_response(prompt, state.get('model'))
     
     state['current_question'] = {
         'question': text.split('Question:')[1].split('Type:')[0].strip() if 'Question:' in text else text,
@@ -79,7 +78,6 @@ Make it practical and test understanding."""
 
 def grader_agent(state: TutorState) -> TutorState:
     """Grade student answers"""
-    model = genai.GenerativeModel(state.get("model", "gemini-2.5-flash-lite"))
     prompt = f"""Question: {state['current_question'].get('question', 'Previous question')}
 Student Answer: {state['user_message']}
 
@@ -91,14 +89,12 @@ Evaluate the answer:
 
 Be constructive and encouraging."""
 
-    response = model.generate_content(prompt)
-    state['response'] = response.text
+    state['response'] = _get_ai_response(prompt, state.get('model'))
     state['assessment_mode'] = False
     return state
 
 def hint_agent(state: TutorState) -> TutorState:
     """Provide progressive hints"""
-    model = genai.GenerativeModel(state.get("model", "gemini-2.5-flash-lite"))
     prompt = f"""Student is stuck on: {state['current_question'].get('question', state['user_message'])}
 
 Provide a helpful hint that:
@@ -108,8 +104,7 @@ Provide a helpful hint that:
 
 Keep it brief and supportive."""
 
-    response = model.generate_content(prompt)
-    state['response'] = response.text
+    state['response'] = _get_ai_response(prompt, state.get('model'))
     return state
 
 def progress_agent(state: TutorState) -> TutorState:
@@ -117,7 +112,6 @@ def progress_agent(state: TutorState) -> TutorState:
     progress_data = state.get('progress_data', [])
     topic = state.get('topic', '')
     
-    # Find progress for current topic
     topic_progress = next((p for p in progress_data if p['topic'] == topic), None)
     
     if not topic_progress:
@@ -131,12 +125,10 @@ def progress_agent(state: TutorState) -> TutorState:
 💡 **Tip:** Say "quiz me" to take your first quiz and start tracking progress!"""
         return state
     
-    # Calculate progress bar
     score = topic_progress['average_score']
     filled = int(score / 10)
     bar = '█' * filled + '░' * (10 - filled)
     
-    # Determine status
     if topic_progress['completed']:
         status = "✅ Completed!"
     elif score >= 80:
@@ -146,7 +138,6 @@ def progress_agent(state: TutorState) -> TutorState:
     else:
         status = "💪 Keep practicing!"
     
-    # Build response
     response = f"""📊 **Progress - {topic}**
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -156,7 +147,6 @@ def progress_agent(state: TutorState) -> TutorState:
 🏆 Status: {status}
 """
     
-    # Add recommendation
     if score < 60:
         response += "\n💡 **Recommendation:** Review the basics and try more practice quizzes."
     elif score < 80:
@@ -166,7 +156,6 @@ def progress_agent(state: TutorState) -> TutorState:
     else:
         response += "\n🎉 **Congratulations!** You've mastered this topic. Ready for the next challenge?"
     
-    # Show other topics if any
     other_progress = [p for p in progress_data if p['topic'] != topic and p['assessments_taken'] > 0]
     if other_progress:
         response += "\n\n**Other Topics:**\n"
@@ -174,14 +163,13 @@ def progress_agent(state: TutorState) -> TutorState:
             emoji = "✅" if p['completed'] else "📚"
             response += f"{emoji} {p['topic']}: {p['average_score']:.0f}%\n"
     
-    state['response'] = response.text
+    state['response'] = response
     return state
 
 def route_intent(state: TutorState) -> Literal["teach", "assess", "grade", "hint", "progress"]:
     """Route to appropriate agent"""
     return state['intent']
 
-# Build graph
 def create_tutor_graph():
     workflow = StateGraph(TutorState)
     
