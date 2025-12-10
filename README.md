@@ -72,10 +72,18 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 - 📊 **Progress Tracking** - Track scores, strengths, and improvement areas
 - 📚 **15 Topics** - Across 5 categories with beginner to advanced levels
 
+### 6. ML Predictor
+- 🧠 **Multi-Algorithm ML** - Classification and regression with automatic model selection
+- 📈 **Dataset Management** - Upload files or text, preview samples, and track user datasets
+- 🚀 **Streaming Pipeline** - Live status updates for training, evaluation, and saving
+- 🧮 **Metrics & Visuals** - Key metrics, progress bars, and single-prediction utility
+- 🌐 **Model Selector** - Switch AI models for pipeline guidance
+
 ## Platform Features
 
 - 🔐 **Secure Authentication** - JWT-based user authentication
 - 👤 **User Profile Header** - Reusable AppHeader component with logout functionality
+- 📊 **Evaluation Dashboard** - Auth-gated eval summary with metrics, issues, safety and model usage
 - ☁️ **Cloud Native** - Deployed on AWS EKS with auto-scaling
 - 🧩 **Modular Architecture** - Add new apps in 10 minutes
 - 🔄 **App Registry System** - Auto-discovery and registration of apps
