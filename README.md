@@ -140,9 +140,17 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 
 ### Ml Predict 
 ![ML Predictor](screenshots/6.6.png)
+
+### House Price Predicts which model best - Processing Pipeline
 ![House Price Predicts which model best - Processing Pipeline](screenshots/6.61.png)
+
+### ML predicted Best Performing Algorithm, Key insights and Problem Analysis
 ![ML predicted Best Performing Algorithm, Key insights and Problem Analysis](screenshots/6.62.png)
+
+### ML App- Dataset Info and Algorithm Comparision
 ![ML App- Dataset Info and Algorithm Comparision](screenshots/6.63.png)
+
+### Make House prediction - based on user provided values
 ![Make House prediction - based on user provided values](screenshots/6.64.png)
 
 
