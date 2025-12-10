@@ -32,6 +32,14 @@ class Settings(BaseSettings):
     # CORS / API surface
     CORS_ALLOW_ORIGINS: str | None = None
     AUTO_GENERATE_SCHEMAS: bool = True
+
+    # Cookie settings for auth
+    COOKIE_ACCESS_NAME: str = "access_token"
+    COOKIE_REFRESH_NAME: str = "refresh_token"
+    COOKIE_SECURE: bool = False
+    COOKIE_SAMESITE: str = "lax"
+    COOKIE_DOMAIN: str | None = None
+    COOKIE_PATH: str = "/"
     
     class Config:
         env_file = ".env"

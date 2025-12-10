@@ -25,7 +25,7 @@ type EvalSummary = {
 }
 
 export default function Home() {
-  const { auth, loading, message, setMessage, login, register, logout, isAuthenticated } = useAuth()
+  const { user, loading, message, setMessage, login, register, logout, isAuthenticated } = useAuth()
   const [showAuth, setShowAuth] = useState(false)
   const [isLogin, setIsLogin] = useState(true)
   const [formData, setFormData] = useState({ email: '', username: '', password: '' })
@@ -120,17 +120,17 @@ export default function Home() {
                   onClick={() => setShowUserMenu(!showUserMenu)}
                   style={{ padding: '8px 16px', background: '#334155', borderRadius: '6px', fontSize: '0.9rem', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
-                  👤 {auth.username}
+                  👤 {user?.username || 'User'}
                 </button>
                 {showUserMenu && (
                   <div style={{ position: 'absolute', top: '45px', right: '0', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '12px', minWidth: '200px', zIndex: 100 }}>
                     <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '8px' }}>
                       <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Username</div>
-                      {auth.username}
+                      {user?.username || '—'}
                     </div>
                     <div style={{ fontSize: '0.85rem', color: '#94a3b8', paddingTop: '8px', borderTop: '1px solid #334155' }}>
                       <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Email</div>
-                      {auth.email}
+                      {user?.email || '—'}
                     </div>
                   </div>
                 )}

@@ -9,16 +9,17 @@ import AppHeader from '../../components/AppHeader'
 import { DEFAULT_MODEL } from '../../config/models'
 import { api } from '../../services/api'
 import type { Message, Session, Document } from '../../types'
+import { useAuth } from '../../hooks/useAuth'
 
 interface ChatMessage extends Message {
   timestamp: Date
 }
 
 export default function AIChat() {
+  const { user, initializing } = useAuth(true)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [model, setModel] = useState(DEFAULT_MODEL)
-  const [token, setToken] = useState('')
   const [sessionId, setSessionId] = useState<number | null>(null)
   const [sessions, setSessions] = useState<Session[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -37,14 +38,10 @@ export default function AIChat() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    const savedToken = localStorage.getItem('token')
-    if (!savedToken) {
-      window.location.href = '/'
-      return
+    if (user) {
+      loadSessions()
     }
-    setToken(savedToken)
-    loadSessions(savedToken)
-  }, [])
+  }, [user])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -65,7 +62,7 @@ export default function AIChat() {
     }
   }, [])
 
-  const loadSessions = async (authToken: string) => {
+  const loadSessions = async () => {
     try {
       const data = await api.get<Session[]>('/api/apps/ai-chat/sessions')
       setSessions(data)
@@ -110,7 +107,7 @@ export default function AIChat() {
     try {
       const res = await fetch(`${api.getStreamUrl('/api/apps/ai-chat/upload')}`, {
         method: 'POST',
-        headers: api.getAuthHeaders(),
+        credentials: 'include',
         body: formData
       })
       if (!res.ok) throw new Error('Upload failed')
@@ -157,7 +154,7 @@ export default function AIChat() {
   }
 
   const sendMessage = async () => {
-    if (!input.trim() || !token || isLoading) return
+    if (!input.trim() || isLoading || !user) return
 
     const userMessage: ChatMessage = { role: 'user', content: input, timestamp: new Date() }
     setMessages(prev => [...prev, userMessage])
@@ -170,9 +167,9 @@ export default function AIChat() {
       const response = await fetch(api.getStreamUrl('/api/apps/ai-chat/chat/stream'), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          ...api.getAuthHeaders()
+          'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({
           message: userInput,
           model,
@@ -183,7 +180,6 @@ export default function AIChat() {
       })
 
       if (response.status === 401) {
-        localStorage.removeItem('token')
         alert('Session expired. Please login again.')
         window.location.href = '/'
         return
@@ -224,7 +220,7 @@ export default function AIChat() {
                 }])
                 setStreamingMessage('')
                 setSessionId(newSessionId)
-                if (!sessionId) loadSessions(token)
+                if (!sessionId) loadSessions()
                 if (newSessionId) loadContextInfo(newSessionId)
               }
             }
@@ -300,6 +296,14 @@ export default function AIChat() {
   const filteredMessages = messages.filter(msg => 
     msg.content.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  if (initializing) {
+    return (
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        Loading chat...
+      </div>
+    )
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)' }}>

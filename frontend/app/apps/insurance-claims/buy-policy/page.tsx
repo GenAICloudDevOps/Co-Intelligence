@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '../../../services/api'
+import { useAuth } from '../../../hooks/useAuth'
 
 export default function BuyPolicy() {
   const router = useRouter()
+  const { initializing, user } = useAuth(true)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [formData, setFormData] = useState({
@@ -15,13 +17,6 @@ export default function BuyPolicy() {
     license_plate: '',
     coverage_amount: 50000
   })
-
-  useEffect(() => {
-    const token = localStorage.getItem('token')
-    if (!token) {
-      router.push('/')
-    }
-  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,6 +35,14 @@ export default function BuyPolicy() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (initializing || !user) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#0f172a', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div>Loading...</div>
+      </div>
+    )
   }
 
   return (

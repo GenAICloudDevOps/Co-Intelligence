@@ -4,9 +4,11 @@ import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { ModelSelector, DEFAULT_MODEL } from '../../config/models'
 import { api } from '../../services/api'
+import { useAuth } from '../../hooks/useAuth'
 
 export default function InsuranceClaimsDashboard() {
   const router = useRouter()
+  const { user, initializing } = useAuth(true)
   const [claims, setClaims] = useState<any[]>([])
   const [policies, setPolicies] = useState<any[]>([])
   const [roles, setRoles] = useState<string[]>([])
@@ -23,14 +25,13 @@ export default function InsuranceClaimsDashboard() {
   useEffect(() => {
     const savedModel = localStorage.getItem('insurance_ai_model') || 'gemini-2.5-flash-lite'
     setSelectedModel(savedModel)
-    
-    const token = localStorage.getItem('token')
-    if (!token) {
-      router.push('/')
-      return
-    }
-    loadData()
   }, [])
+
+  useEffect(() => {
+    if (user) {
+      loadData()
+    }
+  }, [user])
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -101,7 +102,7 @@ export default function InsuranceClaimsDashboard() {
     return icons[status] || '📋'
   }
 
-  if (loading) {
+  if (initializing || loading) {
     return (
       <div style={{ minHeight: '100vh', background: '#0f172a', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div>Loading...</div>

@@ -1,39 +1,56 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { login, register } from '../lib/api'
 
 type AuthState = {
-  token: string
+  id: number
   username: string
   email: string
 }
 
 export function useAuth(requireAuth = false) {
-  const [auth, setAuth] = useState<AuthState>({ token: '', username: '', email: '' })
-  const [loading, setLoading] = useState(false)
+  const router = useRouter()
+  const [auth, setAuth] = useState<AuthState | null>(null)
+  const [loading, setLoading] = useState(false) // action-level loading
+  const [initializing, setInitializing] = useState(true)
   const [message, setMessage] = useState('')
+  const API_URL = useMemo(() => process.env.NEXT_PUBLIC_API_URL || '', [])
+
+  const fetchCurrentUser = useCallback(async () => {
+    setInitializing(true)
+    try {
+      const res = await fetch(`${API_URL}/api/auth/me`, { credentials: 'include' })
+      if (!res.ok) throw new Error('Not authenticated')
+      const data = await res.json()
+      setAuth({ id: data.id, username: data.username, email: data.email })
+      return data
+    } catch (err) {
+      setAuth(null)
+      return null
+    } finally {
+      setInitializing(false)
+    }
+  }, [API_URL])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const token = localStorage.getItem('token') || ''
-    const username = localStorage.getItem('username') || ''
-    const email = localStorage.getItem('email') || ''
-    setAuth({ token, username, email })
-  }, [])
+    fetchCurrentUser()
+  }, [fetchCurrentUser])
+
+  useEffect(() => {
+    if (!initializing && requireAuth && !auth) {
+      router.push('/')
+    }
+  }, [initializing, requireAuth, auth, router])
 
   const doLogin = async (email: string, password: string) => {
     setLoading(true)
     setMessage('')
     try {
-      const data = await login(email, password)
-      persistAuth({
-        token: data.access_token,
-        refresh: data.refresh_token,
-        username: email.split('@')[0],
-        email,
-      })
+      await login(email, password)
+      await fetchCurrentUser()
       setMessage('Login successful!')
     } catch (err: any) {
-      setMessage(err.message || 'Authentication failed')
+      setMessage(err?.response?.data?.detail || err.message || 'Authentication failed')
       throw err
     } finally {
       setLoading(false)
@@ -44,60 +61,41 @@ export function useAuth(requireAuth = false) {
     setLoading(true)
     setMessage('')
     try {
-      const data = await register(email, username, password)
-      persistAuth({
-        token: data.access_token,
-        refresh: data.refresh_token,
-        username,
-        email,
-      })
+      await register(email, username, password)
+      await fetchCurrentUser()
       setMessage('Registration successful!')
     } catch (err: any) {
-      setMessage(err.message || 'Registration failed')
+      setMessage(err?.response?.data?.detail || err.message || 'Registration failed')
       throw err
     } finally {
       setLoading(false)
     }
   }
 
-  const logout = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('token')
-      localStorage.removeItem('refresh_token')
-      localStorage.removeItem('username')
-      localStorage.removeItem('email')
+  const logout = async () => {
+    try {
+      await fetch(`${API_URL}/api/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+    } catch {
+      // ignore
+    } finally {
+      setAuth(null)
+      if (requireAuth) router.push('/')
     }
-    setAuth({ token: '', username: '', email: '' })
-  }
-
-  const persistAuth = ({
-    token,
-    refresh,
-    username,
-    email,
-  }: {
-    token: string
-    refresh: string
-    username: string
-    email: string
-  }) => {
-    if (typeof window === 'undefined') return
-    localStorage.setItem('token', token)
-    localStorage.setItem('refresh_token', refresh)
-    localStorage.setItem('username', username)
-    localStorage.setItem('email', email)
-    setAuth({ token, username, email })
   }
 
   return {
     auth,
-    user: auth.token ? auth : null,
+    user: auth,
     loading,
+    initializing,
     message,
     setMessage,
     login: doLogin,
     register: doRegister,
     logout,
-    isAuthenticated: !!auth.token,
+    isAuthenticated: !!auth,
   }
 }

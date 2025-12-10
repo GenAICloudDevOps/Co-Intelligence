@@ -3,14 +3,14 @@ import secrets
 import hashlib
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from config import settings
 from auth.models import User, RefreshToken
 from models.app_role import AppRole
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
@@ -33,15 +33,20 @@ async def create_refresh_token(user_id: int) -> str:
     await RefreshToken.create(user_id=user_id, token=hashed_token, expires_at=expires_at)
     return token
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def get_current_user(
+    request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    token = credentials.credentials if credentials else request.cookies.get(settings.COOKIE_ACCESS_NAME)
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+
     try:
-        token = credentials.credentials
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_id_str: str = payload.get("sub")
         if user_id_str is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
         user_id = int(user_id_str)
-    except (JWTError, ValueError) as e:
+    except (JWTError, ValueError):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
     
     user = await User.get_or_none(id=user_id)
@@ -57,8 +62,10 @@ def hash_refresh_token(token: str) -> str:
 def require_app_role(app_name: str, allowed_roles: list):
     """Decorator to check if user has required role in specific app"""
 
-    async def role_checker(credentials: HTTPAuthorizationCredentials = Depends(security)):
-        user = await get_current_user(credentials)
+    async def role_checker(
+        request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)
+    ):
+        user = await get_current_user(request, credentials)
 
         # Platform admins bypass app-specific checks
         if user.global_role == "admin":

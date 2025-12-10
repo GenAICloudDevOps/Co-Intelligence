@@ -1,5 +1,6 @@
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Body, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, EmailStr, validator
 from auth.models import User, RefreshToken
 from auth.utils import (
@@ -10,8 +11,45 @@ from auth.utils import (
     get_current_user,
     hash_refresh_token,
 )
+from config import settings
 
 router = APIRouter()
+
+
+def _set_auth_cookies(response: JSONResponse, access_token: str, refresh_token: str) -> None:
+    response.set_cookie(
+        key=settings.COOKIE_ACCESS_NAME,
+        value=access_token,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE.lower(),
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        domain=settings.COOKIE_DOMAIN,
+        path=settings.COOKIE_PATH,
+    )
+    response.set_cookie(
+        key=settings.COOKIE_REFRESH_NAME,
+        value=refresh_token,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE.lower(),
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        domain=settings.COOKIE_DOMAIN,
+        path=settings.COOKIE_PATH,
+    )
+
+
+def _clear_auth_cookies(response: JSONResponse) -> None:
+    response.delete_cookie(
+        key=settings.COOKIE_ACCESS_NAME,
+        domain=settings.COOKIE_DOMAIN,
+        path=settings.COOKIE_PATH,
+    )
+    response.delete_cookie(
+        key=settings.COOKIE_REFRESH_NAME,
+        domain=settings.COOKIE_DOMAIN,
+        path=settings.COOKIE_PATH,
+    )
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -41,7 +79,7 @@ class UserLogin(BaseModel):
     password: str
 
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    refresh_token: str | None = None
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -79,11 +117,15 @@ async def register(user_data: UserCreate):
         access_token = create_access_token(data={"sub": user.id})
         refresh_token = await create_refresh_token(user.id)
         
-        return {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "token_type": "bearer"
-        }
+        response = JSONResponse(
+            {
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "token_type": "bearer",
+            }
+        )
+        _set_auth_cookies(response, access_token, refresh_token)
+        return response
     except HTTPException:
         raise
     except Exception as e:
@@ -101,7 +143,11 @@ async def login(user_data: UserLogin):
         
         access_token = create_access_token(data={"sub": user.id})
         refresh_token = await create_refresh_token(user.id)
-        return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+        response = JSONResponse(
+            {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+        )
+        _set_auth_cookies(response, access_token, refresh_token)
+        return response
     except HTTPException:
         raise
     except Exception as e:
@@ -111,8 +157,9 @@ async def login(user_data: UserLogin):
         raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh(data: RefreshRequest):
-    token_record = await RefreshToken.get_or_none(token=hash_refresh_token(data.refresh_token))
+async def refresh(request: Request, data: RefreshRequest | None = Body(default=None)):
+    raw_refresh = data.refresh_token if data and data.refresh_token else request.cookies.get(settings.COOKIE_REFRESH_NAME)
+    token_record = await RefreshToken.get_or_none(token=hash_refresh_token(raw_refresh)) if raw_refresh else None
     if not token_record or token_record.expires_at < datetime.utcnow():
         if token_record:
             await token_record.delete()
@@ -126,12 +173,18 @@ async def refresh(data: RefreshRequest):
     await token_record.delete()
     access_token = create_access_token(data={"sub": user.id})
     new_refresh_token = await create_refresh_token(user.id)
-    return {"access_token": access_token, "refresh_token": new_refresh_token, "token_type": "bearer"}
+    response = JSONResponse(
+        {"access_token": access_token, "refresh_token": new_refresh_token, "token_type": "bearer"}
+    )
+    _set_auth_cookies(response, access_token, new_refresh_token)
+    return response
 
 @router.post("/logout")
 async def logout(current_user: User = Depends(get_current_user)):
     await RefreshToken.filter(user_id=current_user.id).delete()
-    return {"success": True}
+    response = JSONResponse({"success": True})
+    _clear_auth_cookies(response)
+    return response
 
 @router.get("/me")
 async def get_me(current_user: User = Depends(get_current_user)):

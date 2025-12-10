@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '../../../services/api'
 import { DEFAULT_MODEL } from '../../../config/models'
+import { useAuth } from '../../../hooks/useAuth'
 
 export default function NewClaim() {
   const router = useRouter()
+  const { user, initializing } = useAuth(true)
   const [policies, setPolicies] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [checkingPolicies, setCheckingPolicies] = useState(true)
@@ -29,14 +31,13 @@ export default function NewClaim() {
   useEffect(() => {
     const savedModel = localStorage.getItem('insurance_ai_model') || 'gemini'
     setSelectedModel(savedModel)
-    
-    const token = localStorage.getItem('token')
-    if (!token) {
-      router.push('/')
-      return
-    }
-    loadPolicies()
   }, [])
+
+  useEffect(() => {
+    if (user) {
+      loadPolicies()
+    }
+  }, [user])
 
   const handleRewrite = async (field: 'incident_location' | 'incident_description') => {
     const text = formData[field]
@@ -106,7 +107,7 @@ export default function NewClaim() {
     }
   }
 
-  if (checkingPolicies) {
+  if (initializing || checkingPolicies) {
     return (
       <div style={{ minHeight: '100vh', background: '#0f172a', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div>Loading...</div>

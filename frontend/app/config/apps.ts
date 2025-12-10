@@ -23,7 +23,7 @@ export const apps: AppConfig[] = [
     color: '#6366f1',
     route: '/apps/ai-chat',
     status: 'active',
-    requiresAuth: false
+    requiresAuth: true
   },
   {
     id: 'agentic-barista',

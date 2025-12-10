@@ -25,7 +25,7 @@ export const mlApi = {
   async uploadDataset(formData: FormData): Promise<Dataset> {
     const response = await fetch('/api/apps/ml-predictor/upload-dataset', {
       method: 'POST',
-      headers: api.getAuthHeaders(),
+      credentials: 'include',
       body: formData
     })
     if (!response.ok) {
@@ -48,9 +48,9 @@ export const mlApi = {
     return fetch(api.getStreamUrl('/api/apps/ml-predictor/predict/stream'), {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        ...api.getAuthHeaders()
+        'Content-Type': 'application/json'
       },
+      credentials: 'include',
       body: JSON.stringify(body)
     })
   }

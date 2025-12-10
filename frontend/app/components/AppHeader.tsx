@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { Coffee, ShoppingCart } from 'lucide-react';
 import { AI_MODELS, DEFAULT_MODEL } from '../config/models';
+import { useAuth } from '../hooks/useAuth';
 
 interface AppHeaderProps {
   appName: string;
@@ -22,39 +21,9 @@ export default function AppHeader({
   onModelChange,
   cartCount = 0
 }: AppHeaderProps) {
-  const [user, setUser] = useState<any>(null);
-  const router = useRouter();
+  const { user, logout, initializing } = useAuth(true);
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const username = localStorage.getItem('username');
-    
-    if (!token || !username) {
-      router.push('/');
-      return;
-    }
-
-    // Fetch user from backend
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(res => {
-        if (!res.ok) throw new Error('Unauthorized');
-        return res.json();
-      })
-      .then(data => setUser(data))
-      .catch(() => {
-        localStorage.clear();
-        router.push('/');
-      });
-  }, [router]);
-
-  const handleLogout = () => {
-    localStorage.clear();
-    router.push('/');
-  };
-
-  if (!user) {
+  if (initializing || !user) {
     return (
       <header style={{ background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', borderBottom: '1px solid #e7e5e4' }}>
         <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '16px 24px' }}>
@@ -105,7 +74,7 @@ export default function AppHeader({
             </div>
             
             <button
-              onClick={handleLogout}
+              onClick={logout}
               style={{ padding: '8px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'background 0.2s' }}
               onMouseOver={(e) => e.currentTarget.style.background = '#dc2626'}
               onMouseOut={(e) => e.currentTarget.style.background = '#ef4444'}

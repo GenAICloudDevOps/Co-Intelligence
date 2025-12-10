@@ -57,9 +57,8 @@ async def lifespan(app: FastAPI):
 
 configure_logging()
 
-# Determine CORS origins from env; empty list -> allow all (no credentials)
-cors_origins = settings.cors_allowed_origins
-allow_all_origins = not cors_origins
+# Determine CORS origins from env; default to frontend dev origin for cookie auth
+cors_origins = settings.cors_allowed_origins or ["http://localhost:3000"]
 
 app = FastAPI(
     title="Co-Intelligence API",
@@ -77,8 +76,8 @@ app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(ErrorHandlingMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins if not allow_all_origins else ["*"],
-    allow_credentials=not allow_all_origins,
+    allow_origins=cors_origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["X-Response-Time", "X-RateLimit-Limit", "X-RateLimit-Remaining"]

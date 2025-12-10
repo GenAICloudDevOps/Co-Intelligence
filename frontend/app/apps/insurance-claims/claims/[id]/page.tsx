@@ -3,10 +3,12 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { api } from '../../../../services/api'
+import { useAuth } from '../../../../hooks/useAuth'
 
 export default function ClaimDetail() {
   const router = useRouter()
   const params = useParams()
+  const { user, initializing } = useAuth(true)
   const [claim, setClaim] = useState<any>(null)
   const [roles, setRoles] = useState<string[]>([])
   const [adjusters, setAdjusters] = useState<any[]>([])
@@ -17,13 +19,10 @@ export default function ClaimDetail() {
   const [approvedAmount, setApprovedAmount] = useState('')
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
-    if (!token) {
-      router.push('/')
-      return
+    if (user) {
+      loadData()
     }
-    loadData()
-  }, [params.id])
+  }, [user, params.id])
 
   const loadData = async () => {
     try {
@@ -91,7 +90,7 @@ export default function ClaimDetail() {
     return transitions[claim.status] || []
   }
 
-  if (loading) {
+  if (initializing || loading) {
     return (
       <div style={{ minHeight: '100vh', background: '#0f172a', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div>Loading...</div>

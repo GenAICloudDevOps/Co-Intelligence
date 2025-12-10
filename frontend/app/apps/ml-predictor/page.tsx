@@ -180,9 +180,9 @@ function SinglePrediction({ projectId, featureNames, problemType }: { projectId:
       const response = await fetch('/api/apps/ml-predictor/predict/single', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({
           project_id: projectId,
           features: processedFeatures
