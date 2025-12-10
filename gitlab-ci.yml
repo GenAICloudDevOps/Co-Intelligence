@@ -25,5 +25,5 @@ deploy:
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
   script:
-    - chmod +x deploy.sh
-    - bash deploy.sh
+    - chmod +x deploy-aws.sh
+    - bash deploy-aws.sh
