@@ -102,6 +102,9 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 ### Platform Features
 ![Platform Features](screenshots/2.png)
 
+### Evaluation Dashboard
+![Evaluation Dashboard](screenshots/2.1.png)
+
 ### Platform Metrics
 ![Platform Metrics](screenshots/3.png)
 
@@ -132,9 +135,17 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 ### Agentic Tutor - User taking quiz - Teach and Assess agents at work
 ![Agentic Tutor User taking quiz - Teach and Assess agents at work](screenshots/6.5.png)
 
-
 ### Agentic Tutor - Agent Flow
 ![Agentic Tutor - Agent Flow](screenshots/6.21.png)
+
+### Ml Predict 
+![ML Predictor](screenshots/6.6.png)
+![House Price Predicts which model best - Processing Pipeline](screenshots/6.61.png)
+![ML predicted Best Performing Algorithm, Key insights and Problem Analysis](screenshots/6.62.png)
+![ML App- Dataset Info and Algorithm Comparision](screenshots/6.63.png)
+![Make House prediction - based on user provided values](screenshots/6.64.png)
+
+
 
 ### AWS EKS Screen
 ![AWS EKS](screenshots/7.png)

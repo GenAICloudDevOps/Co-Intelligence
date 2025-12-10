@@ -3,9 +3,13 @@ set -e
 
 echo "🔄 Updating Frontend..."
 
-source .env
+if [ -f ".env" ]; then
+    # Load only needed vars to avoid shell-evaluating secrets with special chars
+    export $(grep -E '^(AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|AWS_REGION|STACK_NAME)=' .env | xargs)
+fi
 export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION
 STACK_NAME=${STACK_NAME:-co-intelligence}
+AWS_REGION=${AWS_REGION:-us-east-1}
 
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 ECR_FRONTEND=$(aws cloudformation describe-stacks \
@@ -15,6 +19,10 @@ ECR_FRONTEND=$(aws cloudformation describe-stacks \
     --output text)
 
 BACKEND_URL=$(kubectl get svc backend -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+if [ -z "$BACKEND_URL" ]; then
+    echo "⚠️  Backend LoadBalancer hostname not found. Ensure backend service is running."
+    exit 1
+fi
 
 echo "🔐 Logging into ECR..."
 aws ecr get-login-password --region $AWS_REGION | \

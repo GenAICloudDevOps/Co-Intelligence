@@ -195,13 +195,13 @@ export default function Home() {
                 { icon: '☸️', title: 'Container Orchestration', desc: 'Kubernetes on any cloud with unified manifests', color: '#3b82f6' },
                 { icon: '☁️', title: 'Multi-Cloud Ready', desc: 'Deploy anywhere - AWS, GCP, or Azure with cloud-agnostic infrastructure', color: '#ec4899' },
                 { icon: '🐘', title: 'Managed Databases', desc: 'PostgreSQL on AWS RDS, GCP Cloud SQL, or Azure Flexible Server', color: '#8b5cf6' },
-                { icon: '⚡', title: 'Serverless Execution', desc: 'Run code safely via AWS Lambda, GCP Cloud Functions, or Azure Functions', color: '#f97316' },
-                { icon: '🚀', title: 'Modern Full-Stack', desc: 'FastAPI + Next.js 14 with async APIs and server-side rendering', color: '#06b6d4' },
-                { icon: '🔐', title: 'Secure Auth', desc: 'JWT with refresh tokens, auto-session renewal, and role-based access', color: '#10b981' },
+                { icon: '⚡', title: 'Serverless Execution', desc: 'Run code safely via AWS Lambda, GCP Cloud Functions, or Azure', color: '#f97316' },
+                { icon: '🚀', title: 'Modern Full-Stack', desc: 'FastAPI + Next.js with SSR-ready APIs, streaming UX, and cookie-based auth', color: '#06b6d4' },
+                { icon: '🔐', title: 'Secure Auth', desc: 'HttpOnly access/refresh cookies, rotation, session renewal, and RBAC', color: '#10b981' },
                 { icon: '🧩', title: 'Modular Architecture', desc: 'Scalable, maintainable design with independent components', color: '#f59e0b' },
                 { icon: '🤖', title: 'Multi-AI Support', desc: '7 AI models across 3 providers (Gemini, Groq, AWS Bedrock)', color: '#14b8a6' },
                 { icon: '🔄', title: 'Agentic Workflows', desc: 'Multi-agent orchestration with state management and routing', color: '#ec4899' },
-                { icon: '🤝', title: 'Co-Intelligence', desc: 'Collaborative intelligence combining human insight and AI capabilities', color: '#6366f1' }
+                { icon: '🛡️', title: 'Guardrails & Evaluation', desc: 'Auth-gated quality metrics, top issues, and safety', color: '#6366f1' }
               ].map((feature, idx) => (
                 <div key={idx} style={{
                   background: '#0f172a',
@@ -357,10 +357,6 @@ export default function Home() {
             <h2 style={{ fontSize: '2rem', marginBottom: '40px', fontWeight: 'bold' }}>Platform Metrics</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '40px', maxWidth: '800px', margin: '0 auto' }}>
               <div>
-                <div style={{ fontSize: '3rem', fontWeight: 'bold', color: '#6366f1', marginBottom: '8px' }}>{apps.filter(a => a.status === 'active').length}</div>
-                <div style={{ fontSize: '1.1rem', color: '#94a3b8' }}>Applications</div>
-              </div>
-              <div>
                 <div style={{ fontSize: '3rem', fontWeight: 'bold', color: '#10b981', marginBottom: '8px' }}>7</div>
                 <div style={{ fontSize: '1.1rem', color: '#94a3b8' }}>AI Models</div>
               </div>
@@ -371,6 +367,10 @@ export default function Home() {
               <div>
                 <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#06b6d4', marginBottom: '8px' }}>Multi-Cloud</div>
                 <div style={{ fontSize: '0.95rem', color: '#94a3b8' }}>AWS, GCP, Azure</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#6366f1', marginBottom: '8px' }}>Guardrails & Evaluation</div>
+                <div style={{ fontSize: '0.95rem', color: '#94a3b8' }}>Safety blocks, metrics, issues</div>
               </div>
             </div>
           </div>
