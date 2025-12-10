@@ -275,7 +275,8 @@ Keep responses concise and helpful."""
         
         response = await ai_service.generate_response(
             prompt=prompt,
-            model_name=request.model
+            model_name=request.model,
+            block_pii=False
         )
         
         return {"response": response}

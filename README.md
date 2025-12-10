@@ -1,12 +1,20 @@
-# Co-Intelligence V2.0 Beta
+# Co-Intelligence V3.0 Beta
 
 **Where Human Meets AI Intelligence**
 
 Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that scale effortlessly.
 
+## What's New in V3.0
+- **ML Predictor**: Multi-algorithm ML with automatic model selection, dataset management, streaming pipeline
+- **Evaluation Dashboard**: Auth-gated eval summary with metrics, issues, safety, and model usage
+- **Infrastructure Security**: Private subnets with NAT gateways, RDS SSL + storage encryption, S3 AES256, EBS encryption
+- **Redis Cluster**: ElastiCache with at-rest and in-transit encryption
+- **Observability**: X-Ray daemonset, EKS control plane logging
+- **IAM Enhancements**: IRSA support, GuardDuty (optional), secret rotation (optional)
+- **K8s**: Backend IRSA service account, ECR lifecycle policies
+
 ## What's New in V2.0
-- **New Apps**: Agentic LMS, Agentic Tutor, ML Predictor
-- **Evaluation Dashboard**: Auth-gated quality metrics, issues, and model usage
+- **New Apps**: Agentic LMS, Agentic Tutor
 - **Multi-Cloud Support**: Added GCP and Azure deployment
 - **Serverless Execution**: AWS Lambda, GCP Cloud Functions, Azure Functions
 - **7 AI Models**: Across 3 providers (Gemini, Groq, AWS Bedrock)

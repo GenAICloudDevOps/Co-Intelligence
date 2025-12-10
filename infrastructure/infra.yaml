@@ -6,6 +6,29 @@ Parameters:
     Type: String
     Default: cointelligence
     Description: Database master username
+  EnableGuardDuty:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Set to true to enable GuardDuty detector creation
+  EnableSecretRotation:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Set to true to enable Secrets Manager single-user rotation for the database secret
+  IRSAOidcProviderArn:
+    Type: String
+    Default: ""
+    Description: OIDC provider ARN for EKS (required to create IRSA role). Leave blank to skip IRSA role creation.
+  IRSAOidcProviderUrl:
+    Type: String
+    Default: ""
+    Description: OIDC issuer URL for EKS (e.g., https://oidc.eks.<region>.amazonaws.com/id/XXXXXXXXXX). Required if IRSA role is created.
+
+Conditions:
+  CreateIRSA: !And [!Not [!Equals [!Ref IRSAOidcProviderArn, ""]], !Not [!Equals [!Ref IRSAOidcProviderUrl, ""]]]
+  CreateGuardDuty: !Equals [!Ref EnableGuardDuty, "true"]
+  CreateSecretRotation: !Equals [!Ref EnableSecretRotation, "true"]
 
 Resources:
   VPC:
@@ -18,27 +41,49 @@ Resources:
         - Key: Name
           Value: co-intelligence-vpc
 
-  Subnet1:
+  SubnetPublicA:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
       CidrBlock: 10.0.1.0/24
-      AvailabilityZone: us-east-1a
+      AvailabilityZone: !Select [0, !GetAZs ""]
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: co-intelligence-subnet-1
+          Value: co-intelligence-public-a
 
-  Subnet2:
+  SubnetPublicB:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
       CidrBlock: 10.0.2.0/24
-      AvailabilityZone: us-east-1b
+      AvailabilityZone: !Select [1, !GetAZs ""]
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: co-intelligence-subnet-2
+          Value: co-intelligence-public-b
+
+  SubnetPrivateA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.3.0/24
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: co-intelligence-private-a
+
+  SubnetPrivateB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.4.0/24
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: co-intelligence-private-b
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway
@@ -53,41 +98,111 @@ Resources:
       VpcId: !Ref VPC
       InternetGatewayId: !Ref InternetGateway
 
-  RouteTable:
+  PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: co-intelligence-rt
+          Value: co-intelligence-rt-public
 
-  Route:
+  PublicRoute:
     Type: AWS::EC2::Route
     DependsOn: AttachGateway
     Properties:
-      RouteTableId: !Ref RouteTable
+      RouteTableId: !Ref PublicRouteTable
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref InternetGateway
 
-  SubnetRouteTableAssociation1:
+  PublicSubnetRouteTableAssociationA:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref Subnet1
-      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref SubnetPublicA
+      RouteTableId: !Ref PublicRouteTable
 
-  SubnetRouteTableAssociation2:
+  PublicSubnetRouteTableAssociationB:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref Subnet2
-      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref SubnetPublicB
+      RouteTableId: !Ref PublicRouteTable
+
+  NatEipA:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  NatEipB:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  NatGatewayA:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEipA.AllocationId
+      SubnetId: !Ref SubnetPublicA
+      Tags:
+        - Key: Name
+          Value: co-intelligence-nat-a
+
+  NatGatewayB:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEipB.AllocationId
+      SubnetId: !Ref SubnetPublicB
+      Tags:
+        - Key: Name
+          Value: co-intelligence-nat-b
+
+  PrivateRouteTableA:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: co-intelligence-rt-private-a
+
+  PrivateRouteTableB:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: co-intelligence-rt-private-b
+
+  PrivateRouteA:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableA
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayA
+
+  PrivateRouteB:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableB
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayB
+
+  PrivateSubnetRouteTableAssociationA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetPrivateA
+      RouteTableId: !Ref PrivateRouteTableA
+
+  PrivateSubnetRouteTableAssociationB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetPrivateB
+      RouteTableId: !Ref PrivateRouteTableB
 
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
       DBSubnetGroupDescription: Subnet group for RDS
       SubnetIds:
-        - !Ref Subnet1
-        - !Ref Subnet2
+        - !Ref SubnetPrivateA
+        - !Ref SubnetPrivateB
       Tags:
         - Key: Name
           Value: co-intelligence-db-subnet-group
@@ -101,19 +216,41 @@ Resources:
         - IpProtocol: tcp
           FromPort: 5432
           ToPort: 5432
-          CidrIp: 10.0.0.0/16
+          CidrIp: 10.0.3.0/24
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: 10.0.4.0/24
       Tags:
         - Key: Name
           Value: co-intelligence-db-sg
 
+  CacheSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Redis
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+          CidrIp: 10.0.3.0/24
+        - IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+          CidrIp: 10.0.4.0/24
+      Tags:
+        - Key: Name
+          Value: co-intelligence-redis-sg
+
   EKSSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Security group for EKS
+      GroupDescription: Security group for EKS nodes
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: -1
-          CidrIp: 0.0.0.0/0
+          CidrIp: 10.0.0.0/16                         # allow from VPC (LBs and node-to-node)
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
@@ -125,10 +262,10 @@ Resources:
     Type: AWS::RDS::DBParameterGroup
     Properties:
       DBParameterGroupName: co-intelligence-pg
-      Description: Parameter group to disable SSL requirement
+      Description: Parameter group enforcing SSL
       Family: postgres17
       Parameters:
-        rds.force_ssl: '0'
+        rds.force_ssl: '1'
       Tags:
         - Key: Name
           Value: co-intelligence-pg
@@ -142,7 +279,8 @@ Resources:
       EngineVersion: '17.2'
       DBInstanceClass: db.t3.medium
       AllocatedStorage: 20
-      StorageType: gp2
+      StorageType: gp3
+      StorageEncrypted: true
       MasterUsername: !Sub '{{resolve:secretsmanager:${AppSecrets}:SecretString:username}}'
       MasterUserPassword: !Sub '{{resolve:secretsmanager:${AppSecrets}:SecretString:password}}'
       DBSubnetGroupName: !Ref DBSubnetGroup
@@ -151,6 +289,7 @@ Resources:
         - !Ref DBSecurityGroup
       PubliclyAccessible: false
       BackupRetentionPeriod: 7
+      DeletionProtection: false
       Tags:
         - Key: Name
           Value: co-intelligence-rds
@@ -200,6 +339,22 @@ Resources:
       RepositoryName: co-intelligence-backend
       ImageScanningConfiguration:
         ScanOnPush: true
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Keep last 30 images",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 30
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
 
   FrontendECR:
     Type: AWS::ECR::Repository
@@ -207,6 +362,22 @@ Resources:
       RepositoryName: co-intelligence-frontend
       ImageScanningConfiguration:
         ScanOnPush: true
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Keep last 30 images",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 30
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
 
   S3Bucket:
     Type: AWS::S3::Bucket
@@ -217,6 +388,10 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
 
   # Secrets Manager - Auto-generates DB password (uses 'username'/'password' keys for RDS attachment)
   AppSecrets:
@@ -227,7 +402,7 @@ Resources:
         SecretStringTemplate: !Sub '{"username":"${DBUsername}"}'
         GenerateStringKey: password
         PasswordLength: 32
-        ExcludeCharacters: '"@/\'''
+        ExcludeCharacters: '"@/\\'''
       Tags:
         - Key: Name
           Value: co-intelligence-secrets
@@ -252,6 +427,79 @@ Resources:
       TargetId: !Ref RDSInstance
       TargetType: AWS::RDS::DBInstance
 
+  # Rotation schedule for DB secret (single-user rotation)
+  SecretRotationSchedule:
+    Type: AWS::SecretsManager::RotationSchedule
+    Condition: CreateSecretRotation
+    DependsOn:
+      - SecretRDSAttachment
+      - RDSInstance
+    Properties:
+      SecretId: !Ref AppSecrets
+      HostedRotationLambda:
+        RotationType: PostgreSQLSingleUser
+        VpcSecurityGroupIds:
+          - !Ref DBSecurityGroup
+        VpcSubnetIds:
+          - !Ref SubnetPrivateA
+          - !Ref SubnetPrivateB
+      RotationRules:
+        AutomaticallyAfterDays: 30
+
+  # EKS Cluster
+  EKSCluster:
+    Type: AWS::EKS::Cluster
+    DependsOn:
+      - EKSClusterRole
+      - SubnetPublicA
+      - SubnetPublicB
+      - SubnetPrivateA
+      - SubnetPrivateB
+      - EKSSecurityGroup
+    Properties:
+      Name: co-intelligence-cluster
+      Version: '1.34'
+      RoleArn: !GetAtt EKSClusterRole.Arn
+      UpgradePolicy:
+        SupportType: STANDARD
+      AccessConfig:
+        AuthenticationMode: API_AND_CONFIG_MAP
+      Logging:
+        ClusterLogging:
+          EnabledTypes:
+            - Type: api
+            - Type: audit
+            - Type: authenticator
+            - Type: controllerManager
+            - Type: scheduler
+      ResourcesVpcConfig:
+        SubnetIds:
+          - !Ref SubnetPublicA
+          - !Ref SubnetPublicB
+          - !Ref SubnetPrivateA
+          - !Ref SubnetPrivateB
+        SecurityGroupIds:
+          - !Ref EKSSecurityGroup
+        EndpointPublicAccess: true
+        EndpointPrivateAccess: true
+      Tags:
+        - Key: Name
+          Value: co-intelligence-cluster
+
+  NodeLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: co-intelligence-node-lt
+      LaunchTemplateData:
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              VolumeSize: 20
+              VolumeType: gp3
+              Encrypted: true
+        SecurityGroupIds:
+          - !Ref EKSSecurityGroup
+
   # EKS Node Group
   EKSNodeGroup:
     Type: AWS::EKS::Nodegroup
@@ -267,10 +515,39 @@ Resources:
         MaxSize: 3
         DesiredSize: 2
       Subnets:
-        - !Ref Subnet1
-        - !Ref Subnet2
+        - !Ref SubnetPrivateA
+        - !Ref SubnetPrivateB
+      LaunchTemplate:
+        Id: !Ref NodeLaunchTemplate
+        Version: !GetAtt NodeLaunchTemplate.LatestVersionNumber
       Tags:
         Name: co-intelligence-nodes
+
+  CacheSubnetGroup:
+    Type: AWS::ElastiCache::SubnetGroup
+    Properties:
+      Description: Private subnets for Redis
+      SubnetIds:
+        - !Ref SubnetPrivateA
+        - !Ref SubnetPrivateB
+
+  RedisReplicationGroup:
+    Type: AWS::ElastiCache::ReplicationGroup
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      ReplicationGroupDescription: Redis for Co-Intelligence
+      Engine: redis
+      CacheNodeType: cache.t3.micro
+      NumNodeGroups: 1
+      ReplicasPerNodeGroup: 0
+      AutomaticFailoverEnabled: false
+      MultiAZEnabled: false
+      AtRestEncryptionEnabled: true
+      TransitEncryptionEnabled: true
+      SecurityGroupIds:
+        - !Ref CacheSecurityGroup
+      CacheSubnetGroupName: !Ref CacheSubnetGroup
 
   # Lambda Execution Role
   CodeExecutorLambdaRole:
@@ -290,35 +567,7 @@ Resources:
         - Key: Name
           Value: co-intelligence-code-executor-role
 
-  # EKS Cluster
-  EKSCluster:
-    Type: AWS::EKS::Cluster
-    DependsOn:
-      - EKSClusterRole
-      - Subnet1
-      - Subnet2
-      - EKSSecurityGroup
-    Properties:
-      Name: co-intelligence-cluster
-      Version: '1.34'
-      RoleArn: !GetAtt EKSClusterRole.Arn
-      UpgradePolicy:
-        SupportType: STANDARD
-      AccessConfig:
-        AuthenticationMode: API_AND_CONFIG_MAP
-      ResourcesVpcConfig:
-        SubnetIds:
-          - !Ref Subnet1
-          - !Ref Subnet2
-        SecurityGroupIds:
-          - !Ref EKSSecurityGroup
-        EndpointPublicAccess: true
-        EndpointPrivateAccess: true
-      Tags:
-        - Key: Name
-          Value: co-intelligence-cluster
-
-  # Lambda Function for Code Execution
+  # Lambda Function for Code Execution (inline ZipFile for self-contained stack)
   CodeExecutorLambda:
     Type: AWS::Lambda::Function
     Properties:
@@ -326,12 +575,11 @@ Resources:
       Runtime: python3.12
       Handler: index.lambda_handler
       Role: !GetAtt CodeExecutorLambdaRole.Arn
-      Timeout: 30
+      Timeout: 20
       MemorySize: 512
       Code:
         ZipFile: |
           import json
-          import sys
           import io
           import traceback
           from contextlib import redirect_stdout, redirect_stderr
@@ -350,96 +598,176 @@ Resources:
           import base64
           import textwrap
 
+          ALLOWED_MODULES = {
+              "math",
+              "json",
+              "datetime",
+              "random",
+              "statistics",
+              "re",
+              "collections",
+              "itertools",
+              "string",
+              "decimal",
+              "fractions",
+              "uuid",
+              "hashlib",
+              "base64",
+              "textwrap",
+          }
+
+          def safe_import(name, *args, **kwargs):
+              if name in ALLOWED_MODULES:
+                  return __import__(name, *args, **kwargs)
+              raise ImportError(f"Module '{name}' is not allowed")
+
+          SAFE_BUILTINS = {
+              "__import__": safe_import,
+              "print": print,
+              "len": len,
+              "range": range,
+              "str": str,
+              "int": int,
+              "float": float,
+              "list": list,
+              "dict": dict,
+              "set": set,
+              "tuple": tuple,
+              "sum": sum,
+              "max": max,
+              "min": min,
+              "abs": abs,
+              "round": round,
+              "sorted": sorted,
+              "enumerate": enumerate,
+              "zip": zip,
+              "map": map,
+              "filter": filter,
+              "any": any,
+              "all": all,
+              "bool": bool,
+              "bytes": bytes,
+              "chr": chr,
+              "ord": ord,
+              "hex": hex,
+              "oct": oct,
+              "bin": bin,
+              "pow": pow,
+              "divmod": divmod,
+              "isinstance": isinstance,
+              "issubclass": issubclass,
+              "type": type,
+          }
+
+          SAFE_GLOBALS = {
+              "__builtins__": SAFE_BUILTINS,
+              "math": math,
+              "json": json,
+              "datetime": datetime,
+              "random": random,
+              "statistics": statistics,
+              "re": re,
+              "collections": collections,
+              "itertools": itertools,
+              "string": string,
+              "decimal": decimal,
+              "fractions": fractions,
+              "uuid": uuid,
+              "hashlib": hashlib,
+              "base64": base64,
+              "textwrap": textwrap,
+          }
+
           def lambda_handler(event, context):
-              code = event.get('code', '')
+              code = event.get("code", "")
               if not code:
-                  return {'statusCode': 400, 'body': json.dumps({'error': 'No code provided'})}
-              
+                  return {"statusCode": 400, "body": json.dumps({"error": "No code provided"})}
+
               stdout_capture = io.StringIO()
               stderr_capture = io.StringIO()
-              
+
               try:
-                  allowed_modules = {'math', 'json', 'datetime', 'random', 'statistics', 're', 'collections', 'itertools', 'string', 'decimal', 'fractions', 'uuid', 'hashlib', 'base64', 'textwrap'}
-                  
-                  def safe_import(name, *args, **kwargs):
-                      if name in allowed_modules:
-                          return __import__(name, *args, **kwargs)
-                      raise ImportError(f"Module '{name}' is not allowed")
-                  
-                  safe_globals = {
-                      '__builtins__': {
-                          '__import__': safe_import, 'print': print, 'len': len, 'range': range,
-                          'str': str, 'int': int, 'float': float, 'list': list, 'dict': dict,
-                          'set': set, 'tuple': tuple, 'sum': sum, 'max': max, 'min': min,
-                          'abs': abs, 'round': round, 'sorted': sorted, 'enumerate': enumerate,
-                          'zip': zip, 'map': map, 'filter': filter, 'any': any, 'all': all,
-                          'bool': bool, 'bytes': bytes, 'chr': chr, 'ord': ord, 'hex': hex,
-                          'oct': oct, 'bin': bin, 'pow': pow, 'divmod': divmod,
-                          'isinstance': isinstance, 'issubclass': issubclass, 'type': type,
-                      },
-                      'math': math, 'json': json, 'datetime': datetime, 'random': random,
-                      'statistics': statistics, 're': re, 'collections': collections,
-                      'itertools': itertools, 'string': string, 'decimal': decimal,
-                      'fractions': fractions, 'uuid': uuid, 'hashlib': hashlib,
-                      'base64': base64, 'textwrap': textwrap,
-                  }
-                  
                   with redirect_stdout(stdout_capture), redirect_stderr(stderr_capture):
-                      exec(code, safe_globals)
-                  
-                  return {'statusCode': 200, 'body': json.dumps({'output': stdout_capture.getvalue(), 'errors': stderr_capture.getvalue() or None, 'success': True})}
-              except Exception as e:
-                  return {'statusCode': 200, 'body': json.dumps({'output': stdout_capture.getvalue(), 'errors': f"{type(e).__name__}: {str(e)}\n{traceback.format_exc()}", 'success': False})}
+                      exec(code, SAFE_GLOBALS)
+
+                  return {
+                      "statusCode": 200,
+                      "body": json.dumps(
+                          {"output": stdout_capture.getvalue(), "errors": stderr_capture.getvalue() or None, "success": True}
+                      ),
+                  }
+              except Exception as exc:  # pylint: disable=broad-except
+                  return {
+                      "statusCode": 200,
+                      "body": json.dumps(
+                          {
+                              "output": stdout_capture.getvalue(),
+                              "errors": f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}",
+                              "success": False,
+                          }
+                      ),
+                  }
+      Environment:
+        Variables:
+          PYTHONUNBUFFERED: "1"
       Tags:
         - Key: Name
           Value: co-intelligence-code-executor
+
+  GuardDutyDetector:
+    Type: AWS::GuardDuty::Detector
+    Condition: CreateGuardDuty
+    Properties:
+      Enable: true
+
+  IRSAIamRole:
+    Type: AWS::IAM::Role
+    Condition: CreateIRSA
+    Properties:
+      RoleName: co-intelligence-backend-irsa
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref IRSAOidcProviderArn
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                "${IRSAOidcProviderUrl}:sub": "system:serviceaccount:default:backend"
+                "${IRSAOidcProviderUrl}:aud": "sts.amazonaws.com"
+      Policies:
+        - PolicyName: irsa-backend-basic
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub arn:aws:s3:::${S3Bucket}
+                  - !Sub arn:aws:s3:::${S3Bucket}/*
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: !GetAtt CodeExecutorLambda.Arn
 
 Outputs:
   VPCId:
     Value: !Ref VPC
     Description: VPC ID for EKS
-  Subnet1Id:
-    Value: !Ref Subnet1
-    Description: Subnet 1 ID for EKS
-  Subnet2Id:
-    Value: !Ref Subnet2
-    Description: Subnet 2 ID for EKS
-  EKSSecurityGroupId:
-    Value: !Ref EKSSecurityGroup
-    Description: Security Group for EKS
-  EKSClusterRoleArn:
-    Value: !GetAtt EKSClusterRole.Arn
-    Description: IAM Role ARN for EKS Cluster
-  EKSNodeRoleArn:
-    Value: !GetAtt EKSNodeRole.Arn
-    Description: IAM Role ARN for EKS Nodes
   RDSEndpoint:
     Value: !GetAtt RDSInstance.Endpoint.Address
-    Description: RDS PostgreSQL Endpoint
-  RDSPort:
-    Value: !GetAtt RDSInstance.Endpoint.Port
-    Description: RDS Port
-  BackendECRUri:
-    Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${BackendECR}'
-    Description: Backend ECR Repository URI
-  FrontendECRUri:
-    Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${FrontendECR}'
-    Description: Frontend ECR Repository URI
   S3BucketName:
     Value: !Ref S3Bucket
-    Description: S3 Bucket Name
+    Description: S3 bucket name for file storage
+  RedisEndpoint:
+    Value: !GetAtt RedisReplicationGroup.PrimaryEndPoint.Address
+  BackendECRUri:
+    Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${BackendECR}"
+  FrontendECRUri:
+    Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${FrontendECR}"
   CodeExecutorLambdaArn:
     Value: !GetAtt CodeExecutorLambda.Arn
-    Description: Code Executor Lambda Function ARN
-  EKSClusterName:
-    Value: !Ref EKSCluster
-    Description: EKS Cluster Name
-  EKSClusterEndpoint:
-    Value: !GetAtt EKSCluster.Endpoint
-    Description: EKS Cluster API Endpoint
-  EKSClusterArn:
-    Value: !GetAtt EKSCluster.Arn
-    Description: EKS Cluster ARN
-  AppSecretsArn:
-    Value: !Ref AppSecrets
-    Description: Secrets Manager Secret ARN

@@ -12,6 +12,7 @@ spec:
       labels:
         app: backend
     spec:
+      serviceAccountName: backend
       imagePullSecrets:
       - name: ecr-pull
       containers:

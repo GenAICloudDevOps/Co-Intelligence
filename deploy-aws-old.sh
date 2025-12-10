@@ -68,7 +68,7 @@ AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
 AWS_REGION=$AWS_REGION
 
 # Infrastructure (auto-populated)
-DATABASE_URL=postgres://$DB_USERNAME:$DB_PASSWORD@$RDS_ENDPOINT:5432/postgres?sslmode=require
+DATABASE_URL=postgres://$DB_USERNAME:$DB_PASSWORD@$RDS_ENDPOINT:5432/postgres?sslmode=disable
 SECRET_KEY=$SECRET_KEY
 S3_BUCKET_NAME=$S3_BUCKET_NAME
 CODE_EXECUTOR_URL=$LAMBDA_ARN
@@ -83,11 +83,6 @@ echo "✓ .env updated"
 echo "Configuring kubectl for EKS..."
 aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_REGION
 echo "✓ kubectl configured"
-
-# Apply IRSA service account and observability DaemonSet
-echo "Applying IRSA service account and X-Ray daemonset..."
-kubectl apply -f k8s/sa-backend-irsa.yaml
-kubectl apply -f k8s/xray-daemonset.yaml
 
 # Login to ECR
 echo "Logging into ECR..."
@@ -130,7 +125,7 @@ echo "✓ Images pushed with tag $IMAGE_TAG"
 echo "Creating Kubernetes secrets..."
 kubectl delete secret app-secrets 2>/dev/null || true
 kubectl create secret generic app-secrets \
-    --from-literal=DATABASE_URL="postgres://$DB_USERNAME:$DB_PASSWORD@$RDS_ENDPOINT:5432/postgres?sslmode=require" \
+    --from-literal=DATABASE_URL="postgres://$DB_USERNAME:$DB_PASSWORD@$RDS_ENDPOINT:5432/postgres?sslmode=disable" \
     --from-literal=SECRET_KEY="$SECRET_KEY" \
     --from-literal=S3_BUCKET_NAME="$S3_BUCKET_NAME" \
     --from-literal=CODE_EXECUTOR_URL="$LAMBDA_ARN" \
@@ -176,7 +171,7 @@ if [ -n "$FRONTEND_URL" ]; then
         echo "Auto-setting CORS_ALLOW_ORIGINS to $DEFAULT_ORIGIN and updating secret..."
         kubectl create secret generic app-secrets \
             --dry-run=client -o yaml \
-            --from-literal=DATABASE_URL="postgres://$DB_USERNAME:$DB_PASSWORD@$RDS_ENDPOINT:5432/postgres?sslmode=require" \
+            --from-literal=DATABASE_URL="postgres://$DB_USERNAME:$DB_PASSWORD@$RDS_ENDPOINT:5432/postgres?sslmode=disable" \
             --from-literal=SECRET_KEY="$SECRET_KEY" \
             --from-literal=S3_BUCKET_NAME="$S3_BUCKET_NAME" \
             --from-literal=CODE_EXECUTOR_URL="$LAMBDA_ARN" \
