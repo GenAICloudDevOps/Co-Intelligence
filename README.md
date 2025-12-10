@@ -5,7 +5,8 @@
 Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that scale effortlessly.
 
 ## What's New in V2.0
-- **New Apps**: Agentic LMS, Agentic Tutor
+- **New Apps**: Agentic LMS, Agentic Tutor, ML Predictor
+- **Evaluation Dashboard**: Auth-gated quality metrics, issues, and model usage
 - **Multi-Cloud Support**: Added GCP and Azure deployment
 - **Serverless Execution**: AWS Lambda, GCP Cloud Functions, Azure Functions
 - **7 AI Models**: Across 3 providers (Gemini, Groq, AWS Bedrock)
@@ -15,7 +16,7 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 - **Backend**: FastAPI + Tortoise ORM + LangGraph 1.0.1 + App Registry System
 - **Frontend**: Next.js 14 (App Router) + Reusable Components
 - **Database**: PostgreSQL (AWS RDS, GCP Cloud SQL, Azure Flexible Server)
-- **AI Models**: Gemini 2.5 Flash Lite, Groq Mixtral, AWS Bedrock Nova
+- **AI Models**: Gemini 2.5 Flash (Lite/Flash/Pro), Groq Compound + Llama 4 Scout, AWS Bedrock Nova (Lite/Pro)
 - **Code Execution**: AWS Lambda, GCP Cloud Functions, Azure Functions
 - **Infrastructure**: Multi-cloud (AWS EKS, GCP GKE, Azure AKS)
 
@@ -34,7 +35,7 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 ## Applications
 
 ### 1. Chat
-- 🤖 **AI Chat** - Switch between 8 AI models across 3 providers
+- 🤖 **AI Chat** - Switch between 7 AI models across 3 providers
 - 📄 **Document Analysis** - PDF, DOCX, TXT support with text extraction
 - 🌐 **Web Search** - Real-time internet search (Tavily integration)
 - ⚡ **Code Execution** - AI automatically runs Python code when needed
@@ -81,7 +82,7 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 
 ## Platform Features
 
-- 🔐 **Secure Authentication** - JWT-based user authentication
+- 🔐 **Secure Authentication** - Cookie-based (httpOnly access/refresh), rotation, and RBAC
 - 👤 **User Profile Header** - Reusable AppHeader component with logout functionality
 - 📊 **Evaluation Dashboard** - Auth-gated eval summary with metrics, issues, safety and model usage
 - ☁️ **Cloud Native** - Deployed on AWS EKS with auto-scaling
@@ -138,7 +139,7 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 ### Agentic Tutor - Agent Flow
 ![Agentic Tutor - Agent Flow](screenshots/6.21.png)
 
-### Ml Predict 
+### ML Predictor 
 ![ML Predictor](screenshots/6.6.png)
 
 ### House Price Predicts which model best - Processing Pipeline
@@ -147,8 +148,8 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 ### ML predicted Best Performing Algorithm, Key insights and Problem Analysis
 ![ML predicted Best Performing Algorithm, Key insights and Problem Analysis](screenshots/6.62.png)
 
-### ML App- Dataset Info and Algorithm Comparision
-![ML App- Dataset Info and Algorithm Comparision](screenshots/6.63.png)
+### ML App- Dataset Info and Algorithm Comparison
+![ML App- Dataset Info and Algorithm Comparison](screenshots/6.63.png)
 
 ### Make House prediction - based on user provided values
 ![Make House prediction - based on user provided values](screenshots/6.64.png)
