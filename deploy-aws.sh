@@ -194,7 +194,7 @@ if [ -n "$FRONTEND_URL" ]; then
             --from-literal=AWS_REGION="$AWS_REGION" \
             --from-literal=CORS_ALLOW_ORIGINS="$DEFAULT_ORIGIN" \
             --from-literal=AUTO_GENERATE_SCHEMAS="${AUTO_GENERATE_SCHEMAS:-true}" \
-            --from-literal=TINKER_BASE_PATH="${TINKER_BASE_PATH:-/app/tm-tinker}" \
+            --from-literal=TINKER_BASE_PATH="${TINKER_BASE_PATH:-/app}" \
             | kubectl apply -f -
         kubectl rollout restart deployment/backend
         echo "✓ Backend restarted with CORS_ALLOW_ORIGINS=$DEFAULT_ORIGIN"
