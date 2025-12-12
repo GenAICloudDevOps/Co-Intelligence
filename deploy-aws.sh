@@ -16,7 +16,7 @@ IMAGE_TAG=${IMAGE_TAG:-$(date +%Y%m%d%H%M%S)}
 # Load API keys from .env
 if [ -f ".env" ]; then
     echo "Loading from .env..."
-    export $(grep -E '^(GEMINI_API_KEY|GROQ_API_KEY|TAVILY_API_KEY|AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|AWS_REGION|DB_USERNAME)=' .env | xargs)
+    export $(grep -E '^(GEMINI_API_KEY|GROQ_API_KEY|TAVILY_API_KEY|TINKER_API_KEY|AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|AWS_REGION|DB_USERNAME|TINKER_BASE_PATH)=' .env | xargs)
 fi
 
 AWS_REGION=${AWS_REGION:-us-east-1}
@@ -61,6 +61,7 @@ cat > .env << EOF
 GEMINI_API_KEY=${GEMINI_API_KEY:-}
 GROQ_API_KEY=${GROQ_API_KEY:-}
 TAVILY_API_KEY=${TAVILY_API_KEY:-}
+TINKER_API_KEY=${TINKER_API_KEY:-}
 
 # AWS Credentials
 AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
@@ -76,6 +77,8 @@ CODE_EXECUTOR_URL=$LAMBDA_ARN
 CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS:-}
 # Leave true for dev; set false and run migrations in prod
 AUTO_GENERATE_SCHEMAS=${AUTO_GENERATE_SCHEMAS:-true}
+# Tinker assets base path (container default)
+TINKER_BASE_PATH=${TINKER_BASE_PATH:-/app}
 EOF
 echo "✓ .env updated"
 
@@ -137,11 +140,13 @@ kubectl create secret generic app-secrets \
     --from-literal=GEMINI_API_KEY="${GEMINI_API_KEY:-}" \
     --from-literal=GROQ_API_KEY="${GROQ_API_KEY:-}" \
     --from-literal=TAVILY_API_KEY="${TAVILY_API_KEY:-}" \
+    --from-literal=TINKER_API_KEY="${TINKER_API_KEY:-}" \
     --from-literal=AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-}" \
     --from-literal=AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-}" \
     --from-literal=AWS_REGION="$AWS_REGION" \
     --from-literal=CORS_ALLOW_ORIGINS="${CORS_ALLOW_ORIGINS:-}" \
-    --from-literal=AUTO_GENERATE_SCHEMAS="${AUTO_GENERATE_SCHEMAS:-true}"
+    --from-literal=AUTO_GENERATE_SCHEMAS="${AUTO_GENERATE_SCHEMAS:-true}" \
+    --from-literal=TINKER_BASE_PATH="${TINKER_BASE_PATH:-/app}"
 echo "✓ Secrets created"
 
 # Update K8s manifests with image URIs
@@ -183,11 +188,13 @@ if [ -n "$FRONTEND_URL" ]; then
             --from-literal=GEMINI_API_KEY="${GEMINI_API_KEY:-}" \
             --from-literal=GROQ_API_KEY="${GROQ_API_KEY:-}" \
             --from-literal=TAVILY_API_KEY="${TAVILY_API_KEY:-}" \
+            --from-literal=TINKER_API_KEY="${TINKER_API_KEY:-}" \
             --from-literal=AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-}" \
             --from-literal=AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-}" \
             --from-literal=AWS_REGION="$AWS_REGION" \
             --from-literal=CORS_ALLOW_ORIGINS="$DEFAULT_ORIGIN" \
             --from-literal=AUTO_GENERATE_SCHEMAS="${AUTO_GENERATE_SCHEMAS:-true}" \
+            --from-literal=TINKER_BASE_PATH="${TINKER_BASE_PATH:-/app/tm-tinker}" \
             | kubectl apply -f -
         kubectl rollout restart deployment/backend
         echo "✓ Backend restarted with CORS_ALLOW_ORIGINS=$DEFAULT_ORIGIN"

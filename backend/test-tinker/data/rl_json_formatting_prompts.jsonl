@@ -1,0 +1,6 @@
+{"prompt":"You are given a Kubernetes resource name. Return VALID JSON with keys: resource, namespace, command. No extra text.\n\nresource=pods\nnamespace=kube-system","required_keys":["resource","namespace","command"]}
+{"prompt":"Return VALID JSON with keys: cluster_name, region, command. No extra text.\n\ncluster_name=demo-eks\nregion=us-west-2","required_keys":["cluster_name","region","command"]}
+{"prompt":"Return VALID JSON with keys: symptom, likely_causes, first_checks. No extra text.\n\nsymptom=Pods stuck Pending on EKS","required_keys":["symptom","likely_causes","first_checks"]}
+{"prompt":"Return VALID JSON with keys: task, steps. steps must be an array of strings. No extra text.\n\ntask=Update kubeconfig for EKS cluster","required_keys":["task","steps"]}
+{"prompt":"Return VALID JSON with keys: error, root_cause, fix. No extra text.\n\nerror=kubectl: Unable to connect to the server: dial tcp ... i/o timeout","required_keys":["error","root_cause","fix"]}
+{"prompt":"Return VALID JSON with keys: irsa, command, notes. No extra text.\n\nirsa=associate OIDC provider","required_keys":["irsa","command","notes"]}

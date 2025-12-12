@@ -99,5 +99,20 @@ export const apps: AppConfig[] = [
     route: '/apps/ml-predictor',
     status: 'active',
     requiresAuth: true
+  },
+  {
+    id: 'llms-fine-tuning',
+    name: 'LLMs Fine-Tuning',
+    description: [
+      'Tinker API',
+      'LoRA fine-tuning on Llama/Qwen',
+      'Scripted job runner (validate/train/sample)',
+      'Live logs + checkpoint sampling'
+    ],
+    icon: '🧪',
+    color: '#22c55e',
+    route: '/apps/llms-fine-tuning',
+    status: 'active',
+    requiresAuth: true
   }
 ]
