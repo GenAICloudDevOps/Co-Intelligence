@@ -55,7 +55,7 @@ echo "✓ Azure Function deployed"
 # Load API keys from .env
 if [ -f ".env" ]; then
     echo "Loading API keys from .env..."
-    export $(grep -E '^(GEMINI_API_KEY|GROQ_API_KEY|TAVILY_API_KEY|AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|AWS_REGION)=' .env | xargs)
+    export $(grep -E '^(GEMINI_API_KEY|GROQ_API_KEY|TAVILY_API_KEY|TINKER_API_KEY|TINKER_BASE_PATH|AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|AWS_REGION)=' .env | xargs)
 fi
 
 echo "Fetching Terraform outputs..."
@@ -85,6 +85,8 @@ cat > .env << EOF
 GEMINI_API_KEY=${GEMINI_API_KEY:-}
 GROQ_API_KEY=${GROQ_API_KEY:-}
 TAVILY_API_KEY=${TAVILY_API_KEY:-}
+TINKER_API_KEY=${TINKER_API_KEY:-}
+TINKER_BASE_PATH=${TINKER_BASE_PATH:-/app}
 
 # AWS Credentials (for Bedrock)
 AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
@@ -109,7 +111,7 @@ docker build -t $ACR_SERVER/backend:latest ./backend
 docker push $ACR_SERVER/backend:latest
 
 echo "Building and pushing frontend..."
-docker build -t $ACR_SERVER/frontend:latest ./frontend
+docker build --build-arg NEXT_PUBLIC_API_URL="" -t $ACR_SERVER/frontend:latest ./frontend
 docker push $ACR_SERVER/frontend:latest
 echo "✓ Images pushed"
 
@@ -142,6 +144,8 @@ kubectl create secret generic app-secrets \
     --from-literal=GEMINI_API_KEY="${GEMINI_API_KEY:-}" \
     --from-literal=GROQ_API_KEY="${GROQ_API_KEY:-}" \
     --from-literal=TAVILY_API_KEY="${TAVILY_API_KEY:-}" \
+    --from-literal=TINKER_API_KEY="${TINKER_API_KEY:-}" \
+    --from-literal=TINKER_BASE_PATH="${TINKER_BASE_PATH:-/app}" \
     --from-literal=AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-}" \
     --from-literal=AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-}" \
     --from-literal=AWS_REGION="${AWS_REGION:-us-east-1}"
