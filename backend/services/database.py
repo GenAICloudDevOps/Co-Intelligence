@@ -61,6 +61,10 @@ async def run_migrations():
         "ALTER TABLE ml_projects ADD COLUMN IF NOT EXISTS step_logs JSONB DEFAULT '[]'",
         "ALTER TABLE ml_projects ALTER COLUMN target_variable DROP NOT NULL",
         "ALTER TABLE ml_projects ALTER COLUMN target_variable SET DEFAULT ''",
+        "ALTER TABLE ml_training_runs ADD COLUMN IF NOT EXISTS model_artifact_bucket VARCHAR(255)",
+        "ALTER TABLE ml_training_runs ADD COLUMN IF NOT EXISTS model_artifact_key VARCHAR(1024)",
+        "ALTER TABLE llms_fine_tuning_runs ADD COLUMN IF NOT EXISTS runtime_env JSONB DEFAULT '{}'::jsonb",
+        "ALTER TABLE llms_fine_tuning_runs ADD COLUMN IF NOT EXISTS worker_id VARCHAR(128)",
         # Evaluation table and columns
         """
         CREATE TABLE IF NOT EXISTS evaluation_results (

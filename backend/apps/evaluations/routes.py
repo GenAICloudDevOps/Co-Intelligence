@@ -5,8 +5,16 @@ from auth.utils import get_current_user
 from apps.evaluations.models import EvaluationResult
 from config import settings
 from services.guardrails import redact_pii
+from services.state_store import state_store
+import os
 
 router = APIRouter()
+
+def _summary_cache_ttl_seconds() -> int:
+    try:
+        return int(os.getenv("EVAL_SUMMARY_CACHE_TTL_SECONDS", "90"))
+    except ValueError:
+        return 90
 
 
 @router.get("/summary")
@@ -15,6 +23,18 @@ async def get_eval_summary(
     current_user=Depends(get_current_user),
 ):
     """Return aggregated evaluation metrics and extras (trend, issues, usage)."""
+    cache_key = state_store.key(
+        app="evaluations",
+        session_id=str(current_user.id) if scope == "me" else "all",
+        kind="summary:ai-chat",
+    )
+    try:
+        cached = await state_store.get_json(cache_key, default=None)
+        if cached is not None:
+            return cached
+    except Exception:
+        pass
+
     now = datetime.now(timezone.utc)
     try:
         filters = {"app_name": "ai-chat"}
@@ -122,7 +142,7 @@ async def get_eval_summary(
     model_counts = Counter([r.model_used for r in results if r.model_used])
     model_usage = [{"model": m, "count": c} for m, c in model_counts.most_common(5)]
 
-    return {
+    payload = {
         "run_id": "live-stream",
         "run_timestamp": results[0].created_at.replace(tzinfo=timezone.utc).isoformat(),
         "judge_model": settings.EVAL_JUDGE_MODEL,
@@ -139,6 +159,11 @@ async def get_eval_summary(
         "model_usage": model_usage,
         "scope": scope,
     }
+    try:
+        await state_store.set_json(cache_key, payload, ttl_seconds=_summary_cache_ttl_seconds())
+    except Exception:
+        pass
+    return payload
 
 
 def _empty_summary(now: datetime, scope: str):

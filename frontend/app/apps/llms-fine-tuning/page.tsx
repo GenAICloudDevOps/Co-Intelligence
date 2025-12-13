@@ -144,6 +144,7 @@ const SAMPLE_DEFAULTS = [
 
 const statusMeta: Record<JobStatus, { label: string; color: string; background: string }> = {
   idle: { label: 'Idle', color: '#94a3b8', background: 'rgba(148,163,184,0.15)' },
+  queued: { label: 'Queued', color: '#38bdf8', background: 'rgba(56,189,248,0.12)' },
   running: { label: 'Running', color: '#f97316', background: 'rgba(249,115,22,0.12)' },
   success: { label: 'Success', color: '#22c55e', background: 'rgba(34,197,94,0.12)' },
   failed: { label: 'Failed', color: '#ef4444', background: 'rgba(239,68,68,0.12)' }
@@ -281,7 +282,7 @@ export default function FineTuningApp() {
       try {
         const view = await fineTuningApi.getRun(runId, 250)
         setRunState(jobKey, view)
-        if (view.status !== 'running') {
+        if (view.status === 'success' || view.status === 'failed') {
           clearPoller(jobKey)
           setBusyState(jobKey, false)
         }
@@ -302,7 +303,7 @@ export default function FineTuningApp() {
     try {
       const view = await fineTuningApi.startJob(jobKey, opts)
       setRunState(jobKey, view)
-      if (view.status === 'running') {
+      if (view.status === 'running' || view.status === 'queued') {
         startPolling(jobKey, view.run_id)
       } else {
         setBusyState(jobKey, false)

@@ -174,7 +174,7 @@ async def start_job(payload: StartJobRequest, current_user: User = Depends(get_c
             resolved = _resolve_allowed_dataset_path(payload.dataset_path)
             runtime_env["DATASET_PATH"] = str(resolved)
             runtime_env["DATA_FILE"] = str(resolved)
-        run = await job_runner.start_run(payload.job_key, runtime_env)
+        run = await job_runner.enqueue_run(payload.job_key, runtime_env)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Job key not found: {payload.job_key}")
 

@@ -23,12 +23,14 @@ class JobConfig:
 class JobRunState:
     run_id: str
     job_key: str
-    status: str  # idle | running | success | failed
+    status: str  # queued | running | success | failed
     start_time: datetime
     end_time: Optional[datetime]
     exit_code: Optional[int]
     output: List[str]
     error: Optional[str] = None
+    runtime_env: Dict[str, str] = field(default_factory=dict)
+    worker_id: Optional[str] = None
     task: Optional[asyncio.Task] = None
     lines_since_persist: int = 0
     last_persist_monotonic: float = 0.0
@@ -150,13 +152,15 @@ class JobRunner:
                     "exit_code": run.exit_code,
                     "output": run.output,
                     "error": run.error,
+                    "runtime_env": run.runtime_env or {},
+                    "worker_id": run.worker_id,
                 },
                 run_id=run.run_id,
             )
         except Exception:
             return
 
-    async def start_run(self, job_key: str, runtime_env: Optional[Dict[str, str]] = None) -> JobRunState:
+    async def enqueue_run(self, job_key: str, runtime_env: Optional[Dict[str, str]] = None) -> JobRunState:
         if job_key not in self.jobs:
             raise KeyError(f"Unknown job key: {job_key}")
 
@@ -164,15 +168,14 @@ class JobRunner:
         run = JobRunState(
             run_id=run_id,
             job_key=job_key,
-            status="running",
+            status="queued",
             start_time=datetime.utcnow(),
             end_time=None,
             exit_code=None,
             output=[],
             error=None,
+            runtime_env=runtime_env or {},
         )
-        async with self._lock:
-            self.runs[run_id] = run
 
         try:
             await FineTuningRun.update_or_create(
@@ -184,26 +187,67 @@ class JobRunner:
                     "exit_code": None,
                     "output": [],
                     "error": None,
+                    "runtime_env": run.runtime_env or {},
+                    "worker_id": None,
                 },
                 run_id=run_id,
             )
         except Exception:
             pass
 
-        run.task = asyncio.create_task(self._execute_run(run_id, self.jobs[job_key], runtime_env))
         return run
 
-    async def _execute_run(self, run_id: str, config: JobConfig, runtime_env: Optional[Dict[str, str]] = None):
-        run = self.runs.get(run_id)
-        if not run:
+    async def claim_next(self, worker_id: str) -> Optional[JobRunState]:
+        """Claim the oldest queued job (best-effort, safe under multiple workers)."""
+        try:
+            record = await FineTuningRun.filter(status="queued").order_by("start_time").first()
+        except Exception:
+            return None
+        if not record:
+            return None
+
+        now = datetime.utcnow()
+        try:
+            updated = await FineTuningRun.filter(run_id=record.run_id, status="queued").update(
+                status="running",
+                worker_id=worker_id,
+                start_time=now,
+            )
+        except Exception:
+            return None
+        if updated != 1:
+            return None
+
+        return JobRunState(
+            run_id=record.run_id,
+            job_key=record.job_key,
+            status="running",
+            start_time=now,
+            end_time=None,
+            exit_code=None,
+            output=record.output or [],
+            error=None,
+            runtime_env=record.runtime_env or {},
+            worker_id=worker_id,
+        )
+
+    async def execute_claimed(self, run: JobRunState) -> None:
+        if run.job_key not in self.jobs:
+            run.status = "failed"
+            run.error = f"Unknown job key: {run.job_key}"
+            run.end_time = datetime.utcnow()
+            run.exit_code = -1
+            await self._persist_run(run, force=True)
             return
+
+        config = self.jobs[run.job_key]
 
         env = os.environ.copy()
         # Allow per-job env overrides (e.g., PYTHONPATH)
         if config.env:
             env.update({k: v for k, v in config.env.items() if v is not None})
-        if runtime_env:
-            env.update({k: v for k, v in runtime_env.items() if v is not None})
+        if run.runtime_env:
+            env.update({k: v for k, v in run.runtime_env.items() if v is not None})
         try:
             process = await asyncio.create_subprocess_exec(
                 *config.command,

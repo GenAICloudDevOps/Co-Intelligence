@@ -6,6 +6,8 @@ class FineTuningRun(BaseModel):
     run_id = fields.CharField(max_length=64, unique=True)
     job_key = fields.CharField(max_length=100)
     status = fields.CharField(max_length=20, default="running")
+    runtime_env = fields.JSONField(default=dict)
+    worker_id = fields.CharField(max_length=128, null=True)
     start_time = fields.DatetimeField()
     end_time = fields.DatetimeField(null=True)
     exit_code = fields.IntField(null=True)

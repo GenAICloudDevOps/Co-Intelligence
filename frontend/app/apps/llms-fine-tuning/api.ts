@@ -1,6 +1,6 @@
 import { api } from '@/app/services/api'
 
-export type JobStatus = 'idle' | 'running' | 'success' | 'failed'
+export type JobStatus = 'idle' | 'queued' | 'running' | 'success' | 'failed'
 
 export interface JobRunView {
   run_id: string

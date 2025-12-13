@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fine-tuning-worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fine-tuning-worker
+  template:
+    metadata:
+      labels:
+        app: fine-tuning-worker
+    spec:
+      imagePullSecrets:
+      - name: ecr-pull
+      containers:
+      - name: fine-tuning-worker
+        image: <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/co-intelligence-backend:<IMAGE_TAG>
+        command: ["python3", "llms_fine_tuning_worker.py"]
+        envFrom:
+        - secretRef:
+            name: app-secrets
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"

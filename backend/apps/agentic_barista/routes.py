@@ -1,17 +1,15 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict
-import json
 import os
-from redis.asyncio import Redis, from_url
 from apps.agentic_barista.agents.coordinator import BaristaCoordinator
 from apps.agentic_barista.models import MenuItem, Order
+from services.state_store import state_store
 
 router = APIRouter()
 
 # In-memory cart storage (session_id -> cart)
 cart_storage: Dict[str, Dict[int, int]] = {}
-_redis_client: Optional[Redis] = None
 
 class ChatRequest(BaseModel):
     message: str
@@ -42,48 +40,24 @@ def _get_cart_ttl_seconds() -> int:
     except ValueError:
         return 86400
 
-def _build_redis_url() -> Optional[str]:
-    url = os.getenv("REDIS_URL", "").strip()
-    if url:
-        return url
-    host = os.getenv("REDIS_HOST", "").strip()
-    if not host:
-        return None
-    port = os.getenv("REDIS_PORT", "6379").strip() or "6379"
-    tls = os.getenv("REDIS_TLS", "true").strip().lower() in {"1", "true", "yes", "y"}
-    scheme = "rediss" if tls else "redis"
-    return f"{scheme}://{host}:{port}/0"
-
-async def _get_redis() -> Optional[Redis]:
-    global _redis_client
-    if _redis_client is not None:
-        return _redis_client
-
-    redis_url = _build_redis_url()
-    if not redis_url:
-        return None
-
-    client = from_url(redis_url, encoding="utf-8", decode_responses=True)
-    await client.ping()
-    _redis_client = client
-    return _redis_client
-
-def _cart_key(session_id: str) -> str:
-    return f"barista:cart:{session_id}"
-
 @router.post("/chat")
 async def chat(request: ChatRequest):
     try:
         coordinator = BaristaCoordinator(model_name=request.model)
 
-        redis_client = await _get_redis()
-        if redis_client is None:
+        cart_key = state_store.key(app="barista", session_id=request.session_id, kind="cart")
+        use_redis = False
+        try:
+            use_redis = await state_store.available()
+        except Exception:
+            use_redis = False
+
+        if not use_redis:
             if request.session_id not in cart_storage:
                 cart_storage[request.session_id] = {}
             cart = cart_storage[request.session_id]
         else:
-            raw_cart = await redis_client.get(_cart_key(request.session_id))
-            cart = _normalize_cart_keys(json.loads(raw_cart) if raw_cart else {})
+            cart = _normalize_cart_keys(await state_store.get_json(cart_key, default={}))
         
         # Process message
         result = await coordinator.process_message(
@@ -94,17 +68,13 @@ async def chat(request: ChatRequest):
         )
 
         # Persist cart
-        if redis_client is None:
+        if not use_redis:
             cart_storage[request.session_id] = result["cart"]
         else:
             if result["cart"]:
-                await redis_client.set(
-                    _cart_key(request.session_id),
-                    json.dumps(result["cart"]),
-                    ex=_get_cart_ttl_seconds(),
-                )
+                await state_store.set_json(cart_key, result["cart"], ttl_seconds=_get_cart_ttl_seconds())
             else:
-                await redis_client.delete(_cart_key(request.session_id))
+                await state_store.delete(cart_key)
         
         return {
             "response": result["response"],

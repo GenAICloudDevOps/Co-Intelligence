@@ -49,6 +49,8 @@ class TrainingRun(BaseModel):
     best_model = fields.CharField(max_length=100)
     best_metrics = fields.JSONField()
     comparison_report = fields.JSONField()  # detailed comparison
+    model_artifact_bucket = fields.CharField(max_length=255, null=True)
+    model_artifact_key = fields.CharField(max_length=1024, null=True)
     
     class Meta:
         table = "ml_training_runs"

@@ -12,6 +12,7 @@ from apps.ml_predictor.agents.algorithm_agent import AlgorithmAgent
 from apps.ml_predictor.data_processor import DataProcessor
 from apps.ml_predictor.algorithm_registry import algorithm_registry
 from apps.ml_predictor.model_cache import model_cache, CachedModel
+from apps.ml_predictor.model_store import PersistedModel, download_model_bundle, upload_model_bundle
 from services.file_service import validate_file, save_temp_file, cleanup_file, TEMP_DIR, ALLOWED_EXTENSIONS, MAX_FILE_SIZE
 from services.streaming import safe_serialize, sse_event, create_sse_response
 
@@ -263,6 +264,34 @@ async def predict(
                 problem_type=result.get("problem_type", "classification"),
                 target_variable=result.get("target_variable", "")
             )
+
+            # Persist best model bundle (shared across pods) - best-effort
+            try:
+                best_model_name = result.get("best_model", "")
+                target_var = result.get("target_variable", "") or ""
+                problem_type = result.get("problem_type", "classification")
+                if best_model_name and target_var:
+                    trainer = DataProcessor()
+                    X_full, y_full = trainer.preprocess_data(df, target_var)
+                    agent = AlgorithmAgent(best_model_name)
+                    agent.algorithm.train(X_full, y_full)
+                    bundle = PersistedModel(
+                        model_name=best_model_name,
+                        problem_type=problem_type,
+                        target_variable=target_var,
+                        feature_names=trainer.feature_names,
+                        label_encoders=trainer.label_encoders,
+                        model=agent.algorithm.model,
+                    )
+                    location = upload_model_bundle(project.id, bundle)
+                    if location:
+                        bucket, key = location
+                        await TrainingRun.filter(project_id=project.id).update(
+                            model_artifact_bucket=bucket,
+                            model_artifact_key=key,
+                        )
+            except Exception:
+                pass
         except Exception as e:
             await MLProject.filter(id=project.id).update(status="failed", error_message=f"Failed to save results: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Failed to save results: {str(e)}")
@@ -402,6 +431,31 @@ async def predict_stream(
                         problem_type=problem_type,
                         target_variable=target_var
                     )
+
+                    # Persist best model bundle (shared across pods) - best-effort
+                    try:
+                        if best_model and target_var:
+                            trainer = DataProcessor()
+                            X_full, y_full = trainer.preprocess_data(df, target_var)
+                            agent = AlgorithmAgent(best_model)
+                            agent.algorithm.train(X_full, y_full)
+                            bundle = PersistedModel(
+                                model_name=best_model,
+                                problem_type=problem_type,
+                                target_variable=target_var,
+                                feature_names=trainer.feature_names,
+                                label_encoders=trainer.label_encoders,
+                                model=agent.algorithm.model,
+                            )
+                            location = upload_model_bundle(project.id, bundle)
+                            if location:
+                                bucket, key = location
+                                await TrainingRun.filter(project_id=project.id).update(
+                                    model_artifact_bucket=bucket,
+                                    model_artifact_key=key,
+                                )
+                    except Exception:
+                        pass
                     
                     # Construct winner details
                     winner_res = all_results_list[0] if all_results_list else {}
@@ -785,51 +839,72 @@ async def predict_single(
             raise HTTPException(status_code=400, detail="No trained models found")
         
         best_model_name = training_run.best_model
-        dataset = await Dataset.get_or_none(id=project.dataset_id)
-        df = data_processor.load_dataset(dataset.file_path)
-        dataset_mtime = os.path.getmtime(dataset.file_path) if os.path.exists(dataset.file_path) else 0
 
-        # Prepare data
-        X, y = data_processor.preprocess_data(df, project.target_variable)
-        feature_names = list(X.columns) if hasattr(X, "columns") else list(range(X.shape[1]))
+        # Prefer persisted model artifact (shared across pods); fallback to training on-the-fly
+        bundle = None
+        if training_run.model_artifact_bucket and training_run.model_artifact_key:
+            try:
+                cache_key = f"s3://{training_run.model_artifact_bucket}/{training_run.model_artifact_key}"
+                cached = model_cache.get(project.id, best_model_name, cache_key)
+                if cached:
+                    bundle = cached.model
+                else:
+                    bundle = download_model_bundle(training_run.model_artifact_bucket, training_run.model_artifact_key)
+                    model_cache.set(
+                        CachedModel(
+                            project_id=project.id,
+                            model_name=best_model_name,
+                            model=bundle,
+                            feature_names=bundle.feature_names,
+                            target_variable=bundle.target_variable,
+                            dataset_path=cache_key,
+                            dataset_mtime=0.0,
+                        )
+                    )
+            except Exception:
+                bundle = None
 
-        # Try cache first
-        cached = model_cache.get(project.id, best_model_name, dataset.file_path)
-        if cached:
-            agent_model = cached.model
-            feature_names = cached.feature_names or feature_names
-        else:
+        if bundle is None:
+            dataset = await Dataset.get_or_none(id=project.dataset_id)
+            if not dataset or not dataset.file_path:
+                raise HTTPException(status_code=400, detail="Dataset unavailable and no persisted model found")
+            df = data_processor.load_dataset(dataset.file_path)
+            trainer = DataProcessor()
+            X_full, y_full = trainer.preprocess_data(df, project.target_variable)
             agent = AlgorithmAgent(best_model_name)
-            agent.algorithm.train(X, y)
-            agent_model = agent.algorithm.model
-            model_cache.set(
-                CachedModel(
-                    project_id=project.id,
-                    model_name=best_model_name,
-                    model=agent_model,
-                    feature_names=feature_names,
-                    target_variable=project.target_variable,
-                    dataset_path=dataset.file_path,
-                    dataset_mtime=dataset_mtime
-                )
+            agent.algorithm.train(X_full, y_full)
+            bundle = PersistedModel(
+                model_name=best_model_name,
+                problem_type=project.problem_type,
+                target_variable=project.target_variable,
+                feature_names=trainer.feature_names,
+                label_encoders=trainer.label_encoders,
+                model=agent.algorithm.model,
             )
-        
+
         # Prepare input features
         import pandas as pd
-        import numpy as np
         input_df = pd.DataFrame([request.features])
         
         # Ensure columns match training data
-        for col in feature_names:
+        for col in bundle.feature_names:
             if col not in input_df.columns:
                 input_df[col] = 0
-        
-        # Reorder columns to match training
-        if hasattr(X, 'columns'):
-            input_df = input_df[feature_names]
+
+        # Encode categoricals using saved encoders
+        for col, encoder in (bundle.label_encoders or {}).items():
+            if col == "target" or col not in input_df.columns:
+                continue
+            try:
+                input_df[col] = input_df[col].apply(lambda x: x if x in encoder.classes_ else encoder.classes_[0])
+                input_df[col] = encoder.transform(input_df[col].astype(str))
+            except Exception:
+                pass
+
+        input_df = input_df[bundle.feature_names]
         
         # Make prediction
-        prediction = agent_model.predict(input_df.values)
+        prediction = bundle.model.predict(input_df.values)
         
         result = {
             "prediction": prediction[0] if len(prediction) == 1 else prediction.tolist(),
@@ -838,9 +913,9 @@ async def predict_single(
         }
         
         # Add probability for classification
-        if project.problem_type == "classification" and hasattr(agent_model, 'predict_proba'):
+        if project.problem_type == "classification" and hasattr(bundle.model, 'predict_proba'):
             try:
-                proba = agent_model.predict_proba(input_df.values)
+                proba = bundle.model.predict_proba(input_df.values)
                 result["probabilities"] = proba[0].tolist()
                 result["confidence"] = float(max(proba[0])) * 100
             except:
