@@ -511,9 +511,9 @@ Resources:
       InstanceTypes:
         - t3.medium
       ScalingConfig:
-        MinSize: 2
-        MaxSize: 3
-        DesiredSize: 2
+        MinSize: 4
+        MaxSize: 8
+        DesiredSize: 6
       Subnets:
         - !Ref SubnetPrivateA
         - !Ref SubnetPrivateB
