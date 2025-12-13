@@ -45,6 +45,8 @@ S3_BUCKET_NAME=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --r
     --query 'Stacks[0].Outputs[?OutputKey==`S3BucketName`].OutputValue' --output text)
 LAMBDA_ARN=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --region $AWS_REGION \
     --query 'Stacks[0].Outputs[?OutputKey==`CodeExecutorLambdaArn`].OutputValue' --output text)
+REDIS_ENDPOINT=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --region $AWS_REGION \
+    --query 'Stacks[0].Outputs[?OutputKey==`RedisEndpoint`].OutputValue' --output text)
 
 # Fetch secrets
 echo "Fetching secrets..."
@@ -73,6 +75,7 @@ DATABASE_URL=postgres://$DB_USERNAME:$DB_PASSWORD@$RDS_ENDPOINT:5432/postgres?ss
 SECRET_KEY=$SECRET_KEY
 S3_BUCKET_NAME=$S3_BUCKET_NAME
 CODE_EXECUTOR_URL=$LAMBDA_ARN
+REDIS_URL=rediss://$REDIS_ENDPOINT:6379/0
 # CORS / API surface (comma-separated, e.g., https://app.example.com,https://admin.example.com)
 CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS:-}
 # Leave true for dev; set false and run migrations in prod
@@ -137,6 +140,7 @@ kubectl create secret generic app-secrets \
     --from-literal=SECRET_KEY="$SECRET_KEY" \
     --from-literal=S3_BUCKET_NAME="$S3_BUCKET_NAME" \
     --from-literal=CODE_EXECUTOR_URL="$LAMBDA_ARN" \
+    --from-literal=REDIS_URL="rediss://$REDIS_ENDPOINT:6379/0" \
     --from-literal=GEMINI_API_KEY="${GEMINI_API_KEY:-}" \
     --from-literal=GROQ_API_KEY="${GROQ_API_KEY:-}" \
     --from-literal=TAVILY_API_KEY="${TAVILY_API_KEY:-}" \
@@ -185,6 +189,7 @@ if [ -n "$FRONTEND_URL" ]; then
             --from-literal=SECRET_KEY="$SECRET_KEY" \
             --from-literal=S3_BUCKET_NAME="$S3_BUCKET_NAME" \
             --from-literal=CODE_EXECUTOR_URL="$LAMBDA_ARN" \
+            --from-literal=REDIS_URL="rediss://$REDIS_ENDPOINT:6379/0" \
             --from-literal=GEMINI_API_KEY="${GEMINI_API_KEY:-}" \
             --from-literal=GROQ_API_KEY="${GROQ_API_KEY:-}" \
             --from-literal=TAVILY_API_KEY="${TAVILY_API_KEY:-}" \
