@@ -4,7 +4,7 @@ metadata:
   name: frontend
   namespace: co-intelligence
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: frontend
@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: GCP_REGION-docker.pkg.dev/GCP_PROJECT_PLACEHOLDER/co-intelligence-frontend/frontend:latest
+        image: us-east1-docker.pkg.dev/playground-s-11-aef97439/co-intelligence-frontend/frontend:latest
         ports:
         - containerPort: 3000
         env:

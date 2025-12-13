@@ -5,7 +5,7 @@ registry.register(
     AppConfig(
         name="llms-fine-tuning",
         router=router,
-        models_module="apps.llms_fine_tuning",
+        models_module="apps.llms_fine_tuning.models",
         init_function=None,
         display_name="LLMs Fine-Tuning",
         description="Run Tinker fine-tuning recipes and scripts",

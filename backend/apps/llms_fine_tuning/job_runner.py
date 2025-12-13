@@ -1,10 +1,13 @@
 import asyncio
 import os
+import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
+
+from apps.llms_fine_tuning.models import FineTuningRun
 
 
 @dataclass
@@ -27,6 +30,8 @@ class JobRunState:
     output: List[str]
     error: Optional[str] = None
     task: Optional[asyncio.Task] = None
+    lines_since_persist: int = 0
+    last_persist_monotonic: float = 0.0
 
 
 class JobRunner:
@@ -92,6 +97,8 @@ class JobRunner:
         self.runs: Dict[str, JobRunState] = {}
         self._lock = asyncio.Lock()
         self._max_lines = 400
+        self._persist_min_interval_s = 0.75
+        self._persist_min_lines = 15
 
     def _resolve_base_path(self) -> Path:
         """Resolve where tm-tinker is located, with sensible fallbacks."""
@@ -118,6 +125,36 @@ class JobRunner:
         if len(run.output) > self._max_lines:
             extra = len(run.output) - self._max_lines
             del run.output[0:extra]
+        run.lines_since_persist += 1
+
+    async def _persist_run(self, run: JobRunState, force: bool = False):
+        """
+        Persist run state to the database so polling works across Cloud Run instances.
+
+        Best-effort: never fail the job if persistence fails.
+        """
+        now = time.monotonic()
+        if not force:
+            if run.lines_since_persist < self._persist_min_lines and (now - run.last_persist_monotonic) < self._persist_min_interval_s:
+                return
+
+        run.last_persist_monotonic = now
+        run.lines_since_persist = 0
+        try:
+            await FineTuningRun.update_or_create(
+                defaults={
+                    "job_key": run.job_key,
+                    "status": run.status,
+                    "start_time": run.start_time,
+                    "end_time": run.end_time,
+                    "exit_code": run.exit_code,
+                    "output": run.output,
+                    "error": run.error,
+                },
+                run_id=run.run_id,
+            )
+        except Exception:
+            return
 
     async def start_run(self, job_key: str, runtime_env: Optional[Dict[str, str]] = None) -> JobRunState:
         if job_key not in self.jobs:
@@ -136,6 +173,22 @@ class JobRunner:
         )
         async with self._lock:
             self.runs[run_id] = run
+
+        try:
+            await FineTuningRun.update_or_create(
+                defaults={
+                    "job_key": job_key,
+                    "status": run.status,
+                    "start_time": run.start_time,
+                    "end_time": None,
+                    "exit_code": None,
+                    "output": [],
+                    "error": None,
+                },
+                run_id=run_id,
+            )
+        except Exception:
+            pass
 
         run.task = asyncio.create_task(self._execute_run(run_id, self.jobs[job_key], runtime_env))
         return run
@@ -164,12 +217,14 @@ class JobRunner:
             run.error = f"Command not found: {exc}"
             run.end_time = datetime.utcnow()
             run.exit_code = -1
+            await self._persist_run(run, force=True)
             return
         except Exception as exc:
             run.status = "failed"
             run.error = f"Failed to start process: {exc}"
             run.end_time = datetime.utcnow()
             run.exit_code = -1
+            await self._persist_run(run, force=True)
             return
 
         if not process.stdout:
@@ -177,6 +232,7 @@ class JobRunner:
             run.error = "Process has no stdout"
             run.end_time = datetime.utcnow()
             run.exit_code = -1
+            await self._persist_run(run, force=True)
             return
 
         try:
@@ -186,11 +242,13 @@ class JobRunner:
                     break
                 text = line.decode("utf-8", errors="replace").rstrip("\n")
                 self._trim_and_append(run, text)
+                await self._persist_run(run)
             await process.wait()
             run.exit_code = process.returncode
             run.status = "success" if process.returncode == 0 else "failed"
         finally:
             run.end_time = datetime.utcnow()
+            await self._persist_run(run, force=True)
 
     async def get_run(self, run_id: str) -> Optional[JobRunState]:
         async with self._lock:
@@ -198,18 +256,36 @@ class JobRunner:
 
     async def get_run_view(self, run_id: str, tail: int = 200) -> Optional[dict]:
         run = await self.get_run(run_id)
-        if not run:
+        if run:
+            output_tail = run.output[-tail:] if tail > 0 else run.output
+            return {
+                "run_id": run.run_id,
+                "job_key": run.job_key,
+                "status": run.status,
+                "start_time": run.start_time.isoformat() + "Z",
+                "end_time": run.end_time.isoformat() + "Z" if run.end_time else None,
+                "exit_code": run.exit_code,
+                "output": output_tail,
+                "error": run.error,
+            }
+
+        try:
+            record = await FineTuningRun.get_or_none(run_id=run_id)
+        except Exception:
             return None
-        output_tail = run.output[-tail:] if tail > 0 else run.output
+        if not record:
+            return None
+        output = record.output or []
+        output_tail = output[-tail:] if tail > 0 else output
         return {
-            "run_id": run.run_id,
-            "job_key": run.job_key,
-            "status": run.status,
-            "start_time": run.start_time.isoformat() + "Z",
-            "end_time": run.end_time.isoformat() + "Z" if run.end_time else None,
-            "exit_code": run.exit_code,
+            "run_id": record.run_id,
+            "job_key": record.job_key,
+            "status": record.status,
+            "start_time": record.start_time.isoformat() + "Z" if record.start_time else None,
+            "end_time": record.end_time.isoformat() + "Z" if record.end_time else None,
+            "exit_code": record.exit_code,
             "output": output_tail,
-            "error": run.error,
+            "error": record.error,
         }
 
 
