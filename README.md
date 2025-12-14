@@ -169,7 +169,14 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 ### Make House prediction - based on user provided values
 ![Make House prediction - based on user provided values](screenshots/6.64.png)
 
+### LLM Fine-Tuning - Multilingual Classification
+![LLM Fine-Tuning - Multilingual Classification](screenshots/6.65.png)
 
+### LLM Fine-Tuning - Generate Data + Train
+![LLM Fine-Tuning - Generate Data + Train](screenshots/6.66.png)
+
+### LLM Fine-Tuning - Train + Sample / Predictions
+![LLM Fine-Tuning - Train + Sample / Predictions](screenshots/6.67.png)
 
 ### AWS EKS Screen
 ![AWS EKS](screenshots/7.png)
