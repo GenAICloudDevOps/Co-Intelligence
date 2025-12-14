@@ -1,8 +1,11 @@
-# Co-Intelligence V3.0 Beta
+# Co-Intelligence V4.0 Beta
 
 **Where Human Meets AI Intelligence**
 
 Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that scale effortlessly.
+
+## What's New in V4.0 Beta
+- **LLMs Fine-Tuning (Tinker API)**: Run fine-tuning workflows with live logs (generate data → train → sample/predictions)
 
 ## What's New in V3.0
 - **ML Predictor**: Multi-algorithm ML with automatic model selection, dataset management, streaming pipeline
@@ -110,7 +113,7 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 ## Screenshots
 
 ### Homepage
-![Homepage](screenshots/1.png)
+![Homepage](screenshots/1.jpg)
 
 ### Co-Intelligence - AI Applications
 ![Co-Intelligence - AI Applications](screenshots/1.1.png)
@@ -120,6 +123,9 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 
 ### Evaluation Dashboard
 ![Evaluation Dashboard](screenshots/2.1.png)
+
+### Architecture - Details
+![Architecture - Details](screenshots/2.2.png)
 
 ### Platform Metrics
 ![Platform Metrics](screenshots/3.png)

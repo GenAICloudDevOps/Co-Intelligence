@@ -104,7 +104,7 @@ export default function Home() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ width: '40px', height: '40px', background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>✨</div>
           <div>
-            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#a78bfa' }}>Co-Intelligence V3.0 Beta</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#a78bfa' }}>Co-Intelligence V4.0 Beta</div>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>AI-Powered Applications</div>
           </div>
         </div>
@@ -396,7 +396,7 @@ export default function Home() {
       <footer style={{ background: '#0f172a', borderTop: '1px solid #1e293b', padding: '40px 0', textAlign: 'center' }}>
         <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 40px' }}>
           <div style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '12px', color: '#a78bfa' }}>
-            Co-Intelligence V3.0 Beta
+            Co-Intelligence V4.0 Beta
           </div>
           <div style={{ fontSize: '0.95rem', color: '#64748b', marginBottom: '8px' }}>
             Built with ❤️ on AWS, GCP, Azure
