@@ -88,6 +88,13 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 - 🧮 **Metrics & Visuals** - Key metrics, progress bars, and single-prediction utility
 - 🌐 **Model Selector** - Switch AI models for pipeline guidance
 
+### 7. LLMs Fine-Tuning
+- 🧪 **Mini-Apps** - Multilingual classification, instruction tuning (SFT), and RL (importance sampling)
+- ✅ **Dataset Validation** - Schema checks for SFT messages[] and RL prompt/required_keys inputs
+- 🧠 **LoRA Training** - Fine-tune small Llama checkpoints with reproducible runs
+- 💬 **Sampling UI** - Ask questions and sample from the latest fine-tuned checkpoint
+- 📊 **Job Runs** - Track status, logs, and outputs per step (generate/train/sample)
+
 ## Platform Features
 
 - 🔐 **Secure Authentication** - Cookie-based (httpOnly access/refresh), rotation, and RBAC

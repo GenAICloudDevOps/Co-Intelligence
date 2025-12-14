@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import AppCard from './components/AppCard'
 import Modal from './components/Modal'
+import ArchitectureDiagram from './components/ArchitectureDiagram'
 import { apps } from './config/apps'
 import { useAuth } from './hooks/useAuth'
 import { api } from './services/api'
@@ -350,6 +351,20 @@ export default function Home() {
             </div>
           </section>
         )}
+
+        {/* Architecture Diagram Section */}
+        <section style={{ marginBottom: '60px' }}>
+          <div style={{ background: '#0f172a', borderRadius: '16px', padding: '40px', border: '1px solid #334155' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap', marginBottom: '16px' }}>
+              <div>
+                <h2 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '8px' }}>Architecture</h2>
+                <p style={{ color: '#94a3b8' }}>A quick, high-level view of how the UI, APIs, evals, and infrastructure fit together.</p>
+              </div>
+              <div style={{ color: '#64748b', fontSize: '0.9rem' }}>Multi-cloud • Modular • Auth-gated evals</div>
+            </div>
+            <ArchitectureDiagram />
+          </div>
+        </section>
 
         {/* Platform Metrics Section */}
         <section style={{ marginBottom: '60px' }}>
