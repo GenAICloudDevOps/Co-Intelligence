@@ -1,5 +1,6 @@
 .env
 .env.local
+.env.*.local
 *.pyc
 __pycache__/
 node_modules/
@@ -14,3 +15,5 @@ terraform.tfstate.backup
 terraform.tfvars
 .env.bak
 *.tsbuildinfo
+cookies.txt
+cookies*.txt

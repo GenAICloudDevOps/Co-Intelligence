@@ -5,6 +5,7 @@ class ConfirmationAgent:
     async def process(self, message: str, state: Dict) -> str:
         cart = state.get("cart", {})
         session_id = state.get("session_id", "default")
+        user_id = state.get("user_id")
         
         if not cart:
             return "❌ Your cart is empty! Add items first before confirming."
@@ -29,10 +30,12 @@ class ConfirmationAgent:
         # Save order
         order = await Order.create(
             session_id=session_id,
+            user_id=user_id,
             items=order_items,
             total=total,
             status="confirmed"
         )
+        state["last_order_id"] = order.id
         
         # Clear cart
         state["cart"] = {}

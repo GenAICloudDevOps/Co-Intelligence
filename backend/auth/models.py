@@ -6,7 +6,8 @@ class User(BaseModel):
     username = fields.CharField(max_length=100, unique=True)
     hashed_password = fields.CharField(max_length=255)
     is_active = fields.BooleanField(default=True)
-    global_role = fields.CharField(max_length=50, default="user")  # Platform-wide role: user, admin
+    global_role = fields.CharField(max_length=50, default="user")  # Platform-wide role: user, agent, adjuster, manager, admin
+    email_notifications_enabled = fields.BooleanField(default=False)
     
     class Meta:
         table = "users"

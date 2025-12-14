@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     COOKIE_SAMESITE: str = "lax"
     COOKIE_DOMAIN: str | None = None
     COOKIE_PATH: str = "/"
+
+    # Email (Gmail SMTP)
+    GMAIL_SMTP_USER: str = ""
+    GMAIL_SMTP_APP_PASSWORD: str = ""
+    GMAIL_SMTP_FROM_NAME: str = "Co-Intelligence"
     
     class Config:
         env_file = ".env"

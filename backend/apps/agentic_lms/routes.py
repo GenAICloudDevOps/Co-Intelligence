@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from typing import List, Optional
 from auth.utils import get_current_user
 from auth.models import User
 from .models import LMSCourse, LMSEnrollment, LMSChatHistory, CourseResponse, EnrollmentResponse, ChatRequest, ChatResponse
 from services.ai_service import ai_service
+from services.email_notifications import email_notifications
 import json
 
 router = APIRouter()
@@ -64,7 +65,7 @@ async def get_enrollments(current_user: User = Depends(get_current_user)):
 
 
 @router.post("/enrollments/{course_id}")
-async def enroll_course(course_id: int, current_user: User = Depends(get_current_user)):
+async def enroll_course(course_id: int, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user)):
     course = await LMSCourse.get_or_none(id=course_id)
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
@@ -74,6 +75,13 @@ async def enroll_course(course_id: int, current_user: User = Depends(get_current
         raise HTTPException(status_code=400, detail="Already enrolled")
     
     enrollment = await LMSEnrollment.create(user_id=current_user.id, course=course)
+    if current_user.email_notifications_enabled:
+        background_tasks.add_task(
+            email_notifications.send_text_email_safe,
+            current_user.email,
+            "Course enrollment confirmed",
+            f"Hi {current_user.username},\n\nYou're enrolled in: {course.title}\nCategory: {course.category}\nDifficulty: {course.difficulty}\n\nThanks,\nCo-Intelligence",
+        )
     return {
         "id": enrollment.id,
         "user_id": enrollment.user_id,
@@ -87,7 +95,7 @@ async def enroll_course(course_id: int, current_user: User = Depends(get_current
 
 # Chat - simplified version using existing AI service
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest, current_user: User = Depends(get_current_user)):
+async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user)):
     try:
         # Get all courses for context
         courses = await LMSCourse.all()
@@ -108,6 +116,13 @@ async def chat(request: ChatRequest, current_user: User = Depends(get_current_us
                 if course.title.lower() in message_lower and course.id not in enrolled_ids:
                     # Enroll the user
                     await LMSEnrollment.create(user_id=current_user.id, course=course)
+                    if current_user.email_notifications_enabled:
+                        background_tasks.add_task(
+                            email_notifications.send_text_email_safe,
+                            current_user.email,
+                            "Course enrollment confirmed",
+                            f"Hi {current_user.username},\n\nYou're enrolled in: {course.title}\nCategory: {course.category}\nDifficulty: {course.difficulty}\n\nThanks,\nCo-Intelligence",
+                        )
                     enrolled_course = course.title
                     break
         

@@ -86,6 +86,9 @@ class TokenResponse(BaseModel):
     refresh_token: str
     token_type: str
 
+class PreferencesUpdate(BaseModel):
+    email_notifications_enabled: bool
+
 @router.post("/register", response_model=TokenResponse)
 async def register(user_data: UserCreate):
     try:
@@ -191,5 +194,13 @@ async def get_me(current_user: User = Depends(get_current_user)):
     return {
         "id": current_user.id,
         "email": current_user.email,
-        "username": current_user.username
+        "username": current_user.username,
+        "global_role": current_user.global_role,
+        "email_notifications_enabled": current_user.email_notifications_enabled,
     }
+
+@router.put("/me/preferences")
+async def update_preferences(payload: PreferencesUpdate, current_user: User = Depends(get_current_user)):
+    current_user.email_notifications_enabled = payload.email_notifications_enabled
+    await current_user.save(update_fields=["email_notifications_enabled"])
+    return {"email_notifications_enabled": current_user.email_notifications_enabled}

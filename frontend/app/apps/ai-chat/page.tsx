@@ -10,6 +10,7 @@ import { DEFAULT_MODEL } from '../../config/models'
 import { api } from '../../services/api'
 import type { Message, Session, Document } from '../../types'
 import { useAuth } from '../../hooks/useAuth'
+import { useSpeechToText } from '../../hooks/useSpeechToText'
 
 interface ChatMessage extends Message {
   timestamp: Date
@@ -24,7 +25,6 @@ export default function AIChat() {
   const [sessions, setSessions] = useState<Session[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [isListening, setIsListening] = useState(false)
   const [showSidebar, setShowSidebar] = useState(true)
   const [showDownload, setShowDownload] = useState(false)
   const [streamingMessage, setStreamingMessage] = useState('')
@@ -34,8 +34,10 @@ export default function AIChat() {
   const [webSearchEnabled, setWebSearchEnabled] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const recognitionRef = useRef<any>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { isSupported: voiceSupported, isListening, toggle: toggleSpeechToText } = useSpeechToText({
+    onTranscript: (text) => setInput(text),
+  })
 
   useEffect(() => {
     if (user) {
@@ -46,21 +48,6 @@ export default function AIChat() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
-
-  useEffect(() => {
-    if ('webkitSpeechRecognition' in window) {
-      recognitionRef.current = new (window as any).webkitSpeechRecognition()
-      recognitionRef.current.continuous = false
-      recognitionRef.current.interimResults = false
-      recognitionRef.current.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript
-        setInput(transcript)
-        setIsListening(false)
-      }
-      recognitionRef.current.onerror = () => setIsListening(false)
-      recognitionRef.current.onend = () => setIsListening(false)
-    }
-  }, [])
 
   const loadSessions = async () => {
     try {
@@ -276,12 +263,8 @@ export default function AIChat() {
   }
 
   const toggleVoiceInput = () => {
-    if (isListening) {
-      recognitionRef.current?.stop()
-    } else {
-      recognitionRef.current?.start()
-      setIsListening(true)
-    }
+    if (!voiceSupported) return
+    toggleSpeechToText()
   }
 
   const speakText = (text: string) => {
@@ -865,24 +848,27 @@ export default function AIChat() {
           border: '1px solid rgba(255, 255, 255, 0.1)',
           boxShadow: '0 4px 24px rgba(0, 0, 0, 0.2)'
         }}>
-          <button 
-            onClick={toggleVoiceInput}
-            style={{ 
-              padding: '14px 16px', 
-              background: isListening 
-                ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' 
-                : 'rgba(15, 23, 42, 0.6)', 
-              border: '1px solid rgba(255, 255, 255, 0.1)', 
-              borderRadius: '12px', 
-              color: 'white', 
-              cursor: 'pointer',
-              fontSize: '18px',
-              transition: 'all 0.2s',
-              boxShadow: isListening ? '0 0 20px rgba(239, 68, 68, 0.5)' : 'none'
-            }}
-          >
-            {isListening ? '🔴' : '🎤'}
-          </button>
+	          <button 
+	            onClick={toggleVoiceInput}
+	            disabled={!voiceSupported}
+	            style={{ 
+	              padding: '14px 16px', 
+	              background: isListening 
+	                ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' 
+	                : 'rgba(15, 23, 42, 0.6)', 
+	              border: '1px solid rgba(255, 255, 255, 0.1)', 
+	              borderRadius: '12px', 
+	              color: 'white', 
+	              cursor: voiceSupported ? 'pointer' : 'not-allowed',
+	              fontSize: '18px',
+	              transition: 'all 0.2s',
+	              boxShadow: isListening ? '0 0 20px rgba(239, 68, 68, 0.5)' : 'none',
+	              opacity: voiceSupported ? 1 : 0.5
+	            }}
+	            title={voiceSupported ? (isListening ? 'Stop voice input' : 'Start voice input') : 'Voice input not supported in this browser'}
+	          >
+	            {isListening ? '🔴' : '🎤'}
+	          </button>
           <button 
             onClick={() => sessionId && fileInputRef.current?.click()}
             disabled={!sessionId || isUploading}

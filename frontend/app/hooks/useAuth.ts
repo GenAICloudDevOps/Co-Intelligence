@@ -6,6 +6,8 @@ type AuthState = {
   id: number
   username: string
   email: string
+  global_role?: string
+  email_notifications_enabled?: boolean
 }
 
 export function useAuth(requireAuth = false) {
@@ -22,7 +24,13 @@ export function useAuth(requireAuth = false) {
       const res = await fetch(`${API_URL}/api/auth/me`, { credentials: 'include' })
       if (!res.ok) throw new Error('Not authenticated')
       const data = await res.json()
-      setAuth({ id: data.id, username: data.username, email: data.email })
+      setAuth({
+        id: data.id,
+        username: data.username,
+        email: data.email,
+        global_role: data.global_role,
+        email_notifications_enabled: !!data.email_notifications_enabled,
+      })
       return data
     } catch (err) {
       setAuth(null)
@@ -96,6 +104,7 @@ export function useAuth(requireAuth = false) {
     login: doLogin,
     register: doRegister,
     logout,
+    refresh: fetchCurrentUser,
     isAuthenticated: !!auth,
   }
 }

@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Send, MessageCircle, Brain, Zap, X } from 'lucide-react';
+import { Send, MessageCircle, Brain, Zap, X, Mic } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import AppHeader from '../../components/AppHeader';
 import { DEFAULT_MODEL } from '../../config/models';
 import { api } from '../../services/api';
+import { useSpeechToText } from '../../hooks/useSpeechToText';
 
 interface Message {
   id: string;
@@ -26,6 +27,9 @@ export default function AgenticBarista() {
   const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { isSupported: voiceSupported, isListening, toggle: toggleSpeechToText } = useSpeechToText({
+    onTranscript: (text) => setInputText(text),
+  });
 
   useEffect(() => {
     const id = Math.random().toString(36).substring(7);
@@ -279,26 +283,42 @@ export default function AgenticBarista() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input */}
-          <div style={{ background: 'white', borderTop: '1px solid #e7e5e4', padding: '12px' }}>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                type="text"
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Type your message..."
-                style={{ flex: 1, padding: '10px 12px', border: '1px solid #d6d3d1', borderRadius: '8px', fontSize: '13px', outline: 'none' }}
-                disabled={isLoading}
-              />
-              <button
-                onClick={sendMessage}
-                disabled={isLoading || !inputText.trim()}
-                style={{ padding: '10px 16px', background: isLoading || !inputText.trim() ? '#d6d3d1' : '#d97706', color: 'white', borderRadius: '8px', border: 'none', cursor: isLoading || !inputText.trim() ? 'not-allowed' : 'pointer' }}
-              >
-                <Send style={{ width: '18px', height: '18px' }} />
-              </button>
-            </div>
+	          {/* Input */}
+	          <div style={{ background: 'white', borderTop: '1px solid #e7e5e4', padding: '12px' }}>
+	            <div style={{ display: 'flex', gap: '8px' }}>
+	              <input
+	                type="text"
+	                value={inputText}
+	                onChange={(e) => setInputText(e.target.value)}
+	                onKeyPress={handleKeyPress}
+	                placeholder="Type your message..."
+	                style={{ flex: 1, padding: '10px 12px', border: '1px solid #d6d3d1', borderRadius: '8px', fontSize: '13px', outline: 'none' }}
+	                disabled={isLoading}
+	              />
+	              <button
+	                onClick={toggleSpeechToText}
+	                disabled={!voiceSupported || isLoading}
+	                title={!voiceSupported ? 'Voice input not supported in this browser' : isListening ? 'Stop voice input' : 'Start voice input'}
+	                style={{
+	                  padding: '10px 12px',
+	                  background: isListening ? '#ef4444' : '#f1f5f9',
+	                  color: isListening ? 'white' : '#0f172a',
+	                  borderRadius: '8px',
+	                  border: '1px solid #d6d3d1',
+	                  cursor: !voiceSupported || isLoading ? 'not-allowed' : 'pointer',
+	                  opacity: !voiceSupported ? 0.5 : 1
+	                }}
+	              >
+	                <Mic style={{ width: '18px', height: '18px' }} />
+	              </button>
+	              <button
+	                onClick={sendMessage}
+	                disabled={isLoading || !inputText.trim()}
+	                style={{ padding: '10px 16px', background: isLoading || !inputText.trim() ? '#d6d3d1' : '#d97706', color: 'white', borderRadius: '8px', border: 'none', cursor: isLoading || !inputText.trim() ? 'not-allowed' : 'pointer' }}
+	              >
+	                <Send style={{ width: '18px', height: '18px' }} />
+	              </button>
+	            </div>
             
             {totalAmount > 0 && (
               <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #e7e5e4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

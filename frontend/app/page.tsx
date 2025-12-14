@@ -26,15 +26,31 @@ type EvalSummary = {
 }
 
 export default function Home() {
-  const { user, loading, message, setMessage, login, register, logout, isAuthenticated } = useAuth()
+  const { user, loading, message, setMessage, login, register, logout, isAuthenticated, refresh } = useAuth()
   const [showAuth, setShowAuth] = useState(false)
   const [isLogin, setIsLogin] = useState(true)
   const [formData, setFormData] = useState({ email: '', username: '', password: '' })
   const [currentTime, setCurrentTime] = useState('')
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [updatingEmailPrefs, setUpdatingEmailPrefs] = useState(false)
   const [evalSummary, setEvalSummary] = useState<EvalSummary | null>(null)
   const [evalError, setEvalError] = useState<string | null>(null)
   const [evalScope, setEvalScope] = useState<'all' | 'me'>('all')
+
+  const handleToggleEmailNotifications = async () => {
+    if (!user) return
+    setUpdatingEmailPrefs(true)
+    try {
+      await api.put('/api/auth/me/preferences', {
+        email_notifications_enabled: !user.email_notifications_enabled,
+      })
+      await refresh()
+    } catch (e: any) {
+      setMessage(e?.message || 'Failed to update email notifications')
+    } finally {
+      setUpdatingEmailPrefs(false)
+    }
+  }
 
   useEffect(() => {
     const updateTime = () => {
@@ -129,13 +145,35 @@ export default function Home() {
                       <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Username</div>
                       {user?.username || '—'}
                     </div>
-                    <div style={{ fontSize: '0.85rem', color: '#94a3b8', paddingTop: '8px', borderTop: '1px solid #334155' }}>
-                      <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Email</div>
-                      {user?.email || '—'}
-                    </div>
-                  </div>
-                )}
-              </div>
+	                    <div style={{ fontSize: '0.85rem', color: '#94a3b8', paddingTop: '8px', borderTop: '1px solid #334155' }}>
+	                      <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Email</div>
+	                      {user?.email || '—'}
+	                    </div>
+                      <div style={{ fontSize: '0.85rem', color: '#94a3b8', paddingTop: '8px', borderTop: '1px solid #334155' }}>
+                        <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Role</div>
+                        {(() => {
+                          const role = (user?.global_role || 'user').toLowerCase()
+                          return role === 'user' ? 'User' : role.charAt(0).toUpperCase() + role.slice(1)
+                        })()}
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: '#94a3b8', paddingTop: '8px', borderTop: '1px solid #334155', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                        <div>
+                          <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Email Notifications</div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Default: Off</div>
+                        </div>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: updatingEmailPrefs ? 'not-allowed' : 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={!!user?.email_notifications_enabled}
+                            onChange={handleToggleEmailNotifications}
+                            disabled={updatingEmailPrefs}
+                          />
+                          <span style={{ color: 'white' }}>{user?.email_notifications_enabled ? 'On' : 'Off'}</span>
+                        </label>
+                      </div>
+	                  </div>
+	                )}
+	              </div>
               <button onClick={handleLogout} style={{ padding: '10px 24px', background: '#ef4444', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>🚪 Logout</button>
             </>
           ) : (

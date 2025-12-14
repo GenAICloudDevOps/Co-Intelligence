@@ -135,7 +135,14 @@ If they're asking about coffee in general, share interesting facts. If it's a gr
         state["messages"].append(AIMessage(content=response))
         return state
     
-    async def process_message(self, message: str, session_id: str, cart: dict, model_name: str = "gemini-2.5-flash-lite") -> dict:
+    async def process_message(
+        self,
+        message: str,
+        session_id: str,
+        cart: dict,
+        model_name: str = "gemini-2.5-flash-lite",
+        user_id: int | None = None,
+    ) -> dict:
         # Update model if different
         if model_name != self.model_name:
             self.model_name = model_name
@@ -143,9 +150,11 @@ If they're asking about coffee in general, share interesting facts. If it's a gr
         initial_state = CafeState(
             messages=[HumanMessage(content=message)],
             session_id=session_id,
+            user_id=user_id,
             cart=cart,
             current_agent="",
-            total_amount=0.0
+            total_amount=0.0,
+            last_order_id=None,
         )
         
         result = await self.graph.ainvoke(initial_state)
@@ -158,5 +167,6 @@ If they're asking about coffee in general, share interesting facts. If it's a gr
             "cart": result.get("cart", {}),
             "total_amount": result.get("total_amount", 0.0),
             "agent": result.get("current_agent", "unknown"),
-            "reasoning": reasoning
+            "reasoning": reasoning,
+            "order_id": result.get("last_order_id"),
         }

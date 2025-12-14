@@ -1,10 +1,13 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional, Dict
 import os
 from apps.agentic_barista.agents.coordinator import BaristaCoordinator
 from apps.agentic_barista.models import MenuItem, Order
+from auth.models import User
+from auth.utils import get_current_user
 from services.state_store import state_store
+from services.email_notifications import email_notifications
 
 router = APIRouter()
 
@@ -41,7 +44,7 @@ def _get_cart_ttl_seconds() -> int:
         return 86400
 
 @router.post("/chat")
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user)):
     try:
         coordinator = BaristaCoordinator(model_name=request.model)
 
@@ -64,7 +67,8 @@ async def chat(request: ChatRequest):
             request.message,
             request.session_id,
             cart,
-            request.model
+            request.model,
+            user_id=current_user.id,
         )
 
         # Persist cart
@@ -76,12 +80,37 @@ async def chat(request: ChatRequest):
             else:
                 await state_store.delete(cart_key)
         
+        order_id = result.get("order_id")
+        if order_id and current_user.email_notifications_enabled:
+            order = await Order.get_or_none(id=order_id)
+            if order:
+                items_summary = ""
+                for item in (order.items or []):
+                    qty = item.get("quantity")
+                    name = item.get("name")
+                    line_total = item.get("total")
+                    if qty and name:
+                        items_summary += f"- {qty}x {name}"
+                        if line_total is not None:
+                            try:
+                                items_summary += f" (${float(line_total):.2f})"
+                            except Exception:
+                                pass
+                        items_summary += "\n"
+                background_tasks.add_task(
+                    email_notifications.send_text_email_safe,
+                    current_user.email,
+                    "Barista order confirmed",
+                    f"Hi {current_user.username},\n\nYour coffee order is confirmed (Order #{order.id}).\n\nItems:\n{items_summary}\nTotal: ${float(order.total):.2f}\n\nThanks,\nCo-Intelligence",
+                )
+
         return {
             "response": result["response"],
             "cart": result["cart"],
             "total_amount": result["total_amount"],
             "agent": result["agent"],
             "reasoning": result.get("reasoning", ""),
+            "order_id": order_id,
             "session_id": request.session_id
         }
     except Exception as e:

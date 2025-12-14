@@ -8,15 +8,35 @@ echo "=========================================="
 command -v aws >/dev/null 2>&1 || { echo "AWS CLI required"; exit 1; }
 command -v kubectl >/dev/null 2>&1 || { echo "kubectl required"; exit 1; }
 command -v docker >/dev/null 2>&1 || { echo "docker required"; exit 1; }
+command -v jq >/dev/null 2>&1 || { echo "jq required"; exit 1; }
 
 STACK_NAME=${STACK_NAME:-co-intelligence}
 EKS_CLUSTER_NAME=${EKS_CLUSTER_NAME:-co-intelligence-cluster}
 IMAGE_TAG=${IMAGE_TAG:-$(date +%Y%m%d%H%M%S)}
 
-# Load API keys from .env
-if [ -f ".env" ]; then
+# Load configuration from .env (optional). Do NOT `source` the file because values
+# may contain shell-sensitive characters (e.g., secrets with backticks).
+load_from_dotenv() {
+    local dotenv_file=".env"
+    [ -f "$dotenv_file" ] || return 0
     echo "Loading from .env..."
-    export $(grep -E '^(GEMINI_API_KEY|GROQ_API_KEY|TAVILY_API_KEY|TINKER_API_KEY|AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|AWS_REGION|DB_USERNAME|TINKER_BASE_PATH)=' .env | xargs)
+    local key val
+    for key in "$@"; do
+        val="$(grep -E "^${key}=" "$dotenv_file" 2>/dev/null | tail -n 1 | cut -d= -f2- || true)"
+        if [ -n "${val+x}" ]; then
+            export "${key}=${val}"
+        fi
+    done
+}
+
+load_from_dotenv \
+  GEMINI_API_KEY GROQ_API_KEY TAVILY_API_KEY TINKER_API_KEY \
+  AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION \
+  DB_USERNAME TINKER_BASE_PATH CORS_ALLOW_ORIGINS AUTO_GENERATE_SCHEMAS \
+  GMAIL_SMTP_USER GMAIL_SMTP_APP_PASSWORD GMAIL_SMTP_FROM_NAME
+
+if [ -z "${GMAIL_SMTP_USER:-}" ] || [ -z "${GMAIL_SMTP_APP_PASSWORD:-}" ]; then
+  echo "⚠ Gmail SMTP env vars not set (GMAIL_SMTP_USER / GMAIL_SMTP_APP_PASSWORD). Email notifications will NOT send."
 fi
 
 AWS_REGION=${AWS_REGION:-us-east-1}
@@ -65,6 +85,11 @@ GROQ_API_KEY=${GROQ_API_KEY:-}
 TAVILY_API_KEY=${TAVILY_API_KEY:-}
 TINKER_API_KEY=${TINKER_API_KEY:-}
 
+# Email notifications (Gmail SMTP)
+GMAIL_SMTP_USER=${GMAIL_SMTP_USER:-}
+GMAIL_SMTP_APP_PASSWORD=${GMAIL_SMTP_APP_PASSWORD:-}
+GMAIL_SMTP_FROM_NAME=${GMAIL_SMTP_FROM_NAME:-Co-Intelligence}
+
 # AWS Credentials
 AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
 AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
@@ -89,6 +114,31 @@ echo "✓ .env updated"
 echo "Configuring kubectl for EKS..."
 aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_REGION
 echo "✓ kubectl configured"
+
+# Create secrets (before deploying workloads that envFrom these)
+echo "Creating Kubernetes secrets..."
+kubectl create secret generic app-secrets \
+    --dry-run=client -o yaml \
+    --from-literal=DATABASE_URL="postgres://$DB_USERNAME:$DB_PASSWORD@$RDS_ENDPOINT:5432/postgres?sslmode=require" \
+    --from-literal=SECRET_KEY="$SECRET_KEY" \
+    --from-literal=S3_BUCKET_NAME="$S3_BUCKET_NAME" \
+    --from-literal=CODE_EXECUTOR_URL="$LAMBDA_ARN" \
+    --from-literal=REDIS_URL="rediss://$REDIS_ENDPOINT:6379/0" \
+    --from-literal=GEMINI_API_KEY="${GEMINI_API_KEY:-}" \
+    --from-literal=GROQ_API_KEY="${GROQ_API_KEY:-}" \
+    --from-literal=TAVILY_API_KEY="${TAVILY_API_KEY:-}" \
+    --from-literal=TINKER_API_KEY="${TINKER_API_KEY:-}" \
+    --from-literal=GMAIL_SMTP_USER="${GMAIL_SMTP_USER:-}" \
+    --from-literal=GMAIL_SMTP_APP_PASSWORD="${GMAIL_SMTP_APP_PASSWORD:-}" \
+    --from-literal=GMAIL_SMTP_FROM_NAME="${GMAIL_SMTP_FROM_NAME:-Co-Intelligence}" \
+    --from-literal=AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-}" \
+    --from-literal=AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-}" \
+    --from-literal=AWS_REGION="$AWS_REGION" \
+    --from-literal=CORS_ALLOW_ORIGINS="${CORS_ALLOW_ORIGINS:-}" \
+    --from-literal=AUTO_GENERATE_SCHEMAS="${AUTO_GENERATE_SCHEMAS:-true}" \
+    --from-literal=TINKER_BASE_PATH="${TINKER_BASE_PATH:-/app}" \
+    | kubectl apply -f -
+echo "✓ Secrets created"
 
 # Apply IRSA service account and observability DaemonSet
 echo "Applying IRSA service account and X-Ray daemonset..."
@@ -136,27 +186,6 @@ docker build --build-arg NEXT_PUBLIC_API_URL="" -t $ECR_FRONTEND:$IMAGE_TAG ./fr
 docker push $ECR_FRONTEND:$IMAGE_TAG
 echo "✓ Images pushed with tag $IMAGE_TAG"
 
-# Create secrets
-echo "Creating Kubernetes secrets..."
-kubectl delete secret app-secrets 2>/dev/null || true
-kubectl create secret generic app-secrets \
-    --from-literal=DATABASE_URL="postgres://$DB_USERNAME:$DB_PASSWORD@$RDS_ENDPOINT:5432/postgres?sslmode=require" \
-    --from-literal=SECRET_KEY="$SECRET_KEY" \
-    --from-literal=S3_BUCKET_NAME="$S3_BUCKET_NAME" \
-    --from-literal=CODE_EXECUTOR_URL="$LAMBDA_ARN" \
-    --from-literal=REDIS_URL="rediss://$REDIS_ENDPOINT:6379/0" \
-    --from-literal=GEMINI_API_KEY="${GEMINI_API_KEY:-}" \
-    --from-literal=GROQ_API_KEY="${GROQ_API_KEY:-}" \
-    --from-literal=TAVILY_API_KEY="${TAVILY_API_KEY:-}" \
-    --from-literal=TINKER_API_KEY="${TINKER_API_KEY:-}" \
-    --from-literal=AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-}" \
-    --from-literal=AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-}" \
-    --from-literal=AWS_REGION="$AWS_REGION" \
-    --from-literal=CORS_ALLOW_ORIGINS="${CORS_ALLOW_ORIGINS:-}" \
-    --from-literal=AUTO_GENERATE_SCHEMAS="${AUTO_GENERATE_SCHEMAS:-true}" \
-    --from-literal=TINKER_BASE_PATH="${TINKER_BASE_PATH:-/app}"
-echo "✓ Secrets created"
-
 # Update K8s manifests with image URIs
 echo "Creating image pull secret..."
 kubectl delete secret ecr-pull 2>/dev/null || true
@@ -198,6 +227,9 @@ if [ -n "$FRONTEND_URL" ]; then
             --from-literal=GROQ_API_KEY="${GROQ_API_KEY:-}" \
             --from-literal=TAVILY_API_KEY="${TAVILY_API_KEY:-}" \
             --from-literal=TINKER_API_KEY="${TINKER_API_KEY:-}" \
+            --from-literal=GMAIL_SMTP_USER="${GMAIL_SMTP_USER:-}" \
+            --from-literal=GMAIL_SMTP_APP_PASSWORD="${GMAIL_SMTP_APP_PASSWORD:-}" \
+            --from-literal=GMAIL_SMTP_FROM_NAME="${GMAIL_SMTP_FROM_NAME:-Co-Intelligence}" \
             --from-literal=AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-}" \
             --from-literal=AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-}" \
             --from-literal=AWS_REGION="$AWS_REGION" \

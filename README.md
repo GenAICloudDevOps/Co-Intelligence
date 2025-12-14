@@ -6,6 +6,8 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 
 ## What's New in V4.0 Beta
 - **LLMs Fine-Tuning (Tinker API)**: Run fine-tuning workflows with live logs (generate data → train → sample/predictions)
+- **Email Notifications (Gmail SMTP)**: Central opt-in email service (default Off) for key events (Barista order confirmed, LMS course enrolled, Insurance policy created/claim filed)
+- **Voice Input (Speech-to-Text)**: Mic input option for AI Chat, Agentic Barista, Insurance Claims, and Agentic LMS
 
 ## What's New in V3.0
 - **ML Predictor**: Multi-algorithm ML with automatic model selection, dataset management, streaming pipeline
@@ -101,6 +103,8 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 ## Platform Features
 
 - 🔐 **Secure Authentication** - Cookie-based (httpOnly access/refresh), rotation, and RBAC
+- ✉️ **Email Notifications (Opt-in)** - Toggle in landing page user menu; uses Gmail app password (`GMAIL_SMTP_USER`, `GMAIL_SMTP_APP_PASSWORD`)
+- 🎙️ **Voice Input (STT)** - Optional mic input in supported apps (browser speech-to-text)
 - 👤 **User Profile Header** - Reusable AppHeader component with logout functionality
 - 📊 **Evaluation Dashboard** - Auth-gated eval summary with metrics, issues, safety and model usage
 - ☁️ **Cloud Native** - Deployed on AWS EKS with auto-scaling

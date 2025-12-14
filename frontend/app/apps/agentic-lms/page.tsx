@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import AppHeader from '../../components/AppHeader'
 import { ModelSelector, DEFAULT_MODEL } from '../../config/models'
 import { api } from '../../services/api'
+import { useSpeechToText } from '../../hooks/useSpeechToText'
 
 interface Course {
   id: number
@@ -41,6 +42,9 @@ export default function AgenticLMS() {
   const [completedSubtopics, setCompletedSubtopics] = useState<{[enrollmentId: number]: number[]}>({})
   const [expandedEnrollment, setExpandedEnrollment] = useState<number | null>(null)
   const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL)
+  const { isSupported: voiceSupported, isListening, toggle: toggleSpeechToText } = useSpeechToText({
+    onTranscript: (text) => setChatMessage(text),
+  })
 
   useEffect(() => {
     fetchCourses()
@@ -279,11 +283,19 @@ export default function AgenticLMS() {
             ))}
             {loading && <div style={{ padding: '12px', background: '#334155', borderRadius: '8px', color: '#94a3b8' }}>Thinking...</div>}
           </div>
-          <div style={{ padding: '12px', borderTop: '1px solid #334155', display: 'flex', gap: '8px' }}>
-            <input value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleChat()}
-              placeholder="Ask about courses..." style={{ flex: 1, padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: 'white', outline: 'none' }} />
-            <button onClick={handleChat} disabled={loading} style={{ padding: '10px 16px', background: '#6366f1', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer' }}>Send</button>
-          </div>
+	          <div style={{ padding: '12px', borderTop: '1px solid #334155', display: 'flex', gap: '8px' }}>
+	            <input value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleChat()}
+	              placeholder="Ask about courses..." style={{ flex: 1, padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: 'white', outline: 'none' }} />
+	            <button
+	              onClick={toggleSpeechToText}
+	              disabled={!voiceSupported || loading}
+	              title={!voiceSupported ? 'Voice input not supported in this browser' : isListening ? 'Stop voice input' : 'Start voice input'}
+	              style={{ padding: '10px 12px', background: isListening ? '#ef4444' : '#334155', border: 'none', borderRadius: '8px', color: 'white', cursor: !voiceSupported || loading ? 'not-allowed' : 'pointer', opacity: !voiceSupported ? 0.5 : 1 }}
+	            >
+	              🎤
+	            </button>
+	            <button onClick={handleChat} disabled={loading} style={{ padding: '10px 16px', background: '#6366f1', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer' }}>Send</button>
+	          </div>
         </div>
       )}
     </div>

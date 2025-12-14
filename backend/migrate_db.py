@@ -37,6 +37,15 @@ async def migrate():
         print("✓ Added role to users")
     except Exception as e:
         print(f"⚠ users role: {e}")
+
+    # Add email notifications preference to users if not exists
+    try:
+        await conn.execute_query(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_notifications_enabled BOOLEAN DEFAULT FALSE"
+        )
+        print("✓ Added email_notifications_enabled to users")
+    except Exception as e:
+        print(f"⚠ users email_notifications_enabled: {e}")
     
     await Tortoise.close_connections()
     print("✅ Migration complete")

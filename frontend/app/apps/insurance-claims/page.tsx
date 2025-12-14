@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ModelSelector, DEFAULT_MODEL } from '../../config/models'
 import { api } from '../../services/api'
 import { useAuth } from '../../hooks/useAuth'
+import { useSpeechToText } from '../../hooks/useSpeechToText'
 
 export default function InsuranceClaimsDashboard() {
   const router = useRouter()
@@ -21,6 +22,9 @@ export default function InsuranceClaimsDashboard() {
   const [chatInput, setChatInput] = useState('')
   const [chatLoading, setChatLoading] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
+  const { isSupported: voiceSupported, isListening, toggle: toggleSpeechToText } = useSpeechToText({
+    onTranscript: (text) => setChatInput(text),
+  })
 
   useEffect(() => {
     const savedModel = localStorage.getItem('insurance_ai_model') || 'gemini-2.5-flash-lite'
@@ -261,19 +265,27 @@ export default function InsuranceClaimsDashboard() {
             <div ref={chatEndRef} />
           </div>
           
-          <div style={{ padding: '12px', borderTop: '1px solid #334155', display: 'flex', gap: '8px' }}>
-            <input
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && sendChatMessage()}
-              placeholder="Ask a question..."
-              style={{ flex: 1, padding: '10px 14px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: 'white', outline: 'none' }}
-            />
-            <button onClick={sendChatMessage} disabled={chatLoading}
-              style={{ padding: '10px 16px', background: '#6366f1', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer' }}>
-              Send
-            </button>
-          </div>
+	          <div style={{ padding: '12px', borderTop: '1px solid #334155', display: 'flex', gap: '8px' }}>
+	            <input
+	              value={chatInput}
+	              onChange={(e) => setChatInput(e.target.value)}
+	              onKeyPress={(e) => e.key === 'Enter' && sendChatMessage()}
+	              placeholder="Ask a question..."
+	              style={{ flex: 1, padding: '10px 14px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: 'white', outline: 'none' }}
+	            />
+	            <button
+	              onClick={toggleSpeechToText}
+	              disabled={!voiceSupported || chatLoading}
+	              title={!voiceSupported ? 'Voice input not supported in this browser' : isListening ? 'Stop voice input' : 'Start voice input'}
+	              style={{ padding: '10px 12px', background: isListening ? '#ef4444' : '#334155', border: 'none', borderRadius: '8px', color: 'white', cursor: !voiceSupported || chatLoading ? 'not-allowed' : 'pointer', opacity: !voiceSupported ? 0.5 : 1 }}
+	            >
+	              🎤
+	            </button>
+	            <button onClick={sendChatMessage} disabled={chatLoading}
+	              style={{ padding: '10px 16px', background: '#6366f1', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer' }}>
+	              Send
+	            </button>
+	          </div>
         </div>
       )}
     </div>

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
 from typing import List
 from pydantic import BaseModel
 from auth.models import User
@@ -11,6 +11,7 @@ from .schemas import (
 )
 from .workflow import can_transition_status
 from services.ai_service import AIService
+from services.email_notifications import email_notifications
 import uuid
 import os
 
@@ -37,6 +38,7 @@ async def check_access(current_user: User = Depends(get_current_user)):
 @router.post("/policies", response_model=PolicyResponse)
 async def create_policy(
     policy: PolicyCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(require_app_role("insurance-claims", ["customer", "agent", "admin"]))
 ):
     policy_number = f"POL-{uuid.uuid4().hex[:8].upper()}"
@@ -45,6 +47,13 @@ async def create_policy(
         customer_id=current_user.id,
         **policy.dict()
     )
+    if current_user.email_notifications_enabled:
+        background_tasks.add_task(
+            email_notifications.send_text_email_safe,
+            current_user.email,
+            "Insurance policy created",
+            f"Hi {current_user.username},\n\nYour policy has been created:\nPolicy Number: {policy_number}\nVehicle: {policy.vehicle_year} {policy.vehicle_make} {policy.vehicle_model}\nCoverage: ${policy.coverage_amount:,.0f}\n\nThanks,\nCo-Intelligence",
+        )
     return PolicyResponse(**new_policy.__dict__)
 
 @router.get("/policies", response_model=List[PolicyResponse])
@@ -61,6 +70,7 @@ async def get_policies(current_user: User = Depends(get_current_user)):
 @router.post("/claims", response_model=ClaimResponse)
 async def create_claim(
     claim: ClaimCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(require_app_role("insurance-claims", ["customer", "agent", "admin"]))
 ):
     policy = await Policy.get_or_none(id=claim.policy_id)
@@ -76,6 +86,14 @@ async def create_claim(
         incident_description=claim.incident_description,
         incident_location=claim.incident_location
     )
+    recipient = current_user if policy.customer_id == current_user.id else await User.get_or_none(id=policy.customer_id)
+    if recipient and recipient.email_notifications_enabled:
+        background_tasks.add_task(
+            email_notifications.send_text_email_safe,
+            recipient.email,
+            "Insurance claim filed",
+            f"Hi {recipient.username},\n\nYour claim has been filed:\nClaim Number: {claim_number}\nPolicy ID: {claim.policy_id}\nLocation: {claim.incident_location}\n\nThanks,\nCo-Intelligence",
+        )
     return ClaimResponse(**new_claim.__dict__)
 
 @router.get("/claims", response_model=List[ClaimResponse])
