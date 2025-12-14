@@ -133,55 +133,55 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 ### Multi-Cloud Tech Stack
 ![Multi-Cloud Tech Stack](screenshots/3.1.png)
 
-### AI Chat
+###  App 1: AI Chat
 ![AI Chat](screenshots/4.png)
 
-### Agentic Barista
+###  App 2: Agentic Barista
 ![Agentic Barista](screenshots/5.png)
 
-### Insurance Claims
+###  App 3: Insurance Claims
 ![Insurance Claims](screenshots/6.png)
 
-### Learning Management System
+### App 4: Learning Management System
 ![Learning Management System](screenshots/6.1.png)
 
-### LMS Screen2
+### App 4: LMS Screen2
 ![LMS Screen2](screenshots/6.2.png)
 
-### Agentic Tutor
+### App 5: Agentic Tutor
 ![Agentic Tutor](screenshots/6.3.png)
 
-### Agentic Tutor - Learning
+### App 5: Agentic Tutor - Learning
 ![Agentic Tutor Learning](screenshots/6.4.png)
 
-### Agentic Tutor - User taking quiz - Teach and Assess agents at work
+### App 5: Agentic Tutor - User taking quiz - Teach and Assess agents at work
 ![Agentic Tutor User taking quiz - Teach and Assess agents at work](screenshots/6.5.png)
 
-### Agentic Tutor - Agent Flow
+### App 5: Agentic Tutor - Agent Flow
 ![Agentic Tutor - Agent Flow](screenshots/6.21.png)
 
-### ML Predictor 
+### App 6: ML Predictor 
 ![ML Predictor](screenshots/6.6.png)
 
-### House Price Predicts which model best - Processing Pipeline
+### App 6: House Price Predicts which model best - Processing Pipeline
 ![House Price Predicts which model best - Processing Pipeline](screenshots/6.61.png)
 
-### ML predicted Best Performing Algorithm, Key insights and Problem Analysis
+### App 6: ML predicted Best Performing Algorithm, Key insights and Problem Analysis
 ![ML predicted Best Performing Algorithm, Key insights and Problem Analysis](screenshots/6.62.png)
 
-### ML App- Dataset Info and Algorithm Comparison
+### App 6: ML App- Dataset Info and Algorithm Comparison
 ![ML App- Dataset Info and Algorithm Comparison](screenshots/6.63.png)
 
-### Make House prediction - based on user provided values
+### App 6: Make House prediction - based on user provided values
 ![Make House prediction - based on user provided values](screenshots/6.64.png)
 
-### LLM Fine-Tuning - Multilingual Classification
+### App 7: LLM Fine-Tuning - Multilingual Classification
 ![LLM Fine-Tuning - Multilingual Classification](screenshots/6.65.png)
 
-### LLM Fine-Tuning - Generate Data + Train
+### App 7: LLM Fine-Tuning - Generate Data + Train
 ![LLM Fine-Tuning - Generate Data + Train](screenshots/6.66.png)
 
-### LLM Fine-Tuning - Train + Sample / Predictions
+### App 7: LLM Fine-Tuning - Train + Sample / Predictions
 ![LLM Fine-Tuning - Train + Sample / Predictions](screenshots/6.67.png)
 
 ### AWS EKS Screen
