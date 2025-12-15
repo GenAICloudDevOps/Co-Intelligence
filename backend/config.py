@@ -45,6 +45,16 @@ class Settings(BaseSettings):
     GMAIL_SMTP_USER: str = ""
     GMAIL_SMTP_APP_PASSWORD: str = ""
     GMAIL_SMTP_FROM_NAME: str = "Co-Intelligence"
+
+    # Data Analysis (App 8) - AWS pipeline resources
+    DATA_ANALYSIS_STATE_MACHINE_ARN: str = ""
+    DATA_ANALYSIS_GLUE_DATABASE: str = "co_intelligence_data_analysis"
+    DATA_ANALYSIS_ATHENA_WORKGROUP: str = "co-intelligence-data-analysis"
+    # Optional override; when blank we derive from S3_BUCKET_NAME
+    DATA_ANALYSIS_ATHENA_OUTPUT_S3_URI: str = ""
+    # Glue job names (kept for reference; Step Functions orchestrates these)
+    DATA_ANALYSIS_GLUE_JOB_NAME_S3: str = "co-intelligence-data-analysis-etl-s3"
+    DATA_ANALYSIS_GLUE_JOB_NAME_POSTGRES: str = "co-intelligence-data-analysis-etl-postgres"
     
     class Config:
         env_file = ".env"

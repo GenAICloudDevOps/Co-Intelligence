@@ -720,6 +720,416 @@ Resources:
     Properties:
       Enable: true
 
+  DataAnalysisPepperSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: co-intelligence-data-analysis-pepper
+      GenerateSecretString:
+        SecretStringTemplate: '{"pepper":""}'
+        GenerateStringKey: pepper
+        PasswordLength: 48
+        ExcludePunctuation: true
+      Tags:
+        - Key: Name
+          Value: co-intelligence-data-analysis-pepper
+
+  DataAnalysisAthenaWorkGroup:
+    Type: AWS::Athena::WorkGroup
+    Properties:
+      Name: co-intelligence-data-analysis
+      Description: Athena workgroup for Data Analysis app
+      State: ENABLED
+      WorkGroupConfiguration:
+        EnforceWorkGroupConfiguration: true
+        PublishCloudWatchMetricsEnabled: true
+        ResultConfiguration:
+          OutputLocation: !Sub "s3://${S3Bucket}/data-analysis/athena_results/"
+
+  DataAnalysisGlueDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: co_intelligence_data_analysis
+        Description: Glue catalog database for Data Analysis app
+
+  DataAnalysisGlueSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Glue job ENIs (Data Analysis)
+      VpcId: !Ref VPC
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: co-intelligence-glue-data-analysis-sg
+
+  DataAnalysisPostgresConnection:
+    Type: AWS::Glue::Connection
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      ConnectionInput:
+        Name: co-intelligence-data-analysis-postgres
+        ConnectionType: JDBC
+        ConnectionProperties:
+          JDBC_CONNECTION_URL: !Sub "jdbc:postgresql://${RDSInstance.Endpoint.Address}:5432/postgres"
+          USERNAME: !Sub "{{resolve:secretsmanager:co-intelligence-secrets:SecretString:username}}"
+          PASSWORD: !Sub "{{resolve:secretsmanager:co-intelligence-secrets:SecretString:password}}"
+          JDBC_ENFORCE_SSL: "false"
+        PhysicalConnectionRequirements:
+          SubnetId: !Ref SubnetPrivateA
+          SecurityGroupIdList:
+            - !Ref DataAnalysisGlueSecurityGroup
+
+  DataAnalysisGlueRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: co-intelligence-data-analysis-glue-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - glue.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+      Policies:
+        - PolicyName: data-analysis-glue-access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub arn:aws:s3:::${S3Bucket}
+                  - !Sub arn:aws:s3:::${S3Bucket}/*
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource:
+                  - !Ref DataAnalysisPepperSecret
+                  - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:co-intelligence-secrets*
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+
+  DataAnalysisGlueJobS3:
+    Type: AWS::Glue::Job
+    Properties:
+      Name: co-intelligence-data-analysis-etl-s3
+      Role: !GetAtt DataAnalysisGlueRole.Arn
+      GlueVersion: "4.0"
+      WorkerType: G.1X
+      NumberOfWorkers: 2
+      Command:
+        Name: glueetl
+        PythonVersion: "3"
+        ScriptLocation: !Sub "s3://${S3Bucket}/glue-scripts/data-analysis-etl.py"
+      DefaultArguments:
+        "--enable-continuous-cloudwatch-log": "true"
+        "--enable-metrics": "true"
+        "--job-language": "python"
+
+  DataAnalysisGlueJobPostgres:
+    Type: AWS::Glue::Job
+    Properties:
+      Name: co-intelligence-data-analysis-etl-postgres
+      Role: !GetAtt DataAnalysisGlueRole.Arn
+      GlueVersion: "4.0"
+      WorkerType: G.1X
+      NumberOfWorkers: 2
+      Command:
+        Name: glueetl
+        PythonVersion: "3"
+        ScriptLocation: !Sub "s3://${S3Bucket}/glue-scripts/data-analysis-etl.py"
+      DefaultArguments:
+        "--enable-continuous-cloudwatch-log": "true"
+        "--enable-metrics": "true"
+        "--job-language": "python"
+      Connections:
+        Connections:
+          - !Ref DataAnalysisPostgresConnection
+
+  DataAnalysisCatalogLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: co-intelligence-data-analysis-catalog-lambda-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: data-analysis-catalog-lambda
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource: !Sub arn:aws:s3:::${S3Bucket}/*
+              - Effect: Allow
+                Action:
+                  - glue:GetTable
+                  - glue:CreateTable
+                  - glue:UpdateTable
+                Resource: "*"
+
+  DataAnalysisCatalogFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: co-intelligence-data-analysis-catalog
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt DataAnalysisCatalogLambdaRole.Arn
+      Timeout: 60
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+
+          glue = boto3.client("glue")
+          s3 = boto3.client("s3")
+
+          def _parse_s3_uri(uri: str):
+            if not uri.startswith("s3://"):
+              raise ValueError("Expected s3:// URI")
+            b, k = uri.replace("s3://", "", 1).split("/", 1)
+            return b, k
+
+          def _to_storage_descriptor(columns, location):
+            return {
+              "Columns": [{"Name": c["name"], "Type": c["type"]} for c in columns],
+              "Location": location,
+              "InputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+              "OutputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat",
+              "SerdeInfo": {
+                "SerializationLibrary": "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe",
+                "Parameters": {"serialization.format": "1"},
+              },
+            }
+
+          def lambda_handler(event, context):
+            schema_uri = event["schema_s3_uri"]
+            curated_uri = event["curated_s3_uri"]
+            database = event["glue_database"]
+            table = event["glue_table"]
+
+            b, k = _parse_s3_uri(schema_uri)
+            obj = s3.get_object(Bucket=b, Key=k)
+            payload = json.loads(obj["Body"].read().decode("utf-8"))
+            cols = payload.get("columns", [])
+            if not cols:
+              raise ValueError("schema.json missing columns")
+
+            sd = _to_storage_descriptor(cols, curated_uri)
+            table_input = {"Name": table, "TableType": "EXTERNAL_TABLE", "StorageDescriptor": sd, "Parameters": {"classification": "parquet"}}
+
+            try:
+              glue.get_table(DatabaseName=database, Name=table)
+              glue.update_table(DatabaseName=database, TableInput=table_input)
+              action = "updated"
+            except glue.exceptions.EntityNotFoundException:
+              glue.create_table(DatabaseName=database, TableInput=table_input)
+              action = "created"
+
+            return {"status": "ok", "action": action, "database": database, "table": table}
+
+  DataAnalysisPassThroughLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: co-intelligence-data-analysis-pass-lambda-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: data-analysis-pass-lambda
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+
+  DataAnalysisValidateFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: co-intelligence-data-analysis-validate
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt DataAnalysisPassThroughLambdaRole.Arn
+      Timeout: 30
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+            # Placeholder for additional validation / policy checks.
+            return event
+
+  DataAnalysisFinalizeFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: co-intelligence-data-analysis-finalize
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt DataAnalysisPassThroughLambdaRole.Arn
+      Timeout: 30
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+            return {"status": "succeeded", "input": event}
+
+  DataAnalysisStepFunctionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: co-intelligence-data-analysis-sfn-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - states.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: data-analysis-sfn
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !GetAtt DataAnalysisValidateFunction.Arn
+                  - !GetAtt DataAnalysisCatalogFunction.Arn
+                  - !GetAtt DataAnalysisFinalizeFunction.Arn
+              - Effect: Allow
+                Action:
+                  - glue:StartJobRun
+                  - glue:GetJobRun
+                  - glue:GetJobRuns
+                Resource: "*"
+
+  DataAnalysisStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: co-intelligence-data-analysis
+      RoleArn: !GetAtt DataAnalysisStepFunctionsRole.Arn
+      DefinitionString: !Sub |
+        {
+          "Comment": "Co-Intelligence Data Analysis pipeline",
+          "StartAt": "Validate",
+          "States": {
+            "Validate": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${DataAnalysisValidateFunction.Arn}",
+                "Payload.$": "$"
+              },
+              "OutputPath": "$.Payload",
+              "Next": "ChooseJob"
+            },
+            "ChooseJob": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.source.type",
+                  "StringEquals": "postgres",
+                  "Next": "GlueETLPostgres"
+                }
+              ],
+              "Default": "GlueETLS3"
+            },
+            "GlueETLS3": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::glue:startJobRun.sync",
+              "Parameters": {
+                "JobName": "${DataAnalysisGlueJobS3}",
+                "Arguments": {
+                  "--spec_s3_uri.$": "$.spec_s3_uri",
+                  "--curated_s3_uri.$": "$.curated_s3_uri",
+                  "--schema_s3_uri.$": "$.schema_s3_uri",
+                  "--user_id.$": "States.Format('{}', $.user_id)",
+                  "--pepper_secret_id": "${DataAnalysisPepperSecret}",
+                  "--jdbc_url": "jdbc:postgresql://${RDSInstance.Endpoint.Address}:5432/postgres",
+                  "--jdbc_secret_id": "co-intelligence-secrets"
+                }
+              },
+              "ResultPath": "$.glue_job",
+              "Next": "Catalog"
+            },
+            "GlueETLPostgres": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::glue:startJobRun.sync",
+              "Parameters": {
+                "JobName": "${DataAnalysisGlueJobPostgres}",
+                "Arguments": {
+                  "--spec_s3_uri.$": "$.spec_s3_uri",
+                  "--curated_s3_uri.$": "$.curated_s3_uri",
+                  "--schema_s3_uri.$": "$.schema_s3_uri",
+                  "--user_id.$": "States.Format('{}', $.user_id)",
+                  "--pepper_secret_id": "${DataAnalysisPepperSecret}",
+                  "--jdbc_url": "jdbc:postgresql://${RDSInstance.Endpoint.Address}:5432/postgres",
+                  "--jdbc_secret_id": "co-intelligence-secrets"
+                }
+              },
+              "ResultPath": "$.glue_job",
+              "Next": "Catalog"
+            },
+            "Catalog": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${DataAnalysisCatalogFunction.Arn}",
+                "Payload": {
+                  "schema_s3_uri.$": "$.schema_s3_uri",
+                  "curated_s3_uri.$": "$.curated_s3_uri",
+                  "glue_database.$": "$.glue_database",
+                  "glue_table.$": "$.glue_table"
+                }
+              },
+              "OutputPath": "$.Payload",
+              "Next": "Finalize"
+            },
+            "Finalize": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${DataAnalysisFinalizeFunction.Arn}",
+                "Payload.$": "$"
+              },
+              "OutputPath": "$.Payload",
+              "End": true
+            }
+          }
+        }
+
   IRSAIamRole:
     Type: AWS::IAM::Role
     Condition: CreateIRSA
@@ -753,6 +1163,27 @@ Resources:
                 Action:
                   - lambda:InvokeFunction
                 Resource: !GetAtt CodeExecutorLambda.Arn
+              - Effect: Allow
+                Action:
+                  - states:StartExecution
+                  - states:DescribeExecution
+                  - states:GetExecutionHistory
+                Resource: !GetAtt DataAnalysisStateMachine.Arn
+              - Effect: Allow
+                Action:
+                  - athena:StartQueryExecution
+                  - athena:GetQueryExecution
+                  - athena:GetQueryResults
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - glue:GetTable
+                  - glue:GetDatabase
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref DataAnalysisPepperSecret
 
 Outputs:
   VPCId:
@@ -771,3 +1202,9 @@ Outputs:
     Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${FrontendECR}"
   CodeExecutorLambdaArn:
     Value: !GetAtt CodeExecutorLambda.Arn
+  DataAnalysisStateMachineArn:
+    Value: !GetAtt DataAnalysisStateMachine.Arn
+  DataAnalysisAthenaWorkGroup:
+    Value: !Ref DataAnalysisAthenaWorkGroup
+  DataAnalysisGlueDatabase:
+    Value: !Ref DataAnalysisGlueDatabase

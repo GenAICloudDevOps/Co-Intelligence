@@ -64,10 +64,10 @@ This creates:
 
 ```bash
 # Make script executable
-chmod +x deploy.sh
+chmod +x deploy-aws.sh
 
 # Deploy
-./deploy.sh
+./deploy-aws.sh
 ```
 
 This will:
@@ -78,6 +78,11 @@ This will:
 - ✅ Create Kubernetes secrets
 - ✅ Deploy backend and frontend pods
 - ✅ Output the LoadBalancer URL
+
+It also auto-populates Data Analysis (App 8) AWS resources:
+- `DATA_ANALYSIS_STATE_MACHINE_ARN` (from CloudFormation output `DataAnalysisStateMachineArn`)
+- `DATA_ANALYSIS_ATHENA_WORKGROUP`
+- `DATA_ANALYSIS_GLUE_DATABASE`
 
 ---
 

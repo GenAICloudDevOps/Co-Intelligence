@@ -67,6 +67,42 @@ LAMBDA_ARN=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --regio
     --query 'Stacks[0].Outputs[?OutputKey==`CodeExecutorLambdaArn`].OutputValue' --output text)
 REDIS_ENDPOINT=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --region $AWS_REGION \
     --query 'Stacks[0].Outputs[?OutputKey==`RedisEndpoint`].OutputValue' --output text)
+DATA_ANALYSIS_SFN_ARN=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --region $AWS_REGION \
+    --query 'Stacks[0].Outputs[?OutputKey==`DataAnalysisStateMachineArn`].OutputValue' --output text)
+DATA_ANALYSIS_ATHENA_WG=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --region $AWS_REGION \
+    --query 'Stacks[0].Outputs[?OutputKey==`DataAnalysisAthenaWorkGroup`].OutputValue' --output text)
+DATA_ANALYSIS_GLUE_DB=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --region $AWS_REGION \
+    --query 'Stacks[0].Outputs[?OutputKey==`DataAnalysisGlueDatabase`].OutputValue' --output text)
+
+# Fail fast if required outputs are missing (common causes: wrong STACK_NAME/AWS_REGION, stack not updated, or stack still creating)
+missing_outputs=()
+require_output() {
+  local key="$1"
+  local val="$2"
+  if [ -z "${val:-}" ] || [ "${val:-}" = "None" ]; then
+    missing_outputs+=("$key")
+  fi
+}
+require_output "RDSEndpoint" "$RDS_ENDPOINT"
+require_output "BackendECRUri" "$ECR_BACKEND"
+require_output "FrontendECRUri" "$ECR_FRONTEND"
+require_output "S3BucketName" "$S3_BUCKET_NAME"
+require_output "CodeExecutorLambdaArn" "$LAMBDA_ARN"
+require_output "RedisEndpoint" "$REDIS_ENDPOINT"
+require_output "DataAnalysisStateMachineArn" "$DATA_ANALYSIS_SFN_ARN"
+require_output "DataAnalysisAthenaWorkGroup" "$DATA_ANALYSIS_ATHENA_WG"
+require_output "DataAnalysisGlueDatabase" "$DATA_ANALYSIS_GLUE_DB"
+
+if [ ${#missing_outputs[@]} -ne 0 ]; then
+  echo "Error: Missing CloudFormation outputs from stack '$STACK_NAME' in region '$AWS_REGION':"
+  printf ' - %s\n' "${missing_outputs[@]}"
+  echo ""
+  echo "Troubleshooting:"
+  echo " - Confirm STACK_NAME/AWS_REGION are correct for your deployed stack."
+  echo " - If this is an older stack, update it with the latest 'infrastructure/infra.yaml' (CloudFormation update-stack)."
+  echo " - If the stack is still creating/updating, wait until it completes and rerun."
+  exit 1
+fi
 
 # Fetch secrets
 echo "Fetching secrets..."
@@ -75,6 +111,13 @@ DB_PASSWORD=$(echo $SECRETS_JSON | jq -r '.password // .DB_PASSWORD')
 SECRET_KEY=$(aws secretsmanager get-secret-value --secret-id co-intelligence-secret-key --region $AWS_REGION --query SecretString --output text)
 
 echo "✓ Infrastructure values retrieved"
+
+# Upload Glue scripts needed by Data Analysis app
+if [ -n "$S3_BUCKET_NAME" ]; then
+  echo "Uploading Glue scripts..."
+  aws s3 cp infrastructure/glue-scripts/data-analysis-etl.py "s3://$S3_BUCKET_NAME/glue-scripts/data-analysis-etl.py" --region "$AWS_REGION" >/dev/null
+  echo "✓ Glue scripts uploaded"
+fi
 
 # Update .env
 echo "Updating .env..."
@@ -101,6 +144,10 @@ SECRET_KEY=$SECRET_KEY
 S3_BUCKET_NAME=$S3_BUCKET_NAME
 CODE_EXECUTOR_URL=$LAMBDA_ARN
 REDIS_URL=rediss://$REDIS_ENDPOINT:6379/0
+# Data Analysis (App 8)
+DATA_ANALYSIS_STATE_MACHINE_ARN=$DATA_ANALYSIS_SFN_ARN
+DATA_ANALYSIS_GLUE_DATABASE=${DATA_ANALYSIS_GLUE_DB:-co_intelligence_data_analysis}
+DATA_ANALYSIS_ATHENA_WORKGROUP=${DATA_ANALYSIS_ATHENA_WG:-co-intelligence-data-analysis}
 # CORS / API surface (comma-separated, e.g., https://app.example.com,https://admin.example.com)
 CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS:-}
 # Leave true for dev; set false and run migrations in prod
@@ -134,6 +181,9 @@ kubectl create secret generic app-secrets \
     --from-literal=AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-}" \
     --from-literal=AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-}" \
     --from-literal=AWS_REGION="$AWS_REGION" \
+    --from-literal=DATA_ANALYSIS_STATE_MACHINE_ARN="$DATA_ANALYSIS_SFN_ARN" \
+    --from-literal=DATA_ANALYSIS_GLUE_DATABASE="${DATA_ANALYSIS_GLUE_DB:-co_intelligence_data_analysis}" \
+    --from-literal=DATA_ANALYSIS_ATHENA_WORKGROUP="${DATA_ANALYSIS_ATHENA_WG:-co-intelligence-data-analysis}" \
     --from-literal=CORS_ALLOW_ORIGINS="${CORS_ALLOW_ORIGINS:-}" \
     --from-literal=AUTO_GENERATE_SCHEMAS="${AUTO_GENERATE_SCHEMAS:-true}" \
     --from-literal=TINKER_BASE_PATH="${TINKER_BASE_PATH:-/app}" \

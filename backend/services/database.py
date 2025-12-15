@@ -92,7 +92,9 @@ async def run_migrations():
         "ALTER TABLE evaluation_results ADD COLUMN IF NOT EXISTS context_precision FLOAT DEFAULT 0",
         "ALTER TABLE evaluation_results ADD COLUMN IF NOT EXISTS context_recall FLOAT DEFAULT 0",
         "ALTER TABLE evaluation_results ADD COLUMN IF NOT EXISTS response_relevancy FLOAT DEFAULT 0",
-        "ALTER TABLE evaluation_results ADD COLUMN IF NOT EXISTS faithfulness FLOAT DEFAULT 0"
+        "ALTER TABLE evaluation_results ADD COLUMN IF NOT EXISTS faithfulness FLOAT DEFAULT 0",
+        # Data Analysis (App 8)
+        "ALTER TABLE data_analysis_datasets ADD COLUMN IF NOT EXISTS last_run_id INTEGER"
     ]
     
     for sql in migrations:

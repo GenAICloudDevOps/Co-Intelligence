@@ -114,5 +114,20 @@ export const apps: AppConfig[] = [
     route: '/apps/llms-fine-tuning',
     status: 'active',
     requiresAuth: true
+  },
+  {
+    id: 'data-analysis',
+    name: 'Data Analysis',
+    description: [
+      'Upload / S3 / Postgres Sources',
+      'Parquet + Transformations (Glue)',
+      'Catalog + SQL (Athena)',
+      'Agentic Q&A (LangGraph)'
+    ],
+    icon: '📊',
+    color: '#14b8a6',
+    route: '/apps/data-analysis',
+    status: 'active',
+    requiresAuth: true
   }
 ]
