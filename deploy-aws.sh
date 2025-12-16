@@ -283,6 +283,9 @@ if [ -n "$FRONTEND_URL" ]; then
             --from-literal=AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-}" \
             --from-literal=AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-}" \
             --from-literal=AWS_REGION="$AWS_REGION" \
+            --from-literal=DATA_ANALYSIS_STATE_MACHINE_ARN="$DATA_ANALYSIS_SFN_ARN" \
+            --from-literal=DATA_ANALYSIS_GLUE_DATABASE="${DATA_ANALYSIS_GLUE_DB:-co_intelligence_data_analysis}" \
+            --from-literal=DATA_ANALYSIS_ATHENA_WORKGROUP="${DATA_ANALYSIS_ATHENA_WG:-co-intelligence-data-analysis}" \
             --from-literal=CORS_ALLOW_ORIGINS="$DEFAULT_ORIGIN" \
             --from-literal=AUTO_GENERATE_SCHEMAS="${AUTO_GENERATE_SCHEMAS:-true}" \
             --from-literal=TINKER_BASE_PATH="${TINKER_BASE_PATH:-/app}" \

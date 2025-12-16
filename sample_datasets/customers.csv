@@ -1,0 +1,11 @@
+customer_id,name,email,phone,city,state,country,signup_date,tier,lifetime_value
+C001,Avery Chen,avery.chen@example.com,555-0101,San Jose,CA,USA,2024-01-15,Gold,2450.00
+C002,Jordan Patel,jordan.patel@example.com,555-0102,Austin,TX,USA,2024-02-20,Silver,1200.50
+C003,Riley Kim,riley.kim@example.com,555-0103,Seattle,WA,USA,2024-03-10,Bronze,450.00
+C004,Sam Rivera,sam.rivera@example.com,555-0104,New York,NY,USA,2024-01-05,Gold,3200.75
+C005,Taylor Brooks,taylor.brooks@example.com,555-0105,Chicago,IL,USA,2024-04-18,Silver,890.25
+C006,Morgan Lee,morgan.lee@example.com,555-0106,Denver,CO,USA,2024-05-22,Bronze,320.00
+C007,Casey Wong,casey.wong@example.com,555-0107,Miami,FL,USA,2024-02-14,Gold,2800.00
+C008,Drew Martinez,drew.martinez@example.com,555-0108,Portland,OR,USA,2024-06-01,Silver,1100.00
+C009,Alex Johnson,alex.johnson@example.com,555-0109,Boston,MA,USA,2024-03-25,Bronze,550.50
+C010,Jamie Garcia,jamie.garcia@example.com,555-0110,Phoenix,AZ,USA,2024-07-10,Gold,1950.25

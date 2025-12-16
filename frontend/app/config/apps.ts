@@ -106,7 +106,7 @@ export const apps: AppConfig[] = [
     description: [
       'Tinker API',
       'LoRA fine-tuning on Llama/Qwen',
-      'Scripted job runner (validate/train/sample)',
+      'Scripted job runner',
       'Live logs + checkpoint sampling'
     ],
     icon: '🧪',
@@ -117,12 +117,12 @@ export const apps: AppConfig[] = [
   },
   {
     id: 'data-analysis',
-    name: 'Data Analysis',
+    name: 'Agentic Data Analysis',
     description: [
-      'Upload / S3 / Postgres Sources',
-      'Parquet + Transformations (Glue)',
-      'Catalog + SQL (Athena)',
-      'Agentic Q&A (LangGraph)'
+      'Multi-Source Ingestion',
+      'Automated ETL Pipeline',
+      'Agentic Q&A',
+      'Self-Healing Queries'
     ],
     icon: '📊',
     color: '#14b8a6',

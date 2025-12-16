@@ -237,6 +237,112 @@ async def get_dataset(dataset_id: int, current_user: User = Depends(get_current_
     }
 
 
+@router.get("/datasets/{dataset_id}/suggestions")
+async def get_dataset_suggestions(dataset_id: int, current_user: User = Depends(get_current_user)):
+    dataset = await DataAnalysisDataset.get_or_none(id=dataset_id, user_id=current_user.id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    if not dataset.glue_database or not dataset.glue_table:
+        raise HTTPException(status_code=400, detail="Dataset not ready")
+    try:
+        clients = DataAnalysisAWSClients()
+        schema = clients.get_table_schema(dataset.glue_database, dataset.glue_table)
+        cols = [c["name"] for c in schema]
+        
+        from services.ai_service import ai_service
+        prompt = f"""Given a dataset with columns: {', '.join(cols)}
+Generate exactly 4 short analytical questions a user might ask. Return as JSON array of strings only.
+Example: ["What is total revenue by region?", "Show top 5 customers"]"""
+        
+        response = await ai_service.generate_response(prompt, "gemini-2.5-flash-lite")
+        response = response.strip()
+        if response.startswith("```"):
+            lines = response.split("\n")[1:-1]
+            response = "\n".join(lines)
+        
+        import json
+        suggestions = json.loads(response)
+        return {"suggestions": suggestions[:4]}
+    except Exception as e:
+        return {"suggestions": [
+            f"Show total count of records",
+            f"What are the top 5 {cols[0] if cols else 'items'}?",
+            f"Show summary statistics",
+            f"List unique values in {cols[-1] if cols else 'column'}"
+        ]}
+
+
+@router.post("/datasets/{dataset_id}/export")
+async def export_dataset_query(dataset_id: int, request: ChatRequest, current_user: User = Depends(get_current_user)):
+    from fastapi.responses import StreamingResponse
+    import io
+    import csv
+    
+    dataset = await DataAnalysisDataset.get_or_none(id=dataset_id, user_id=current_user.id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    if not dataset.glue_database or not dataset.glue_table:
+        raise HTTPException(status_code=400, detail="Dataset not ready")
+    
+    try:
+        clients = DataAnalysisAWSClients()
+        result = await clients.run_athena_query_async(
+            sql=request.message,
+            database=dataset.glue_database,
+            timeout_seconds=120.0,
+            max_rows=1000
+        )
+        
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(result.columns)
+        writer.writerows(result.rows)
+        output.seek(0)
+        
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={dataset.name}_export.csv"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/datasets/{dataset_id}/preview")
+async def get_dataset_preview(dataset_id: int, limit: int = 5, current_user: User = Depends(get_current_user)):
+    dataset = await DataAnalysisDataset.get_or_none(id=dataset_id, user_id=current_user.id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    if not dataset.glue_database or not dataset.glue_table:
+        raise HTTPException(status_code=400, detail="Dataset not ready for preview")
+    try:
+        clients = DataAnalysisAWSClients()
+        sql = f"SELECT * FROM {dataset.glue_database}.{dataset.glue_table} LIMIT {min(limit, 50)}"
+        result = await clients.run_athena_query_async(sql=sql, database=dataset.glue_database, timeout_seconds=60.0, max_rows=min(limit, 50))
+        return {"columns": result.columns, "rows": result.rows}
+    except DataAnalysisAWSNotConfigured as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/datasets/{dataset_id}/schema")
+async def get_dataset_schema(dataset_id: int, current_user: User = Depends(get_current_user)):
+    dataset = await DataAnalysisDataset.get_or_none(id=dataset_id, user_id=current_user.id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    if not dataset.glue_database or not dataset.glue_table:
+        raise HTTPException(status_code=400, detail="Dataset schema not available yet")
+    try:
+        clients = DataAnalysisAWSClients()
+        schema = clients.get_table_schema(dataset.glue_database, dataset.glue_table)
+        return {"dataset_id": dataset.id, "columns": schema}
+    except DataAnalysisAWSNotConfigured as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/sources/upload")
 async def upload_source(
     file: UploadFile = File(...),
@@ -531,12 +637,25 @@ async def chat(request: ChatRequest, current_user: User = Depends(get_current_us
         "dataset_name": dataset.name,
         "glue_database": dataset.glue_database,
         "glue_table": dataset.glue_table,
+        "thoughts": [],
+        "current_step": 0,
     }
     result = await graph.ainvoke(state)
+    
+    # Format agent steps for UI
+    agent_steps = []
+    for t in result.get("thoughts", []):
+        agent_steps.append({
+            "step": t.get("step"),
+            "thought": t.get("thought", ""),
+            "tool": t.get("tool", ""),
+            "status": "completed"
+        })
+    
     return {
-        "intent": result.get("intent"),
-        "sql": result.get("sql"),
-        "query_result": result.get("query_result"),
-        "response": result.get("response", ""),
+        "response": result.get("final_answer", ""),
+        "sql": result.get("last_sql", ""),
+        "agent_steps": agent_steps,
+        "chart_data": result.get("chart_data"),
         "error": result.get("error"),
     }

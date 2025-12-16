@@ -40,12 +40,37 @@ export type RunStatus = {
   updated_at: string
 }
 
+export type AgentStep = {
+  step: number
+  thought: string
+  tool: string
+  status: string
+}
+
+export type ChartData = {
+  type: 'bar' | 'line' | 'pie'
+  title: string
+  x_column: string
+  y_column: string
+  labels: string[]
+  values: number[]
+}
+
 export type ChatResponse = {
-  intent?: string
   sql?: string
-  query_result?: { query_execution_id: string; columns: string[]; rows: string[][] }
   response: string
+  agent_steps?: AgentStep[]
+  chart_data?: ChartData
   error?: string
+}
+
+export type PreviewResponse = {
+  columns: string[]
+  rows: string[][]
+}
+
+export type SuggestionsResponse = {
+  suggestions: string[]
 }
 
 export const daApi = {
@@ -80,5 +105,24 @@ export const daApi = {
 
   async chat(payload: { message: string; dataset_id: number; model?: string }): Promise<ChatResponse> {
     return api.post<ChatResponse>('/api/apps/data-analysis/chat', payload)
+  },
+
+  async getPreview(datasetId: number, limit: number = 5): Promise<PreviewResponse> {
+    return api.get<PreviewResponse>(`/api/apps/data-analysis/datasets/${datasetId}/preview?limit=${limit}`)
+  },
+
+  async getSuggestions(datasetId: number): Promise<SuggestionsResponse> {
+    return api.get<SuggestionsResponse>(`/api/apps/data-analysis/datasets/${datasetId}/suggestions`)
+  },
+
+  async exportQuery(datasetId: number, sql: string): Promise<Blob> {
+    const response = await fetch(`/api/apps/data-analysis/datasets/${datasetId}/export`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ message: sql, dataset_id: datasetId })
+    })
+    if (!response.ok) throw new Error('Export failed')
+    return response.blob()
   },
 }

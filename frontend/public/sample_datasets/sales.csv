@@ -1,0 +1,13 @@
+sale_id,date,region,salesperson,product_category,units_sold,unit_price,total_amount,profit_margin
+S001,2025-01-05,West,Alice Brown,Electronics,25,49.99,1249.75,0.35
+S002,2025-01-06,East,Bob Smith,Home,40,29.99,1199.60,0.28
+S003,2025-01-07,Central,Carol Davis,Groceries,100,14.99,1499.00,0.42
+S004,2025-01-08,West,Alice Brown,Books,15,39.95,599.25,0.45
+S005,2025-01-09,East,David Lee,Sports,30,59.99,1799.70,0.32
+S006,2025-01-10,Central,Eve Wilson,Electronics,20,79.99,1599.80,0.38
+S007,2025-01-11,West,Frank Miller,Home,50,19.99,999.50,0.25
+S008,2025-01-12,East,Bob Smith,Groceries,80,12.99,1039.20,0.40
+S009,2025-01-13,Central,Carol Davis,Books,22,44.95,988.90,0.48
+S010,2025-01-14,West,David Lee,Sports,18,89.99,1619.82,0.30
+S011,2025-01-15,East,Eve Wilson,Electronics,35,34.99,1224.65,0.36
+S012,2025-01-16,Central,Frank Miller,Home,45,24.99,1124.55,0.27

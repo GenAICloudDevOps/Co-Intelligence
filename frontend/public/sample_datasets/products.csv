@@ -1,0 +1,11 @@
+product_id,name,category,subcategory,price,cost,stock_qty,supplier,rating
+P001,Wireless Mouse,Electronics,Accessories,24.99,12.50,150,TechSupply Co,4.5
+P002,LED Bulb Pack,Home,Lighting,9.99,4.00,300,HomeGoods Inc,4.2
+P003,Coffee Beans 1lb,Groceries,Beverages,14.49,8.00,200,FreshRoast,4.8
+P004,Data Science Handbook,Books,Technical,39.95,18.00,75,BookWorld,4.6
+P005,Yoga Mat,Sports,Fitness,29.99,15.00,120,FitGear,4.3
+P006,Bluetooth Speaker,Electronics,Audio,49.99,25.00,80,TechSupply Co,4.4
+P007,Organic Tea Set,Groceries,Beverages,19.99,10.00,180,FreshRoast,4.7
+P008,Standing Desk,Home,Furniture,299.99,150.00,25,HomeGoods Inc,4.1
+P009,Running Shoes,Sports,Footwear,89.99,45.00,60,FitGear,4.5
+P010,Python Programming,Books,Technical,44.95,20.00,90,BookWorld,4.9

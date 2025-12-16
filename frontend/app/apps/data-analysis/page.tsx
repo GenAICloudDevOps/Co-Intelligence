@@ -6,9 +6,16 @@ import Card from '@/app/components/Card'
 import Button from '@/app/components/Button'
 import { useAuth } from '@/app/hooks/useAuth'
 import { DEFAULT_MODEL } from '@/app/config/models'
-import { daApi, type DatasetDetails, type DatasetListItem, type RunStatus, type ChatResponse } from './api'
+import { daApi, type DatasetDetails, type DatasetListItem, type RunStatus, type ChatResponse, type AgentStep, type PreviewResponse, type ChartData, type SuggestionsResponse } from './api'
 
-type SourceMode = 'upload' | 's3' | 'postgres'
+const SAMPLE_DATASETS = [
+  { name: 'Orders', file: 'orders.csv', description: 'E-commerce orders with revenue data' },
+  { name: 'Customers', file: 'customers.csv', description: 'Customer profiles with tiers' },
+  { name: 'Products', file: 'products.csv', description: 'Product catalog with pricing' },
+  { name: 'Sales', file: 'sales.csv', description: 'Regional sales performance' },
+]
+
+type SourceMode = 'upload' | 's3' | 'postgres' | 'sample'
 type PipelineEvent = { id: number; timestamp: string; type: string; state_name?: string | null; error?: string; cause?: string }
 type StepStatus = 'pending' | 'running' | 'succeeded' | 'failed'
 
@@ -44,6 +51,7 @@ export default function DataAnalysisApp() {
 
   const [sourceMode, setSourceMode] = useState<SourceMode>('upload')
   const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [selectedSample, setSelectedSample] = useState<string>('')
   const [datasetName, setDatasetName] = useState('')
   const [s3Uri, setS3Uri] = useState('')
   const [pgSchema, setPgSchema] = useState('public')
@@ -60,7 +68,12 @@ export default function DataAnalysisApp() {
   const [chatInput, setChatInput] = useState('')
   const [chatLog, setChatLog] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([])
   const [lastSql, setLastSql] = useState<string>('')
-  const [lastQueryPreview, setLastQueryPreview] = useState<string>('')
+  const [agentSteps, setAgentSteps] = useState<AgentStep[]>([])
+  const [isAsking, setIsAsking] = useState(false)
+  const [preview, setPreview] = useState<PreviewResponse | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [chartData, setChartData] = useState<ChartData | null>(null)
   const [error, setError] = useState<string>('')
 
   const selectedDataset = useMemo(
@@ -188,9 +201,28 @@ export default function DataAnalysisApp() {
     refreshDatasetDetails(selectedDatasetId).catch(() => setDatasetDetails(null))
     setChatLog([])
     setLastSql('')
-    setLastQueryPreview('')
+    setAgentSteps([])
+    setPreview(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDatasetId])
+
+  // Fetch preview and suggestions when dataset is ready
+  useEffect(() => {
+    if (!canAskQuestions || !selectedDatasetId) {
+      setPreview(null)
+      setSuggestions([])
+      return
+    }
+    setPreviewLoading(true)
+    daApi.getPreview(selectedDatasetId, 10)
+      .then(setPreview)
+      .catch(() => setPreview(null))
+      .finally(() => setPreviewLoading(false))
+    
+    daApi.getSuggestions(selectedDatasetId)
+      .then(res => setSuggestions(res.suggestions || []))
+      .catch(() => setSuggestions([]))
+  }, [canAskQuestions, selectedDatasetId])
 
   useEffect(() => {
     if (!datasetDetails?.last_run_id) return
@@ -302,6 +334,24 @@ export default function DataAnalysisApp() {
         return
       }
 
+      if (sourceMode === 'sample') {
+        if (!selectedSample) throw new Error('Select a sample dataset')
+        const sample = SAMPLE_DATASETS.find(s => s.file === selectedSample)
+        if (!sample) throw new Error('Invalid sample dataset')
+        const response = await fetch(`/sample_datasets/${sample.file}`)
+        if (!response.ok) throw new Error('Failed to fetch sample dataset')
+        const blob = await response.blob()
+        const file = new File([blob], sample.file, { type: 'text/csv' })
+        const form = new FormData()
+        form.append('file', file)
+        form.append('name', datasetName.trim())
+        const res = await daApi.uploadDataset(form)
+        await refreshDatasets()
+        setSelectedDatasetId(res.dataset_id)
+        if (res.run_id) setRunId(res.run_id)
+        return
+      }
+
       if (sourceMode === 's3') {
         if (!s3Uri.trim().startsWith('s3://')) throw new Error('Provide a valid S3 URI (s3://...)')
         const res = await daApi.createS3Dataset({ name: datasetName.trim(), s3_uri: s3Uri.trim() })
@@ -351,17 +401,35 @@ export default function DataAnalysisApp() {
     if (!msg) return
     setChatInput('')
     setError('')
+    setAgentSteps([])
+    setChartData(null)
+    setIsAsking(true)
     setChatLog(prev => [...prev, { role: 'user', content: msg }])
     try {
       const res: ChatResponse = await daApi.chat({ message: msg, dataset_id: selectedDatasetId, model: selectedModel })
       if (res.sql) setLastSql(res.sql)
-      if (res.query_result?.columns?.length) {
-        const preview = [res.query_result.columns.join(' | '), ...(res.query_result.rows || []).slice(0, 5).map(r => r.join(' | '))].join('\n')
-        setLastQueryPreview(preview)
-      }
+      if (res.agent_steps) setAgentSteps(res.agent_steps)
+      if (res.chart_data) setChartData(res.chart_data)
       setChatLog(prev => [...prev, { role: 'assistant', content: res.response || res.error || '' }])
     } catch (e: any) {
       setChatLog(prev => [...prev, { role: 'assistant', content: e?.message || 'Chat failed' }])
+    } finally {
+      setIsAsking(false)
+    }
+  }
+
+  const handleExport = async () => {
+    if (!selectedDatasetId || !lastSql) return
+    try {
+      const blob = await daApi.exportQuery(selectedDatasetId, lastSql)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${selectedDataset?.name || 'export'}_results.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e: any) {
+      setError(e?.message || 'Export failed')
     }
   }
 
@@ -370,314 +438,382 @@ export default function DataAnalysisApp() {
   return (
     <div style={{ minHeight: '100vh', background: '#0f172a', color: 'white' }}>
       <AppHeader
-        appName="Data Analysis"
+        appName="Agentic Data Analysis"
         showModelSelector={true}
         selectedModel={selectedModel}
         onModelChange={setSelectedModel}
       />
 
-      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px' }}>
+      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px' }}>
         {error && (
           <div style={{ marginBottom: '16px', padding: '12px', border: '1px solid #7f1d1d', background: '#450a0a', borderRadius: '8px', color: '#fecaca' }}>
             {error}
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '16px' }}>
+        {/* Row 1: Create Dataset | Datasets | Live Pipeline */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px 1fr', gap: '16px', marginBottom: '16px' }}>
+          {/* Create Dataset */}
           <Card padding="lg">
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '10px' }}>1) Create Dataset</h2>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-              <Button variant={sourceMode === 'upload' ? 'primary' : 'secondary'} onClick={() => setSourceMode('upload')}>Upload</Button>
-              <Button variant={sourceMode === 's3' ? 'primary' : 'secondary'} onClick={() => setSourceMode('s3')}>S3 URI</Button>
-              <Button variant={sourceMode === 'postgres' ? 'primary' : 'secondary'} onClick={() => setSourceMode('postgres')}>Postgres</Button>
+            <h2 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '10px' }}>Create Dataset</h2>
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '10px', flexWrap: 'wrap' }}>
+              <Button size="sm" variant={sourceMode === 'sample' ? 'primary' : 'secondary'} onClick={() => setSourceMode('sample')}>Sample</Button>
+              <Button size="sm" variant={sourceMode === 'upload' ? 'primary' : 'secondary'} onClick={() => setSourceMode('upload')}>Upload</Button>
+              <Button size="sm" variant={sourceMode === 's3' ? 'primary' : 'secondary'} onClick={() => setSourceMode('s3')}>S3</Button>
+              <Button size="sm" variant={sourceMode === 'postgres' ? 'primary' : 'secondary'} onClick={() => setSourceMode('postgres')}>Postgres</Button>
             </div>
 
-            <div style={{ marginBottom: '10px' }}>
-              <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '6px' }}>Dataset Name</label>
+            <div style={{ marginBottom: '8px' }}>
               <input
                 value={datasetName}
                 onChange={e => setDatasetName(e.target.value)}
-                placeholder="e.g. Sales Orders"
-                style={{ width: '100%', padding: '10px', background: '#0b1220', border: '1px solid #334155', borderRadius: '8px', color: 'white' }}
+                placeholder="Dataset Name"
+                style={{ width: '100%', padding: '8px', background: '#0b1220', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.9rem' }}
               />
             </div>
 
+            {sourceMode === 'sample' && (
+              <div style={{ marginBottom: '8px' }}>
+                <select
+                  value={selectedSample}
+                  onChange={e => { setSelectedSample(e.target.value); if (!datasetName) setDatasetName(SAMPLE_DATASETS.find(s => s.file === e.target.value)?.name || '') }}
+                  style={{ width: '100%', padding: '8px', background: '#0b1220', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.9rem' }}
+                >
+                  <option value="">Select sample dataset...</option>
+                  {SAMPLE_DATASETS.map(s => (
+                    <option key={s.file} value={s.file}>{s.name} - {s.description}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {sourceMode === 'upload' && (
-              <div style={{ marginBottom: '10px' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '6px' }}>File</label>
-                <input type="file" onChange={e => setUploadFile(e.target.files?.[0] || null)} />
+              <div style={{ marginBottom: '8px' }}>
+                <input type="file" onChange={e => setUploadFile(e.target.files?.[0] || null)} style={{ fontSize: '0.85rem' }} />
               </div>
             )}
 
             {sourceMode === 's3' && (
-              <div style={{ marginBottom: '10px' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '6px' }}>S3 URI</label>
+              <div style={{ marginBottom: '8px' }}>
                 <input
                   value={s3Uri}
                   onChange={e => setS3Uri(e.target.value)}
-                  placeholder="s3://bucket/path/to/file.csv"
-                  style={{ width: '100%', padding: '10px', background: '#0b1220', border: '1px solid #334155', borderRadius: '8px', color: 'white' }}
+                  placeholder="s3://bucket/path/file.csv"
+                  style={{ width: '100%', padding: '8px', background: '#0b1220', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.9rem' }}
                 />
               </div>
             )}
 
             {sourceMode === 'postgres' && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '6px' }}>Schema</label>
-                  <input
-                    value={pgSchema}
-                    onChange={e => setPgSchema(e.target.value)}
-                    style={{ width: '100%', padding: '10px', background: '#0b1220', border: '1px solid #334155', borderRadius: '8px', color: 'white' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '6px' }}>Table</label>
-                  <input
-                    value={pgTable}
-                    onChange={e => setPgTable(e.target.value)}
-                    placeholder="e.g. orders"
-                    style={{ width: '100%', padding: '10px', background: '#0b1220', border: '1px solid #334155', borderRadius: '8px', color: 'white' }}
-                  />
-                </div>
-                <div style={{ gridColumn: '1 / -1' }}>
-                  <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '6px' }}>Optional Query</label>
-                  <textarea
-                    value={pgQuery}
-                    onChange={e => setPgQuery(e.target.value)}
-                    placeholder="SELECT * FROM public.orders WHERE created_at >= current_date - interval '30 days'"
-                    style={{ width: '100%', minHeight: '80px', padding: '10px', background: '#0b1220', border: '1px solid #334155', borderRadius: '8px', color: 'white' }}
-                  />
-                </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '8px' }}>
+                <input value={pgSchema} onChange={e => setPgSchema(e.target.value)} placeholder="Schema" style={{ padding: '8px', background: '#0b1220', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.9rem' }} />
+                <input value={pgTable} onChange={e => setPgTable(e.target.value)} placeholder="Table" style={{ padding: '8px', background: '#0b1220', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.9rem' }} />
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ marginTop: '8px' }}>
               <Button onClick={handleCreateDataset}>Create</Button>
             </div>
           </Card>
 
+          {/* Datasets List */}
           <Card padding="lg">
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '10px' }}>Datasets</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <h2 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '10px' }}>Datasets</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '200px', overflowY: 'auto' }}>
               {datasets.map(d => (
                 <button
                   key={d.id}
                   onClick={() => { setSelectedDatasetId(d.id); setRunId(null); setRunStatus(null) }}
                   style={{
                     textAlign: 'left',
-                    padding: '10px',
-                    borderRadius: '8px',
+                    padding: '8px',
+                    borderRadius: '6px',
                     border: d.id === selectedDatasetId ? '1px solid #14b8a6' : '1px solid #334155',
                     background: d.id === selectedDatasetId ? 'rgba(20,184,166,0.12)' : '#0b1220',
                     color: 'white',
                     cursor: 'pointer',
                   }}
                 >
-                  <div style={{ fontWeight: 700 }}>{d.name}</div>
-                  <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{d.source_type} • {d.status}</div>
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{d.name}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{d.source_type} • {d.status}</div>
                 </button>
               ))}
-              {!datasets.length && <div style={{ color: '#94a3b8' }}>No datasets yet.</div>}
+              {!datasets.length && <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>No datasets yet.</div>}
             </div>
           </Card>
-        </div>
 
-        <div style={{ marginTop: '16px' }}>
+          {/* Live Pipeline */}
           <Card padding="lg">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <h2 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Live Pipeline</h2>
-              <div style={{ fontSize: '0.85rem', color: pipelineConnected ? '#34d399' : '#94a3b8' }}>
-                Updates: {pipelineConnected ? 'Live' : 'Polling'}
+              <h2 style={{ fontSize: '1rem', fontWeight: 700 }}>Pipeline</h2>
+              <div style={{ fontSize: '0.75rem', color: pipelineConnected ? '#34d399' : '#94a3b8' }}>
+                {pipelineConnected ? '● Live' : '○ Polling'}
               </div>
             </div>
-
             {!selectedDatasetId ? (
-              <div style={{ color: '#94a3b8' }}>Create or select a dataset to start the pipeline.</div>
+              <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Select a dataset</div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-	                  <div style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '8px' }}>Pipeline Flow</div>
-	                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
-	                    {PIPELINE_STEPS.map((step, idx) => {
-	                      const live = pipelineStepLive.find(s => s.key === step.key)
-	                      const st = STATUS_STYLE[live?.status || 'pending']
-	                      return (
-	                        <div key={step.key} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-	                          <div style={{ minWidth: '220px', padding: '12px', borderRadius: '10px', border: `1px solid ${st.border}`, background: '#0b1220' }}>
-	                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
-	                              <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>{idx + 1}. {step.label}</div>
-	                              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: st.color, flex: '0 0 auto' }} />
-	                            </div>
-	                            <div style={{ marginTop: '6px', fontSize: '0.85rem', color: '#94a3b8', lineHeight: 1.4 }}>
-	                              {step.description}
-	                            </div>
-	                          </div>
-	                          {idx < PIPELINE_STEPS.length - 1 && (
-	                            <div style={{ color: '#64748b', fontSize: '1.25rem', padding: '0 2px' }}>→</div>
-	                          )}
-	                        </div>
-	                      )
-	                    })}
-                  </div>
-                </div>
-
-                <div>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '8px' }}>Live Status</div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: '10px', fontSize: '0.9rem' }}>
-                    <div style={{ color: '#94a3b8' }}>Dataset</div>
-                    <div>{selectedDataset?.name || datasetDetails?.name || '—'}</div>
-
-                    <div style={{ color: '#94a3b8' }}>Dataset Status</div>
-                    <div>{datasetDetails?.status || '—'}</div>
-
-                    <div style={{ color: '#94a3b8' }}>Glue Table</div>
-                    <div>{datasetDetails?.glue_database ? `${datasetDetails.glue_database}.${datasetDetails.glue_table || ''}` : '—'}</div>
-
-                    <div style={{ color: '#94a3b8' }}>Run ID</div>
-                    <div>{runId || '—'}</div>
-
-                    <div style={{ color: '#94a3b8' }}>Execution</div>
-                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{runStatus?.execution_arn || '—'}</div>
-
-                    <div style={{ color: '#94a3b8' }}>Execution Status</div>
-                    <div>{runStatus?.execution_status || runStatus?.status || (datasetDetails?.status ? datasetDetails.status.toUpperCase() : '—')}</div>
-
-                    <div style={{ color: '#94a3b8' }}>Current Step</div>
-                    <div>
-                      {currentPipelineStep
-                        ? `${currentPipelineStep.label} • ${STATUS_STYLE[currentPipelineStep.status].label}`
-                        : '—'}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+                {PIPELINE_STEPS.map((step, idx) => {
+                  const live = pipelineStepLive.find(s => s.key === step.key)
+                  const st = STATUS_STYLE[live?.status || 'pending']
+                  return (
+                    <div key={step.key} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <div style={{ padding: '6px 10px', borderRadius: '6px', border: `1px solid ${st.border}`, background: st.bg, fontSize: '0.8rem' }}>
+                        <span style={{ color: st.color }}>{step.label}</span>
+                      </div>
+                      {idx < PIPELINE_STEPS.length - 1 && <span style={{ color: '#64748b' }}>→</span>}
                     </div>
-                  </div>
-
-                  {datasetDetails?.last_error && (
-                    <div style={{ marginTop: '12px', padding: '10px', borderRadius: '8px', border: '1px solid #7f1d1d', background: '#450a0a', color: '#fecaca' }}>
-                      {datasetDetails.last_error}
-                    </div>
-                  )}
-
-                  {pipelineError && (
-                    <div style={{ marginTop: '12px', padding: '10px', borderRadius: '8px', border: '1px solid #7f1d1d', background: '#450a0a', color: '#fecaca' }}>
-                      {pipelineError}
-                    </div>
-                  )}
-
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
-                    <Button
-                      variant="secondary"
-                      onClick={handleStartPipeline}
-                      disabled={!selectedDatasetId || isStarting || (runStatus?.execution_status || '').toUpperCase() === 'RUNNING'}
-                    >
-                      {isStarting ? 'Starting…' : (runStatus?.execution_status || '').toUpperCase() === 'RUNNING' ? 'Running…' : 'Re-run Pipeline'}
-                    </Button>
-                  </div>
-
-                  <div style={{ marginTop: '12px', borderTop: '1px solid #334155', paddingTop: '12px' }}>
-                    <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '8px' }}>Step Status</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {pipelineStepLive.map(step => {
-                        const st = STATUS_STYLE[step.status]
-                        const glueSuffix = step.label === 'Glue ETL' && step.stateName ? (step.stateName === 'GlueETLS3' ? ' (S3)' : ' (Postgres)') : ''
-                        return (
-                          <div key={step.key} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '10px', padding: '10px', borderRadius: '8px', border: '1px solid #334155', background: '#0b1220' }}>
-                            <div>
-                              <div style={{ fontWeight: 700 }}>{step.label}{glueSuffix}</div>
-                              <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                                {step.startedAt ? `Start: ${step.startedAt}` : 'Start: —'}{step.endedAt ? ` • End: ${step.endedAt}` : ''}
-                              </div>
-                              {(step.error || step.cause) && (
-                                <div style={{ marginTop: '6px', fontSize: '0.8rem', color: '#fecaca' }}>
-                                  {step.error || 'Error'}{step.cause ? `: ${step.cause}` : ''}
-                                </div>
-                              )}
-                            </div>
-                            <div style={{ alignSelf: 'start', padding: '4px 8px', borderRadius: '999px', border: `1px solid ${st.border}`, color: st.color, background: st.bg, fontSize: '0.8rem', fontWeight: 700 }}>
-                              {st.label}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-
-                    <div style={{ marginTop: '12px' }}>
-                      <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '6px' }}>Recent Events</div>
-                      {pipelineEvents.length ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          {pipelineEvents.slice(-8).map(e => (
-                            <div key={e.id} style={{ fontSize: '0.85rem', color: '#cbd5e1', display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
-                              <div style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.state_name || e.type}</div>
-                              <div style={{ color: '#94a3b8', whiteSpace: 'nowrap' }}>{e.timestamp}</div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div style={{ color: '#94a3b8' }}>Waiting for updates…</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                  )
+                })}
               </div>
             )}
+            <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end' }}>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleStartPipeline}
+                disabled={!selectedDatasetId || isStarting || (runStatus?.execution_status || '').toUpperCase() === 'RUNNING'}
+              >
+                {isStarting ? 'Starting…' : 'Re-run'}
+              </Button>
+            </div>
           </Card>
         </div>
 
-        <div style={{ marginTop: '16px' }}>
+        {/* Row 2: Dataset Preview */}
+        {selectedDatasetId && (
+          <div style={{ marginBottom: '16px' }}>
+            <Card padding="lg">
+              <h2 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '12px' }}>
+                Dataset Preview {selectedDataset ? <span style={{ fontWeight: 400, color: '#94a3b8' }}>({selectedDataset.name})</span> : ''}
+              </h2>
+              {previewLoading ? (
+                <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Loading preview...</div>
+              ) : preview ? (
+                <div style={{ overflowX: 'auto', maxHeight: '200px', overflowY: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                    <thead>
+                      <tr style={{ background: '#1e293b' }}>
+                        {preview.columns.map((col, i) => (
+                          <th key={i} style={{ padding: '8px', textAlign: 'left', borderBottom: '1px solid #334155', color: '#94a3b8', whiteSpace: 'nowrap' }}>{col}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preview.rows.map((row, i) => (
+                        <tr key={i} style={{ background: i % 2 === 0 ? '#0b1220' : '#0f172a' }}>
+                          {row.map((cell, j) => (
+                            <td key={j} style={{ padding: '8px', borderBottom: '1px solid #334155', whiteSpace: 'nowrap' }}>{cell}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : canAskQuestions ? (
+                <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>No preview available</div>
+              ) : (
+                <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Preview available after pipeline completes</div>
+              )}
+            </Card>
+          </div>
+        )}
+
+        {/* Row 3: Live Status (left) | Ask Questions (right) */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          {/* Live Status */}
           <Card padding="lg">
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '10px' }}>Ask Questions</h2>
+            <h2 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '12px' }}>Live Status</h2>
+            {!selectedDatasetId ? (
+              <div style={{ color: '#94a3b8' }}>Select a dataset to view status.</div>
+            ) : (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: '8px', fontSize: '0.85rem', marginBottom: '12px' }}>
+                  <div style={{ color: '#94a3b8' }}>Dataset</div>
+                  <div>{selectedDataset?.name || datasetDetails?.name || '—'}</div>
+                  <div style={{ color: '#94a3b8' }}>Status</div>
+                  <div>{datasetDetails?.status || '—'}</div>
+                  <div style={{ color: '#94a3b8' }}>Glue Table</div>
+                  <div style={{ fontSize: '0.8rem' }}>{datasetDetails?.glue_database ? `${datasetDetails.glue_database}.${datasetDetails.glue_table || ''}` : '—'}</div>
+                  <div style={{ color: '#94a3b8' }}>Run ID</div>
+                  <div>{runId || '—'}</div>
+                  <div style={{ color: '#94a3b8' }}>Execution</div>
+                  <div>{runStatus?.execution_status || runStatus?.status || '—'}</div>
+                  <div style={{ color: '#94a3b8' }}>Current Step</div>
+                  <div>{currentPipelineStep ? `${currentPipelineStep.label} • ${STATUS_STYLE[currentPipelineStep.status].label}` : '—'}</div>
+                </div>
+
+                {(datasetDetails?.last_error || pipelineError) && (
+                  <div style={{ marginBottom: '12px', padding: '8px', borderRadius: '6px', border: '1px solid #7f1d1d', background: '#450a0a', color: '#fecaca', fontSize: '0.85rem' }}>
+                    {datasetDetails?.last_error || pipelineError}
+                  </div>
+                )}
+
+                <div style={{ borderTop: '1px solid #334155', paddingTop: '12px' }}>
+                  <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '8px' }}>Step Details</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '200px', overflowY: 'auto' }}>
+                    {pipelineStepLive.map(step => {
+                      const st = STATUS_STYLE[step.status]
+                      return (
+                        <div key={step.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', borderRadius: '6px', border: '1px solid #334155', background: '#0b1220' }}>
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{step.label}</div>
+                            {step.startedAt && <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{step.startedAt}</div>}
+                          </div>
+                          <div style={{ padding: '3px 8px', borderRadius: '999px', border: `1px solid ${st.border}`, color: st.color, background: st.bg, fontSize: '0.75rem', fontWeight: 600 }}>
+                            {st.label}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div style={{ marginTop: '12px', borderTop: '1px solid #334155', paddingTop: '12px' }}>
+                  <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '6px' }}>Recent Events</div>
+                  <div style={{ maxHeight: '120px', overflowY: 'auto' }}>
+                    {pipelineEvents.length ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {pipelineEvents.slice(-6).map(e => (
+                          <div key={e.id} style={{ fontSize: '0.8rem', color: '#cbd5e1', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>{e.state_name || e.type}</span>
+                            <span style={{ color: '#94a3b8' }}>{e.timestamp?.split('T')[1]?.slice(0, 8) || ''}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ color: '#94a3b8', fontSize: '0.8rem' }}>Waiting for events…</div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </Card>
+
+          {/* Ask Questions */}
+          <Card padding="lg">
+            <h2 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '12px' }}>Ask Questions</h2>
             {!canAskQuestions && (
-              <div style={{ marginBottom: '12px', padding: '10px', borderRadius: '8px', border: '1px solid #334155', background: '#0b1220', color: '#94a3b8' }}>
+              <div style={{ marginBottom: '10px', padding: '8px', borderRadius: '6px', border: '1px solid #334155', background: '#0b1220', color: '#94a3b8', fontSize: '0.85rem' }}>
                 {selectedDatasetId
-                  ? `Waiting for the pipeline to finish. Execution status: ${(runStatus?.execution_status || datasetDetails?.status || '—').toString().toUpperCase()}`
+                  ? `Waiting for pipeline. Status: ${(runStatus?.execution_status || datasetDetails?.status || '—').toString().toUpperCase()}`
                   : 'Select a dataset first.'}
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
+            {/* Suggested Questions */}
+            {suggestions.length > 0 && (
+              <div style={{ marginBottom: '10px' }}>
+                <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '6px' }}>Suggested questions:</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {suggestions.map((q, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setChatInput(q)}
+                      style={{ padding: '4px 10px', borderRadius: '12px', border: '1px solid #334155', background: '#1e293b', color: '#94a3b8', fontSize: '0.75rem', cursor: 'pointer' }}
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
               <input
                 value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') handleChat() }}
-                disabled={!canAskQuestions}
-                placeholder={canAskQuestions ? 'Ask about the data (e.g. top 10 customers by revenue)' : 'Pipeline not ready yet'}
-                style={{ flex: 1, padding: '10px', background: '#0b1220', border: '1px solid #334155', borderRadius: '8px', color: 'white' }}
+                onKeyDown={e => { if (e.key === 'Enter' && !isAsking) handleChat() }}
+                disabled={!canAskQuestions || isAsking}
+                placeholder={canAskQuestions ? 'e.g. top 10 customers by revenue' : 'Pipeline not ready'}
+                style={{ flex: 1, padding: '8px', background: '#0b1220', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.9rem' }}
               />
-              <Button onClick={handleChat} disabled={!canAskQuestions}>Send</Button>
+              <Button onClick={handleChat} disabled={!canAskQuestions || isAsking}>{isAsking ? 'Thinking...' : 'Send'}</Button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {/* Agent Steps Pipeline */}
+            {(isAsking || agentSteps.length > 0) && (
+              <div style={{ marginBottom: '12px', padding: '10px', borderRadius: '6px', border: '1px solid #334155', background: '#0b1220' }}>
+                <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '8px' }}>Agent Flow</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+                  {agentSteps.map((step, idx) => (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <div style={{ 
+                        padding: '4px 8px', 
+                        borderRadius: '4px', 
+                        background: step.status === 'completed' ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)',
+                        border: `1px solid ${step.status === 'completed' ? '#10b981' : '#f59e0b'}`,
+                        fontSize: '0.75rem'
+                      }}>
+                        <span style={{ color: step.status === 'completed' ? '#34d399' : '#fbbf24' }}>
+                          {step.tool === 'get_schema' ? '📋 Schema' : 
+                           step.tool === 'run_sql' ? '🔍 SQL' : 
+                           step.tool === 'sample_data' ? '📊 Sample' : 
+                           step.tool === 'answer' ? '✅ Answer' : step.tool}
+                        </span>
+                      </div>
+                      {idx < agentSteps.length - 1 && <span style={{ color: '#64748b' }}>→</span>}
+                    </div>
+                  ))}
+                  {isAsking && <span style={{ color: '#fbbf24', fontSize: '0.75rem' }}>⏳ Thinking...</span>}
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
               {chatLog.map((m, idx) => (
-                <div key={idx} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #334155', background: m.role === 'user' ? '#0b1220' : '#0b1a17' }}>
-                  <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '6px' }}>{m.role === 'user' ? 'You' : 'Assistant'}</div>
-                  <div style={{ whiteSpace: 'pre-wrap' }}>{m.content}</div>
+                <div key={idx} style={{ padding: '8px', borderRadius: '6px', border: '1px solid #334155', background: m.role === 'user' ? '#0b1220' : '#0b1a17' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>{m.role === 'user' ? 'You' : 'Assistant'}</div>
+                  <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.9rem' }}>{m.content}</div>
                 </div>
               ))}
               {!chatLog.length && (
-                <div style={{ color: '#94a3b8' }}>
-                  {canAskQuestions ? 'Ask a question to analyze your data.' : 'Pipeline is running (or not started yet). Once it succeeds, ask questions here.'}
+                <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
+                  {canAskQuestions ? 'Ask a question to analyze your data.' : 'Waiting for pipeline to complete.'}
                 </div>
               )}
             </div>
 
-            {(lastSql || lastQueryPreview) && (
-              <div style={{ marginTop: '14px' }}>
-                {lastSql && (
-                  <>
-                    <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '6px' }}>Last SQL</div>
-                    <pre style={{ padding: '12px', background: '#0b1220', border: '1px solid #334155', borderRadius: '8px', color: '#e2e8f0', fontSize: '0.8rem', overflow: 'auto' }}>
-{lastSql}
-                    </pre>
-                  </>
-                )}
-                {lastQueryPreview && (
-                  <>
-                    <div style={{ fontSize: '0.85rem', color: '#94a3b8', margin: '10px 0 6px' }}>Result Preview</div>
-                    <pre style={{ padding: '12px', background: '#0b1220', border: '1px solid #334155', borderRadius: '8px', color: '#e2e8f0', fontSize: '0.8rem', overflow: 'auto' }}>
-{lastQueryPreview}
-                    </pre>
-                  </>
-                )}
+            {/* Chart Visualization */}
+            {chartData && (
+              <div style={{ marginTop: '12px', padding: '12px', borderRadius: '6px', border: '1px solid #334155', background: '#0b1220' }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '8px' }}>{chartData.title}</div>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: '120px' }}>
+                  {chartData.values.map((val, i) => {
+                    const maxVal = Math.max(...chartData.values)
+                    const height = maxVal > 0 ? (val / maxVal) * 100 : 0
+                    return (
+                      <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                        <div style={{ 
+                          width: '100%', 
+                          height: `${height}%`, 
+                          background: chartData.type === 'bar' ? '#14b8a6' : '#3b82f6',
+                          borderRadius: '2px 2px 0 0',
+                          minHeight: '4px'
+                        }} />
+                        <div style={{ fontSize: '0.65rem', color: '#94a3b8', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60px' }}>
+                          {chartData.labels[i]}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {lastSql && (
+              <div style={{ marginTop: '12px', borderTop: '1px solid #334155', paddingTop: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Last SQL</div>
+                  <button
+                    onClick={handleExport}
+                    style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #334155', background: '#1e293b', color: '#94a3b8', fontSize: '0.7rem', cursor: 'pointer' }}
+                  >
+                    📥 Export CSV
+                  </button>
+                </div>
+                <pre style={{ padding: '8px', background: '#0b1220', border: '1px solid #334155', borderRadius: '6px', color: '#e2e8f0', fontSize: '0.75rem', overflow: 'auto', maxHeight: '80px' }}>{lastSql}</pre>
               </div>
             )}
           </Card>

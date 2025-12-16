@@ -5,6 +5,7 @@
 Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that scale effortlessly.
 
 ## What's New in V4.0 Beta
+- **Agentic Data Analysis**: Multi-source ingestion (CSV/S3/Postgres), automated ETL pipeline (Glue), agentic Q&A with self-healing queries, chart visualizations
 - **LLMs Fine-Tuning (Tinker API)**: Run fine-tuning workflows with live logs (generate data → train → sample/predictions)
 - **Email Notifications (Gmail SMTP)**: Central opt-in email service (default Off) for key events (Barista order confirmed, LMS course enrolled, Insurance policy created/claim filed)
 - **Voice Input (Speech-to-Text)**: Mic input option for AI Chat, Agentic Barista, Insurance Claims, and Agentic LMS
@@ -100,6 +101,15 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 - 💬 **Sampling UI** - Ask questions and sample from the latest fine-tuned checkpoint
 - 📊 **Job Runs** - Track status, logs, and outputs per step (generate/train/sample)
 
+### 8. Agentic Data Analysis
+- 📊 **Multi-Source Ingestion** - Upload CSV, connect S3 buckets, or query Postgres databases
+- ⚙️ **Automated ETL Pipeline** - AWS Glue transforms data to Parquet, catalogs in Glue Data Catalog
+- 🤖 **Agentic Q&A** - ReAct agent with tools (get_schema, run_sql, sample_data, create_chart)
+- 🔄 **Self-Healing Queries** - Agent auto-corrects failed SQL using schema context
+- 📈 **Chart Visualizations** - Agent generates bar/line charts for aggregations and trends
+- 💡 **Suggested Questions** - AI-generated question suggestions based on dataset columns
+- 📥 **Export Results** - Download query results as CSV
+
 ## Platform Features
 
 - 🔐 **Secure Authentication** - Cookie-based (httpOnly access/refresh), rotation, and RBAC
@@ -118,6 +128,9 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 
 ### Homepage
 ![Homepage](screenshots/1.jpg)
+
+### Co-Intelligence - AI Applications
+![Co-Intelligence - AI Applications](screenshots/1.1.png)
 
 ### Co-Intelligence - AI Applications
 ![Co-Intelligence - AI Applications](screenshots/1.1.png)
@@ -187,6 +200,18 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 
 ### App 7: LLM Fine-Tuning - Train + Sample / Predictions
 ![LLM Fine-Tuning - Train + Sample / Predictions](screenshots/6.67.png)
+
+### App 8: Agentic Data Analysis
+![Agentic Data Analysis](screenshots/6.68.png)
+
+### App 8: Agentic Data Analysis - Pipeline Running
+![Agentic Data Analysis - Dataset Preview](screenshots/6.681.png)
+
+### App 8: Agentic Data Analysis - Pipeline Complete
+![Agentic Data Analysis - Agentic Q&A](screenshots/6.682.png)
+
+### App 8: Agentic Data Analysis - Agentic Q and A - Agent Flow 
+![Agentic Data Analysis - Chart Visualization](screenshots/6.683.png)
 
 ### AWS EKS Screen
 ![AWS EKS](screenshots/7.png)

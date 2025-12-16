@@ -207,7 +207,7 @@ export default function Home() {
               <span>🕐 Last updated: {currentTime}</span>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px' }}>
             {apps.map(app => (
               <AppCard
                 key={app.id}

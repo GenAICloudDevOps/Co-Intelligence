@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 from dataclasses import dataclass
@@ -54,6 +55,7 @@ class DataAnalysisAWSClients:
         self._sfn = boto3.client("stepfunctions", region_name=self._region)
         self._s3 = boto3.client("s3", region_name=self._region)
         self._athena = boto3.client("athena", region_name=self._region)
+        self._glue = boto3.client("glue", region_name=self._region)
 
     @property
     def region(self) -> str:
@@ -141,3 +143,51 @@ class DataAnalysisAWSClients:
             data_rows.append([d.get("VarCharValue", "") for d in row.get("Data", [])])
 
         return AthenaQueryResult(query_execution_id=qid, rows=data_rows, columns=header)
+
+    async def run_athena_query_async(
+        self,
+        sql: str,
+        database: str,
+        workgroup: Optional[str] = None,
+        poll_seconds: float = 1.0,
+        timeout_seconds: float = 60.0,
+        max_rows: int = 50,
+    ) -> AthenaQueryResult:
+        workgroup = workgroup or settings.DATA_ANALYSIS_ATHENA_WORKGROUP
+        output_location = _athena_output_s3_uri()
+
+        start = self._athena.start_query_execution(
+            QueryString=sql,
+            QueryExecutionContext={"Database": database},
+            ResultConfiguration={"OutputLocation": output_location},
+            WorkGroup=workgroup,
+        )
+        qid = start["QueryExecutionId"]
+
+        deadline = time.time() + timeout_seconds
+        while True:
+            q = self._athena.get_query_execution(QueryExecutionId=qid)
+            state = q["QueryExecution"]["Status"]["State"]
+            if state in ("SUCCEEDED", "FAILED", "CANCELLED"):
+                break
+            if time.time() > deadline:
+                raise TimeoutError("Athena query timed out")
+            await asyncio.sleep(poll_seconds)
+
+        if state != "SUCCEEDED":
+            reason = q["QueryExecution"]["Status"].get("StateChangeReason", "Unknown error")
+            raise RuntimeError(f"Athena query failed: {state}: {reason}")
+
+        result = self._athena.get_query_results(QueryExecutionId=qid, MaxResults=max_rows)
+        rows = result["ResultSet"]["Rows"]
+        header = [c.get("VarCharValue", "") for c in rows[0]["Data"]] if rows else []
+        data_rows: list[list[str]] = []
+        for row in rows[1:]:
+            data_rows.append([d.get("VarCharValue", "") for d in row.get("Data", [])])
+
+        return AthenaQueryResult(query_execution_id=qid, rows=data_rows, columns=header)
+
+    def get_table_schema(self, database: str, table: str) -> list[dict[str, str]]:
+        resp = self._glue.get_table(DatabaseName=database, Name=table)
+        columns = resp.get("Table", {}).get("StorageDescriptor", {}).get("Columns", [])
+        return [{"name": c["Name"], "type": c.get("Type", "string")} for c in columns]

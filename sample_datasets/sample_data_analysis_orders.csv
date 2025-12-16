@@ -1,0 +1,31 @@
+order_id,order_date,customer_id,customer_name,customer_email,customer_phone,city,state,channel,payment_method,product_category,product_name,quantity,unit_price,discount_pct,revenue
+10001,2025-10-01,C001,Avery Chen,avery.chen@example.com,555-0101,San Jose,CA,web,card,Electronics,Wireless Mouse,2,24.99,0.00,49.98
+10002,2025-10-01,C002,Jordan Patel,jordan.patel@example.com,555-0102,Austin,TX,web,card,Home,LED Bulb Pack,3,9.99,0.10,26.97
+10003,2025-10-02,C003,Riley Kim,riley.kim@example.com,555-0103,Seattle,WA,store,cash,Groceries,Coffee Beans 1lb,1,14.49,0.00,14.49
+10004,2025-10-02,C004,Sam Rivera,sam.rivera@example.com,555-0104,New York,NY,web,card,Books,Data Science Handbook,1,39.95,0.15,39.95
+10005,2025-10-03,C001,Avery Chen,avery.chen@example.com,555-0101,San Jose,CA,web,card,Electronics,USB-C Cable,4,7.99,0.00,31.96
+10006,2025-10-03,C005,Morgan Lee,morgan.lee@example.com,555-0105,Chicago,IL,partner,card,Home,Air Filter,2,18.50,0.05,37.00
+10007,2025-10-04,C006,Taylor Singh,taylor.singh@example.com,555-0106,Denver,CO,web,card,Clothing,T-Shirt,3,12.00,0.20,36.00
+10008,2025-10-04,C007,Casey Brown,casey.brown@example.com,555-0107,Miami,FL,store,card,Groceries,Olive Oil 500ml,1,11.25,0.00,11.25
+10009,2025-10-05,C008,Jamie Davis,jamie.davis@example.com,555-0108,Boston,MA,web,card,Electronics,Bluetooth Speaker,1,59.99,0.10,59.99
+10010,2025-10-05,C002,Jordan Patel,jordan.patel@example.com,555-0102,Austin,TX,partner,card,Home,Vacuum Bags,2,15.00,0.00,30.00
+10011,2025-10-06,C009,Quinn Wilson,quinn.wilson@example.com,555-0109,Portland,OR,web,card,Books,SQL Pocket Guide,1,19.99,0.00,19.99
+10012,2025-10-06,C010,Reese Martin,reese.martin@example.com,555-0110,Atlanta,GA,store,cash,Groceries,Pasta 1lb,5,2.49,0.00,12.45
+10013,2025-10-07,C006,Taylor Singh,taylor.singh@example.com,555-0106,Denver,CO,web,card,Clothing,Hoodie,1,45.00,0.10,45.00
+10014,2025-10-07,C011,Alex Johnson,alex.johnson@example.com,555-0111,Phoenix,AZ,web,card,Home,Kitchen Towels,4,6.25,0.00,25.00
+10015,2025-10-08,C012,Drew Nguyen,drew.nguyen@example.com,555-0112,San Diego,CA,partner,card,Electronics,External SSD 1TB,1,109.00,0.05,109.00
+10016,2025-10-08,C003,Riley Kim,riley.kim@example.com,555-0103,Seattle,WA,store,card,Groceries,Tea Box,2,6.75,0.00,13.50
+10017,2025-10-09,C013,Robin Garcia,robin.garcia@example.com,555-0113,Dallas,TX,web,card,Books,Machine Learning Intro,1,29.95,0.00,29.95
+10018,2025-10-09,C004,Sam Rivera,sam.rivera@example.com,555-0104,New York,NY,web,card,Electronics,Noise Cancelling Headphones,1,149.99,0.10,149.99
+10019,2025-10-10,C014,Emerson Clark,emerson.clark@example.com,555-0114,Minneapolis,MN,store,cash,Home,Detergent,2,13.49,0.00,26.98
+10020,2025-10-10,C015,Parker Hall,parker.hall@example.com,555-0115,Nashville,TN,web,card,Clothing,Jeans,1,55.00,0.15,55.00
+10021,2025-10-11,C012,Drew Nguyen,drew.nguyen@example.com,555-0112,San Diego,CA,web,card,Electronics,Laptop Stand,1,29.99,0.00,29.99
+10022,2025-10-11,C005,Morgan Lee,morgan.lee@example.com,555-0105,Chicago,IL,partner,card,Books,Notebook,6,3.50,0.00,21.00
+10023,2025-10-12,C016,Sydney Moore,sydney.moore@example.com,555-0116,Charlotte,NC,store,card,Groceries,Granola,3,4.25,0.00,12.75
+10024,2025-10-12,C017,Hayden Scott,hayden.scott@example.com,555-0117,Las Vegas,NV,web,card,Home,Desk Lamp,1,27.50,0.10,27.50
+10025,2025-10-13,C018,Rowan Adams,rowan.adams@example.com,555-0118,Detroit,MI,web,card,Electronics,HDMI Cable,3,8.99,0.00,26.97
+10026,2025-10-13,C009,Quinn Wilson,quinn.wilson@example.com,555-0109,Portland,OR,store,cash,Groceries,Chocolate Bar,8,1.49,0.00,11.92
+10027,2025-10-14,C011,Alex Johnson,alex.johnson@example.com,555-0111,Phoenix,AZ,web,card,Home,Shower Curtain,1,22.00,0.05,22.00
+10028,2025-10-14,C019,Harper Turner,harper.turner@example.com,555-0119,Philadelphia,PA,partner,card,Clothing,Sneakers,1,79.00,0.10,79.00
+10029,2025-10-15,C020,Kai Brooks,kai.brooks@example.com,555-0120,Baltimore,MD,web,card,Books,Python Crash Course,1,34.99,0.10,34.99
+10030,2025-10-15,C001,Avery Chen,avery.chen@example.com,555-0101,San Jose,CA,store,card,Groceries,Sparkling Water,12,0.99,0.00,11.88
