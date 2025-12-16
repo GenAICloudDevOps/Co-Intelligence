@@ -132,9 +132,6 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 ### Co-Intelligence - AI Applications
 ![Co-Intelligence - AI Applications](screenshots/1.1.png)
 
-### Co-Intelligence - AI Applications
-![Co-Intelligence - AI Applications](screenshots/1.1.png)
-
 ### Platform Features
 ![Platform Features](screenshots/2.png)
 
