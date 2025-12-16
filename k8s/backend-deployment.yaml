@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: backend
 spec:
-  replicas: 3
+  replicas: 4
   selector:
     matchLabels:
       app: backend
@@ -56,8 +56,8 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: backend
-  minReplicas: 3
-  maxReplicas: 3
+  minReplicas: 4
+  maxReplicas: 4
   metrics:
   - type: Resource
     resource:
