@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: us-east1-docker.pkg.dev/playground-s-11-aef97439/co-intelligence-frontend/frontend:latest
+        image: us-east1-docker.pkg.dev/playground-s-11-6d85e405/co-intelligence-frontend/frontend:latest
         ports:
         - containerPort: 3000
         env:

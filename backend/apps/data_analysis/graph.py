@@ -7,7 +7,7 @@ from typing import Any, Literal, TypedDict
 from langgraph.graph import END, StateGraph
 
 from services.ai_service import ai_service
-from apps.data_analysis.aws_clients import DataAnalysisAWSClients, DataAnalysisAWSNotConfigured
+from apps.data_analysis.cloud_clients import get_cloud_client, DataAnalysisNotConfigured
 
 
 class AgentState(TypedDict, total=False):
@@ -155,7 +155,7 @@ async def execute_tool(state: AgentState) -> AgentState:
     observation = ""
     
     try:
-        clients = DataAnalysisAWSClients()
+        clients = get_cloud_client()
         
         if tool == "get_schema":
             schema = clients.get_table_schema(
@@ -167,7 +167,7 @@ async def execute_tool(state: AgentState) -> AgentState:
         elif tool == "run_sql":
             sql = tool_input.get("sql", "")
             state["last_sql"] = sql
-            result = await clients.run_athena_query_async(
+            result = await clients.run_sql_query_async(
                 sql=sql,
                 database=state.get("glue_database", ""),
                 timeout_seconds=90.0,
@@ -180,7 +180,7 @@ async def execute_tool(state: AgentState) -> AgentState:
         elif tool == "sample_data":
             sql = f"SELECT * FROM {state.get('glue_database', '')}.{state.get('glue_table', '')} LIMIT 5"
             state["last_sql"] = sql
-            result = await clients.run_athena_query_async(
+            result = await clients.run_sql_query_async(
                 sql=sql,
                 database=state.get("glue_database", ""),
                 timeout_seconds=60.0,
@@ -191,7 +191,7 @@ async def execute_tool(state: AgentState) -> AgentState:
         elif tool == "create_chart":
             sql = tool_input.get("sql", "")
             state["last_sql"] = sql
-            result = await clients.run_athena_query_async(
+            result = await clients.run_sql_query_async(
                 sql=sql,
                 database=state.get("glue_database", ""),
                 timeout_seconds=90.0,
@@ -219,8 +219,8 @@ async def execute_tool(state: AgentState) -> AgentState:
         else:
             observation = f"Unknown tool: {tool}"
             
-    except DataAnalysisAWSNotConfigured as e:
-        observation = f"AWS Error: {e}"
+    except DataAnalysisNotConfigured as e:
+        observation = f"Cloud Error: {e}"
     except Exception as e:
         observation = f"Error: {str(e)}"
     

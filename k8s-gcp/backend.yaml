@@ -4,7 +4,7 @@ metadata:
   name: backend
   namespace: co-intelligence
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: backend
@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: us-east1-docker.pkg.dev/playground-s-11-aef97439/co-intelligence-backend/backend:latest
+        image: us-east1-docker.pkg.dev/playground-s-11-6d85e405/co-intelligence-backend/backend:latest
         ports:
         - containerPort: 8000
         envFrom:
@@ -23,10 +23,10 @@ spec:
             name: app-secrets
         resources:
           requests:
-            memory: "1Gi"
-            cpu: "100m"
+            memory: "256Mi"
+            cpu: "250m"
           limits:
-            memory: "2Gi"
+            memory: "512Mi"
             cpu: "500m"
 ---
 apiVersion: v1

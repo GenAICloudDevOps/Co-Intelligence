@@ -28,9 +28,9 @@ type PipelineStep = {
 
 const PIPELINE_STEPS: PipelineStep[] = [
   { key: 'validate', label: 'Validate', description: 'Validate inputs and policy checks', stateNames: ['Validate'] },
-  { key: 'choose', label: 'Route Job', description: 'Choose S3 vs Postgres processing', stateNames: ['ChooseJob'] },
-  { key: 'glue', label: 'Glue ETL', description: 'Convert → Parquet + transforms + PII handling', stateNames: ['GlueETLS3', 'GlueETLPostgres'] },
-  { key: 'catalog', label: 'Catalog', description: 'Create/Update Glue table for Athena', stateNames: ['Catalog'] },
+  { key: 'choose', label: 'Route Job', description: 'Choose Storage vs Postgres processing', stateNames: ['ChooseJob'] },
+  { key: 'glue', label: 'ETL', description: 'Convert → Parquet + transforms + PII handling', stateNames: ['GlueETLS3', 'GlueETLPostgres'] },
+  { key: 'catalog', label: 'Catalog', description: 'Create/Update table for SQL queries', stateNames: ['Catalog'] },
   { key: 'finalize', label: 'Finalize', description: 'Publish outputs and mark run complete', stateNames: ['Finalize'] },
 ]
 
@@ -353,7 +353,7 @@ export default function DataAnalysisApp() {
       }
 
       if (sourceMode === 's3') {
-        if (!s3Uri.trim().startsWith('s3://')) throw new Error('Provide a valid S3 URI (s3://...)')
+        if (!s3Uri.trim().startsWith('s3://') && !s3Uri.trim().startsWith('gs://')) throw new Error('Provide a valid storage URI (s3://... or gs://...)')
         const res = await daApi.createS3Dataset({ name: datasetName.trim(), s3_uri: s3Uri.trim() })
         await refreshDatasets()
         setSelectedDatasetId(res.dataset_id)
@@ -459,7 +459,7 @@ export default function DataAnalysisApp() {
             <div style={{ display: 'flex', gap: '6px', marginBottom: '10px', flexWrap: 'wrap' }}>
               <Button size="sm" variant={sourceMode === 'sample' ? 'primary' : 'secondary'} onClick={() => setSourceMode('sample')}>Sample</Button>
               <Button size="sm" variant={sourceMode === 'upload' ? 'primary' : 'secondary'} onClick={() => setSourceMode('upload')}>Upload</Button>
-              <Button size="sm" variant={sourceMode === 's3' ? 'primary' : 'secondary'} onClick={() => setSourceMode('s3')}>S3</Button>
+              <Button size="sm" variant={sourceMode === 's3' ? 'primary' : 'secondary'} onClick={() => setSourceMode('s3')}>Cloud Storage</Button>
               <Button size="sm" variant={sourceMode === 'postgres' ? 'primary' : 'secondary'} onClick={() => setSourceMode('postgres')}>Postgres</Button>
             </div>
 
@@ -498,7 +498,7 @@ export default function DataAnalysisApp() {
                 <input
                   value={s3Uri}
                   onChange={e => setS3Uri(e.target.value)}
-                  placeholder="s3://bucket/path/file.csv"
+                  placeholder="s3://bucket/path/file.csv or gs://bucket/path/file.csv"
                   style={{ width: '100%', padding: '8px', background: '#0b1220', border: '1px solid #334155', borderRadius: '6px', color: 'white', fontSize: '0.9rem' }}
                 />
               </div>
@@ -634,7 +634,7 @@ export default function DataAnalysisApp() {
                   <div>{selectedDataset?.name || datasetDetails?.name || '—'}</div>
                   <div style={{ color: '#94a3b8' }}>Status</div>
                   <div>{datasetDetails?.status || '—'}</div>
-                  <div style={{ color: '#94a3b8' }}>Glue Table</div>
+                  <div style={{ color: '#94a3b8' }}>Data Table</div>
                   <div style={{ fontSize: '0.8rem' }}>{datasetDetails?.glue_database ? `${datasetDetails.glue_database}.${datasetDetails.glue_table || ''}` : '—'}</div>
                   <div style={{ color: '#94a3b8' }}>Run ID</div>
                   <div>{runId || '—'}</div>

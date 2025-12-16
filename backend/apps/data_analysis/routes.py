@@ -10,14 +10,12 @@ import asyncio
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 
-from botocore.exceptions import ClientError
-
 from auth.models import User
 from auth.utils import get_current_user
 from config import settings
 from services.file_service import validate_file
 from services.streaming import create_sse_response, sse_event
-from apps.data_analysis.aws_clients import DataAnalysisAWSClients, DataAnalysisAWSNotConfigured
+from apps.data_analysis.cloud_clients import get_cloud_client, DataAnalysisNotConfigured
 from apps.data_analysis.graph import create_data_analysis_graph
 from apps.data_analysis.models import DataAnalysisDataset, DataAnalysisRun
 
@@ -26,9 +24,30 @@ graph = create_data_analysis_graph()
 
 
 def _require_bucket() -> str:
-    if not settings.S3_BUCKET_NAME:
-        raise HTTPException(status_code=400, detail="S3_BUCKET_NAME not configured")
-    return settings.S3_BUCKET_NAME
+    provider = getattr(settings, "CLOUD_PROVIDER", "aws").lower()
+    if provider == "gcp":
+        if not getattr(settings, "GCP_STORAGE_BUCKET", ""):
+            raise HTTPException(status_code=400, detail="GCP_STORAGE_BUCKET not configured")
+        return settings.GCP_STORAGE_BUCKET
+    elif provider == "azure":
+        if not getattr(settings, "AZURE_STORAGE_CONTAINER", ""):
+            raise HTTPException(status_code=400, detail="AZURE_STORAGE_CONTAINER not configured")
+        return settings.AZURE_STORAGE_CONTAINER
+    else:
+        if not settings.S3_BUCKET_NAME:
+            raise HTTPException(status_code=400, detail="S3_BUCKET_NAME not configured")
+        return settings.S3_BUCKET_NAME
+
+
+def _get_storage_uri(bucket: str, key: str) -> str:
+    """Build storage URI based on cloud provider."""
+    provider = getattr(settings, "CLOUD_PROVIDER", "aws").lower()
+    if provider == "gcp":
+        return f"gs://{bucket}/{key}"
+    elif provider == "azure":
+        account = getattr(settings, "AZURE_STORAGE_CONNECTION_STRING", "").split(";")[0].replace("AccountName=", "") if settings.AZURE_STORAGE_CONNECTION_STRING else "storage"
+        return f"https://{account}.blob.core.windows.net/{bucket}/{key}"
+    return f"s3://{bucket}/{key}"
 
 
 def _dataset_prefix(user_id: int, dataset_id: int) -> str:
@@ -88,19 +107,20 @@ async def _start_pipeline_run(
     )
 
     try:
-        clients = DataAnalysisAWSClients()
+        clients = get_cloud_client()
         bucket = _require_bucket()
         spec_key = f"{_dataset_prefix(current_user.id, dataset.id)}/specs/run={run.id}.json"
-        spec_s3_uri = f"s3://{bucket}/{spec_key}"
-        clients.put_json_to_s3(spec_s3_uri, spec)
+        spec_uri = _get_storage_uri(bucket, spec_key)
+        clients.put_json(spec_uri, spec)
 
         curated_prefix = f"{_dataset_prefix(current_user.id, dataset.id)}/curated/run={run.id}/"
-        curated_s3_uri = f"s3://{bucket}/{curated_prefix}"
+        curated_uri = _get_storage_uri(bucket, curated_prefix)
 
-        schema_s3_uri = f"s3://{bucket}/{_dataset_prefix(current_user.id, dataset.id)}/metadata/run={run.id}/schema.json"
+        schema_key = f"{_dataset_prefix(current_user.id, dataset.id)}/metadata/run={run.id}/schema.json"
+        schema_uri = _get_storage_uri(bucket, schema_key)
 
         execution_name = f"data-analysis-run-{run.id}"
-        execution_arn = clients.start_pipeline(
+        execution_id = clients.start_pipeline(
             name=execution_name,
             input_payload={
                 "user_id": current_user.id,
@@ -108,9 +128,9 @@ async def _start_pipeline_run(
                 "dataset_name": dataset.name,
                 "glue_database": settings.DATA_ANALYSIS_GLUE_DATABASE,
                 "glue_table": _sanitize_table_name(current_user.id, dataset.id),
-                "spec_s3_uri": spec_s3_uri,
-                "curated_s3_uri": curated_s3_uri,
-                "schema_s3_uri": schema_s3_uri,
+                "spec_s3_uri": spec_uri,
+                "curated_s3_uri": curated_uri,
+                "schema_s3_uri": schema_uri,
                 "source": {
                     "type": dataset.source_type,
                     "raw_s3_uri": dataset.raw_s3_uri,
@@ -119,19 +139,19 @@ async def _start_pipeline_run(
             },
         )
 
-        run.spec_s3_uri = spec_s3_uri
-        run.execution_arn = execution_arn
+        run.spec_s3_uri = spec_uri
+        run.execution_arn = execution_id
         run.status = "running"
         await run.save()
 
-        dataset.curated_s3_uri = curated_s3_uri
+        dataset.curated_s3_uri = curated_uri
         dataset.glue_table = _sanitize_table_name(current_user.id, dataset.id)
         dataset.glue_database = settings.DATA_ANALYSIS_GLUE_DATABASE
         dataset.status = "processing"
         dataset.last_run_id = run.id
         await dataset.save()
 
-        return {"run_id": run.id, "execution_arn": execution_arn}
+        return {"run_id": run.id, "execution_arn": execution_id}
     except Exception as e:
         run.status = "failed"
         await run.save()
@@ -245,7 +265,7 @@ async def get_dataset_suggestions(dataset_id: int, current_user: User = Depends(
     if not dataset.glue_database or not dataset.glue_table:
         raise HTTPException(status_code=400, detail="Dataset not ready")
     try:
-        clients = DataAnalysisAWSClients()
+        clients = get_cloud_client()
         schema = clients.get_table_schema(dataset.glue_database, dataset.glue_table)
         cols = [c["name"] for c in schema]
         
@@ -265,10 +285,10 @@ Example: ["What is total revenue by region?", "Show top 5 customers"]"""
         return {"suggestions": suggestions[:4]}
     except Exception as e:
         return {"suggestions": [
-            f"Show total count of records",
-            f"What are the top 5 {cols[0] if cols else 'items'}?",
-            f"Show summary statistics",
-            f"List unique values in {cols[-1] if cols else 'column'}"
+            "Show total count of records",
+            "What are the top 5 items?",
+            "Show summary statistics",
+            "List unique values"
         ]}
 
 
@@ -285,8 +305,8 @@ async def export_dataset_query(dataset_id: int, request: ChatRequest, current_us
         raise HTTPException(status_code=400, detail="Dataset not ready")
     
     try:
-        clients = DataAnalysisAWSClients()
-        result = await clients.run_athena_query_async(
+        clients = get_cloud_client()
+        result = await clients.run_sql_query_async(
             sql=request.message,
             database=dataset.glue_database,
             timeout_seconds=120.0,
@@ -316,11 +336,11 @@ async def get_dataset_preview(dataset_id: int, limit: int = 5, current_user: Use
     if not dataset.glue_database or not dataset.glue_table:
         raise HTTPException(status_code=400, detail="Dataset not ready for preview")
     try:
-        clients = DataAnalysisAWSClients()
+        clients = get_cloud_client()
         sql = f"SELECT * FROM {dataset.glue_database}.{dataset.glue_table} LIMIT {min(limit, 50)}"
-        result = await clients.run_athena_query_async(sql=sql, database=dataset.glue_database, timeout_seconds=60.0, max_rows=min(limit, 50))
+        result = await clients.run_sql_query_async(sql=sql, database=dataset.glue_database, timeout_seconds=60.0, max_rows=min(limit, 50))
         return {"columns": result.columns, "rows": result.rows}
-    except DataAnalysisAWSNotConfigured as e:
+    except DataAnalysisNotConfigured as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -334,10 +354,10 @@ async def get_dataset_schema(dataset_id: int, current_user: User = Depends(get_c
     if not dataset.glue_database or not dataset.glue_table:
         raise HTTPException(status_code=400, detail="Dataset schema not available yet")
     try:
-        clients = DataAnalysisAWSClients()
+        clients = get_cloud_client()
         schema = clients.get_table_schema(dataset.glue_database, dataset.glue_table)
         return {"dataset_id": dataset.id, "columns": schema}
-    except DataAnalysisAWSNotConfigured as e:
+    except DataAnalysisNotConfigured as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -365,21 +385,21 @@ async def upload_source(
         )
         bucket = _require_bucket()
         key = f"{_dataset_prefix(current_user.id, dataset.id)}/raw/{uuid.uuid4()}-{os.path.basename(file.filename)}"
-        raw_s3_uri = f"s3://{bucket}/{key}"
+        raw_uri = _get_storage_uri(bucket, key)
 
-        clients = DataAnalysisAWSClients()
-        clients.put_bytes_to_s3(raw_s3_uri, content)
+        clients = get_cloud_client()
+        clients.put_bytes(raw_uri, content)
 
-        dataset.raw_s3_uri = raw_s3_uri
+        dataset.raw_s3_uri = raw_uri
         dataset.status = "created"
         await dataset.save()
 
-        response: dict[str, Any] = {"dataset_id": dataset.id, "raw_s3_uri": raw_s3_uri}
+        response: dict[str, Any] = {"dataset_id": dataset.id, "raw_s3_uri": raw_uri}
         if auto_run:
             run_info = await _start_pipeline_run(dataset=dataset, current_user=current_user)
             response.update(run_info)
         return response
-    except DataAnalysisAWSNotConfigured as e:
+    except DataAnalysisNotConfigured as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         dataset.status = "failed"
@@ -408,7 +428,7 @@ async def create_s3_source(
         try:
             run_info = await _start_pipeline_run(dataset=dataset, current_user=current_user)
             response.update(run_info)
-        except DataAnalysisAWSNotConfigured as e:
+        except DataAnalysisNotConfigured as e:
             dataset.status = "failed"
             dataset.last_error = str(e)
             await dataset.save()
@@ -440,7 +460,7 @@ async def create_postgres_source(
         try:
             run_info = await _start_pipeline_run(dataset=dataset, current_user=current_user)
             response.update(run_info)
-        except DataAnalysisAWSNotConfigured as e:
+        except DataAnalysisNotConfigured as e:
             dataset.status = "failed"
             dataset.last_error = str(e)
             await dataset.save()
@@ -479,7 +499,7 @@ async def start_run(request: StartRunRequest, current_user: User = Depends(get_c
 
     try:
         return await _start_pipeline_run(dataset=dataset, current_user=current_user, transformation_spec=request.transformation_spec)
-    except DataAnalysisAWSNotConfigured as e:
+    except DataAnalysisNotConfigured as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         dataset.status = "failed"
@@ -509,7 +529,7 @@ async def get_run(run_id: int, current_user: User = Depends(get_current_user)):
 
     if run.execution_arn:
         try:
-            clients = DataAnalysisAWSClients()
+            clients = get_cloud_client()
             exec_info = clients.get_execution(run.execution_arn)
             exec_status = exec_info.get("status")
             payload["execution_status"] = exec_status
@@ -540,7 +560,7 @@ async def get_run_history(run_id: int, current_user: User = Depends(get_current_
         raise HTTPException(status_code=400, detail="Run is missing execution_arn")
 
     try:
-        clients = DataAnalysisAWSClients()
+        clients = get_cloud_client()
         history: list[dict[str, Any]] = []
         next_token: Optional[str] = None
         while True:
@@ -550,15 +570,8 @@ async def get_run_history(run_id: int, current_user: User = Depends(get_current_
             if not next_token:
                 break
         return {"run_id": run.id, "execution_arn": run.execution_arn, "events": _summarize_history_events(history)}
-    except DataAnalysisAWSNotConfigured as e:
+    except DataAnalysisNotConfigured as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except ClientError as e:
-        code = (e.response or {}).get("Error", {}).get("Code", "ClientError")
-        msg = (e.response or {}).get("Error", {}).get("Message", str(e))
-        raise HTTPException(
-            status_code=403,
-            detail=f"AWS permission error calling Step Functions history ({code}): {msg}. Ensure the backend AWS credentials allow states:GetExecutionHistory.",
-        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -582,8 +595,8 @@ async def stream_run_events(
         yield sse_event({"run_id": run.id, "execution_arn": run.execution_arn, "since_id": last_id}, event="init")
 
         try:
-            clients = DataAnalysisAWSClients()
-        except DataAnalysisAWSNotConfigured as e:
+            clients = get_cloud_client()
+        except DataAnalysisNotConfigured as e:
             yield sse_event({"error": str(e)}, event="error")
             return
 
@@ -602,16 +615,6 @@ async def stream_run_events(
                         yield sse_event(item, event="event")
                 else:
                     yield sse_event({"ts": int(time.time())}, event="heartbeat")
-            except ClientError as e:
-                code = (e.response or {}).get("Error", {}).get("Code", "ClientError")
-                msg = (e.response or {}).get("Error", {}).get("Message", str(e))
-                yield sse_event(
-                    {
-                        "error": f"AWS permission error calling Step Functions history ({code}): {msg}. Ensure the backend AWS credentials allow states:GetExecutionHistory."
-                    },
-                    event="error",
-                )
-                return
             except Exception as e:
                 yield sse_event({"error": str(e)}, event="error")
                 return

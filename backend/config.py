@@ -14,12 +14,31 @@ class Settings(BaseSettings):
     
     TAVILY_API_KEY: str = ""
     
+    # Cloud provider: aws | gcp | azure
+    CLOUD_PROVIDER: str = "aws"
+    
+    # AWS settings
     AWS_REGION: str = "us-east-1"
     AWS_ACCESS_KEY_ID: str = ""
     AWS_SECRET_ACCESS_KEY: str = ""
-    
     S3_BUCKET_NAME: str = ""
     CODE_EXECUTOR_URL: str = ""
+    
+    # GCP settings (for Data Analysis)
+    GCP_PROJECT_ID: str = ""
+    GCP_WORKFLOWS_LOCATION: str = "us-central1"
+    GCP_WORKFLOWS_NAME: str = ""
+    GCP_BIGQUERY_DATASET: str = "co_intelligence_data_analysis"
+    GCP_STORAGE_BUCKET: str = ""
+    
+    # Azure settings (for Data Analysis)
+    AZURE_SUBSCRIPTION_ID: str = ""
+    AZURE_RESOURCE_GROUP: str = ""
+    AZURE_STORAGE_CONNECTION_STRING: str = ""
+    AZURE_STORAGE_CONTAINER: str = "data-analysis"
+    AZURE_LOGIC_APP_TRIGGER_URL: str = ""
+    AZURE_SYNAPSE_SQL_ENDPOINT: str = ""
+    AZURE_SYNAPSE_DATABASE: str = "co_intelligence"
 
     # AI settings
     AI_DEFAULT_MODEL: str = "gemini-2.5-flash"
