@@ -1,11 +1,15 @@
 'use client';
 
+import { useEffect } from 'react';
 import { Coffee, ShoppingCart } from 'lucide-react';
-import { AI_MODELS, DEFAULT_MODEL } from '../config/models';
+import { ModelSelector, DEFAULT_MODEL } from '../config/models';
 import { useAuth } from '../hooks/useAuth';
+import { useModelCatalog } from '../hooks/useModelCatalog';
+import { useRouter } from 'next/navigation';
 
 interface AppHeaderProps {
   appName: string;
+  requireAuth?: boolean;
   showModelSelector?: boolean;
   showCart?: boolean;
   selectedModel?: string;
@@ -15,15 +19,27 @@ interface AppHeaderProps {
 
 export default function AppHeader({
   appName,
+  requireAuth = true,
   showModelSelector = false,
   showCart = false,
   selectedModel = DEFAULT_MODEL,
   onModelChange,
   cartCount = 0
 }: AppHeaderProps) {
-  const { user, logout, initializing } = useAuth(true);
+  const router = useRouter();
+  const { user, logout, initializing } = useAuth(requireAuth);
+  const { models, defaultModel } = useModelCatalog();
 
-  if (initializing || !user) {
+  useEffect(() => {
+    if (!showModelSelector || !onModelChange) return
+    if (!models?.length) return
+    const selected = models.find((m) => m.id === selectedModel)
+    if (selected && selected.enabled !== false) return
+    const fallback = models.find((m) => m.enabled !== false)?.id || defaultModel || DEFAULT_MODEL
+    if (selectedModel !== fallback) onModelChange(fallback)
+  }, [defaultModel, models, onModelChange, selectedModel, showModelSelector])
+
+  if (requireAuth && (initializing || !user)) {
     return (
       <header style={{ background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', borderBottom: '1px solid #e7e5e4' }}>
         <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '16px 24px' }}>
@@ -43,17 +59,20 @@ export default function AppHeader({
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           {showModelSelector && onModelChange && (
-            <select
+            <ModelSelector
               value={selectedModel}
-              onChange={(e) => onModelChange(e.target.value)}
-              style={{ padding: '8px 16px', border: '1px solid #d6d3d1', borderRadius: '8px', background: 'white', fontSize: '14px', outline: 'none' }}
-            >
-              {AI_MODELS.map(model => (
-                <option key={model.id} value={model.id}>
-                  {model.name} ({model.provider})
-                </option>
-              ))}
-            </select>
+              onChange={onModelChange}
+              models={models}
+              style={{
+                padding: '8px 16px',
+                border: '1px solid #d6d3d1',
+                borderRadius: '8px',
+                background: 'white',
+                fontSize: '14px',
+                outline: 'none',
+                color: '#292524',
+              }}
+            />
           )}
 
           {showCart && (
@@ -70,17 +89,32 @@ export default function AppHeader({
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingLeft: '16px', borderLeft: '1px solid #e7e5e4' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: '#fafaf9', borderRadius: '8px' }}>
               <span style={{ fontSize: '18px' }}>👤</span>
-              <span style={{ fontSize: '14px', fontWeight: '500', color: '#292524' }}>{user.username || user.email}</span>
+              <span style={{ fontSize: '14px', fontWeight: '500', color: '#292524' }}>
+                {initializing ? 'Loading…' : (user?.username || user?.email || 'Guest')}
+              </span>
             </div>
             
-            <button
-              onClick={logout}
-              style={{ padding: '8px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'background 0.2s' }}
-              onMouseOver={(e) => e.currentTarget.style.background = '#dc2626'}
-              onMouseOut={(e) => e.currentTarget.style.background = '#ef4444'}
-            >
-              Logout
-            </button>
+            {user ? (
+              <button
+                onClick={logout}
+                style={{ padding: '8px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'background 0.2s' }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#dc2626'}
+                onMouseOut={(e) => e.currentTarget.style.background = '#ef4444'}
+              >
+                Logout
+              </button>
+            ) : (
+              !requireAuth && (
+                <button
+                  onClick={() => router.push('/')}
+                  style={{ padding: '8px 16px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', transition: 'background 0.2s' }}
+                  onMouseOver={(e) => e.currentTarget.style.background = '#1d4ed8'}
+                  onMouseOut={(e) => e.currentTarget.style.background = '#2563eb'}
+                >
+                  Login
+                </button>
+              )
+            )}
           </div>
         </div>
       </div>

@@ -10,6 +10,8 @@ config = AppConfig(
     description="LLM-as-judge evaluation summaries",
     icon="📊",
     color="#22c55e",
+    requires_auth=True,
+    show_in_ui=False,
 )
 
 registry.register(config)

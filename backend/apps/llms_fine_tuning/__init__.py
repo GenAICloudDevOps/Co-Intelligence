@@ -9,8 +9,16 @@ registry.register(
         init_function=None,
         display_name="LLMs Fine-Tuning",
         description="Run Tinker fine-tuning recipes and scripts",
+        description_lines=[
+            "Tinker API",
+            "LoRA fine-tuning on Llama/Qwen",
+            "Scripted job runner",
+            "Live logs + checkpoint sampling",
+        ],
         icon="🧪",
         color="#22c55e",
         status="active",
+        requires_auth=True,
+        show_in_ui=True,
     )
 )

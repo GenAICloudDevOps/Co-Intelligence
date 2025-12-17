@@ -9,7 +9,15 @@ registry.register(AppConfig(
     init_function=seed_datasets,
     display_name="ML Predictor",
     description="AI-powered multi-algorithm ML system with intelligent analysis",
+    description_lines=[
+        "Multi-Algorithm ML System",
+        "Automatic Algorithm Selection",
+        "Classification & Regression",
+        "Comprehensive Metrics",
+    ],
     icon="🤖",
     color="#8b5cf6",
-    status="active"
+    status="active",
+    requires_auth=True,
+    show_in_ui=True,
 ))

@@ -13,9 +13,12 @@ class AppConfig:
         init_function: Optional[Callable] = None,
         display_name: str = "",
         description: str = "",
+        description_lines: Optional[List[str]] = None,
         icon: str = "🤖",
         color: str = "#6366f1",
-        status: str = "active"
+        status: str = "active",
+        requires_auth: bool = True,
+        show_in_ui: bool = True,
     ):
         self.name = name
         self.router = router
@@ -23,9 +26,12 @@ class AppConfig:
         self.init_function = init_function
         self.display_name = display_name or name.replace("-", " ").title()
         self.description = description
+        self.description_lines = description_lines or ([description] if description else [])
         self.icon = icon
         self.color = color
         self.status = status
+        self.requires_auth = requires_auth
+        self.show_in_ui = show_in_ui
 
 class AppRegistry:
     def __init__(self):

@@ -3,7 +3,7 @@ from typing import List, Optional
 from auth.utils import get_current_user
 from auth.models import User
 from .models import LMSCourse, LMSEnrollment, LMSChatHistory, CourseResponse, EnrollmentResponse, ChatRequest, ChatResponse
-from services.ai_service import ai_service
+from services.ai_service import ai_service, AIServiceError
 from services.email_notifications import email_notifications
 import json
 
@@ -153,5 +153,7 @@ Help the user discover courses and answer questions about them. Be conversationa
         )
         
         return ChatResponse(response=response_text, model_used=request.model)
+    except AIServiceError:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

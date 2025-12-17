@@ -8,9 +8,16 @@ registry.register(
         models_module="apps.data_analysis.models",
         display_name="Data Analysis",
         description="Agentic data analysis with AWS Step Functions + Glue + Athena",
+        description_lines=[
+            "Multi-Source Ingestion",
+            "Automated ETL Pipeline",
+            "Agentic Q&A",
+            "Self-Healing Queries",
+        ],
         icon="📊",
         color="#14b8a6",
         status="active",
+        requires_auth=True,
+        show_in_ui=True,
     )
 )
-

@@ -7,6 +7,7 @@ import ArchitectureDiagram from './components/ArchitectureDiagram'
 import { apps } from './config/apps'
 import { useAuth } from './hooks/useAuth'
 import { api } from './services/api'
+import { metaApi } from './services/meta'
 
 type EvalMetric = { name: string; score: number; delta: number }
 type TrendPoint = { label: string; context_precision: number; context_recall: number; response_relevancy: number; faithfulness: number }
@@ -27,6 +28,8 @@ type EvalSummary = {
 
 export default function Home() {
   const { user, loading, message, setMessage, login, register, logout, isAuthenticated, refresh } = useAuth()
+  const [appCatalog, setAppCatalog] = useState(apps)
+  const [cloudProvider, setCloudProvider] = useState<string | null>(null)
   const [showAuth, setShowAuth] = useState(false)
   const [isLogin, setIsLogin] = useState(true)
   const [formData, setFormData] = useState({ email: '', username: '', password: '' })
@@ -60,6 +63,23 @@ export default function Home() {
     updateTime()
     const interval = setInterval(updateTime, 1000)
     return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    metaApi
+      .getApps(false)
+      .then((data) => {
+        if (!active) return
+        if (Array.isArray(data.apps) && data.apps.length) setAppCatalog(data.apps)
+        if (data.cloudProvider) setCloudProvider(data.cloudProvider)
+      })
+      .catch(() => {
+        // fallback to static catalog
+      })
+    return () => {
+      active = false
+    }
   }, [])
 
   useEffect(() => {
@@ -203,12 +223,13 @@ export default function Home() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
             <h2 style={{ fontSize: '2rem', fontWeight: 'bold' }}>AI Applications</h2>
             <div style={{ display: 'flex', gap: '20px', fontSize: '0.9rem', color: '#64748b' }}>
-              <span>⚡ {apps.filter(a => a.status === 'active').length} active</span>
+              <span>⚡ {appCatalog.filter(a => a.status === 'active').length} active</span>
               <span>🕐 Last updated: {currentTime}</span>
+              {cloudProvider && <span>☁️ {cloudProvider.toUpperCase()}</span>}
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px' }}>
-            {apps.map(app => (
+            {appCatalog.map(app => (
               <AppCard
                 key={app.id}
                 app={app}

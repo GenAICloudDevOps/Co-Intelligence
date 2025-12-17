@@ -4,9 +4,7 @@ import pickle
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
 
-import boto3
-
-from config import settings
+from services.object_store import object_store, ObjectStoreNotConfigured, ObjectStoreError
 
 
 @dataclass
@@ -19,17 +17,10 @@ class PersistedModel:
     model: Any
 
 
-def _s3_client():
-    if not settings.AWS_ACCESS_KEY_ID or not settings.S3_BUCKET_NAME:
-        return None
-    return boto3.client("s3", region_name=settings.AWS_REGION)
-
-
 def build_artifact_location(project_id: int, model_name: str) -> Tuple[str, str]:
-    if not settings.S3_BUCKET_NAME:
-        raise RuntimeError("S3_BUCKET_NAME not configured")
+    bucket = object_store.require_bucket()
     key = f"ml-models/{project_id}/{model_name}/model.pkl.gz"
-    return settings.S3_BUCKET_NAME, key
+    return bucket, key
 
 
 def serialize_model_bundle(bundle: PersistedModel) -> bytes:
@@ -50,19 +41,16 @@ def deserialize_model_bundle(data: bytes) -> PersistedModel:
 
 
 def upload_model_bundle(project_id: int, bundle: PersistedModel) -> Optional[Tuple[str, str]]:
-    client = _s3_client()
-    if client is None:
+    if not object_store.configured():
         return None
-    bucket, key = build_artifact_location(project_id, bundle.model_name)
-    client.put_object(Bucket=bucket, Key=key, Body=serialize_model_bundle(bundle))
-    return bucket, key
+    try:
+        bucket, key = build_artifact_location(project_id, bundle.model_name)
+        object_store.put_bytes(bucket, key, serialize_model_bundle(bundle))
+        return bucket, key
+    except (ObjectStoreNotConfigured, ObjectStoreError):
+        return None
 
 
 def download_model_bundle(bucket: str, key: str) -> PersistedModel:
-    client = _s3_client()
-    if client is None:
-        raise RuntimeError("S3 client not configured")
-    obj = client.get_object(Bucket=bucket, Key=key)
-    body = obj["Body"].read()
-    return deserialize_model_bundle(body)
-
+    data = object_store.get_bytes(bucket, key)
+    return deserialize_model_bundle(data)

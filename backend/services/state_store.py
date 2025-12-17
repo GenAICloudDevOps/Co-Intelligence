@@ -43,6 +43,14 @@ class StateStore:
             self._redis = None
             return False
 
+    async def get_client(self) -> Optional[Redis]:
+        """Return an initialized Redis client or None if unavailable."""
+        try:
+            return await self._get_redis()
+        except Exception:
+            self._redis = None
+            return None
+
     @staticmethod
     def key(*, app: str, session_id: str, kind: str) -> str:
         return f"state:{app}:{session_id}:{kind}"

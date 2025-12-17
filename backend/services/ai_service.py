@@ -134,7 +134,13 @@ class AIService:
             block_pii=block_pii,
         )
         if not decision.allowed:
-            raise AIServiceError(f"Output blocked: {decision.reason}")
+            reason = decision.reason or "Guardrail blocked the response"
+            if reason == "Unallowlisted URL in output":
+                raise AIServiceError(
+                    "Output blocked: Response included a URL outside the allowed sources. "
+                    "Try enabling web search or ask without requesting external links."
+                )
+            raise AIServiceError(f"Output blocked: {reason}")
 
         self._cache_set(resolved_model, prompt, text)
         return text
@@ -199,7 +205,14 @@ class AIService:
                     "reason": decision.reason,
                 },
             )
-            buffer = [f"Response blocked: {decision.reason}"]
+            reason = decision.reason or "Guardrail blocked the response"
+            if reason == "Unallowlisted URL in output":
+                buffer = [
+                    "I couldn't include a URL outside the allowed sources. "
+                    "Try enabling web search or ask without requesting external links."
+                ]
+            else:
+                buffer = [f"Response blocked: {reason}"]
 
         async for chunk in _yield_buffer():
             yield chunk

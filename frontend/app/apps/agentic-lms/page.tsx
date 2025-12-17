@@ -5,6 +5,7 @@ import AppHeader from '../../components/AppHeader'
 import { ModelSelector, DEFAULT_MODEL } from '../../config/models'
 import { api } from '../../services/api'
 import { useSpeechToText } from '../../hooks/useSpeechToText'
+import { useModelCatalog } from '../../hooks/useModelCatalog'
 
 interface Course {
   id: number
@@ -32,6 +33,7 @@ const SUBTOPICS = [
 ]
 
 export default function AgenticLMS() {
+  const { models, defaultModel } = useModelCatalog()
   const [view, setView] = useState<'home' | 'catalog' | 'enrollments'>('home')
   const [courses, setCourses] = useState<Course[]>([])
   const [enrollments, setEnrollments] = useState<Enrollment[]>([])
@@ -51,9 +53,24 @@ export default function AgenticLMS() {
     fetchEnrollments()
     const saved = localStorage.getItem('lms_progress')
     if (saved) setCompletedSubtopics(JSON.parse(saved))
-    const savedModel = localStorage.getItem('lms_model')
-    if (savedModel) setSelectedModel(savedModel)
   }, [])
+
+  useEffect(() => {
+    const savedModel = localStorage.getItem('lms_model')
+    if (savedModel) {
+      setSelectedModel(savedModel)
+      return
+    }
+    if (defaultModel) setSelectedModel(defaultModel)
+  }, [defaultModel])
+
+  useEffect(() => {
+    if (!models?.length) return
+    const selected = models.find((m) => m.id === selectedModel)
+    if (selected && selected.enabled !== false) return
+    const fallback = models.find((m) => m.enabled !== false)?.id || defaultModel || DEFAULT_MODEL
+    if (selectedModel !== fallback) setSelectedModel(fallback)
+  }, [defaultModel, models, selectedModel])
 
   const fetchCourses = async () => {
     try {
@@ -113,10 +130,13 @@ export default function AgenticLMS() {
       setChatHistory(prev => [...prev, { role: 'assistant', content: data.response }])
       setChatMessage('')
       if (data.response.includes('enrolled')) await fetchEnrollments()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Chat error:', error)
+      const errorMessage = error?.message || 'API call failed'
+      setChatHistory(prev => [...prev, { role: 'assistant', content: `❌ ${errorMessage}` }])
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const handleModelChange = (model: string) => {
@@ -137,7 +157,7 @@ export default function AgenticLMS() {
           <button onClick={() => setView('catalog')} style={{ padding: '10px 20px', background: view === 'catalog' ? '#6366f1' : 'transparent', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>📚 Course Catalog</button>
           <button onClick={() => setView('enrollments')} style={{ padding: '10px 20px', background: view === 'enrollments' ? '#6366f1' : 'transparent', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>📖 My Enrollments</button>
           <div style={{ marginLeft: 'auto' }}>
-            <ModelSelector value={selectedModel} onChange={handleModelChange} />
+            <ModelSelector value={selectedModel} onChange={handleModelChange} models={models} />
           </div>
         </div>
 

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { login, register } from '../lib/api'
+import { authApi } from '../services/api'
 
 type AuthState = {
   id: number
@@ -16,14 +16,11 @@ export function useAuth(requireAuth = false) {
   const [loading, setLoading] = useState(false) // action-level loading
   const [initializing, setInitializing] = useState(true)
   const [message, setMessage] = useState('')
-  const API_URL = useMemo(() => process.env.NEXT_PUBLIC_API_URL || '', [])
 
   const fetchCurrentUser = useCallback(async () => {
     setInitializing(true)
     try {
-      const res = await fetch(`${API_URL}/api/auth/me`, { credentials: 'include' })
-      if (!res.ok) throw new Error('Not authenticated')
-      const data = await res.json()
+      const data = await authApi.me()
       setAuth({
         id: data.id,
         username: data.username,
@@ -38,7 +35,7 @@ export function useAuth(requireAuth = false) {
     } finally {
       setInitializing(false)
     }
-  }, [API_URL])
+  }, [])
 
   useEffect(() => {
     fetchCurrentUser()
@@ -54,11 +51,11 @@ export function useAuth(requireAuth = false) {
     setLoading(true)
     setMessage('')
     try {
-      await login(email, password)
+      await authApi.login(email, password)
       await fetchCurrentUser()
       setMessage('Login successful!')
     } catch (err: any) {
-      setMessage(err?.response?.data?.detail || err.message || 'Authentication failed')
+      setMessage(err?.message || 'Authentication failed')
       throw err
     } finally {
       setLoading(false)
@@ -69,11 +66,11 @@ export function useAuth(requireAuth = false) {
     setLoading(true)
     setMessage('')
     try {
-      await register(email, username, password)
+      await authApi.register(email, username, password)
       await fetchCurrentUser()
       setMessage('Registration successful!')
     } catch (err: any) {
-      setMessage(err?.response?.data?.detail || err.message || 'Registration failed')
+      setMessage(err?.message || 'Registration failed')
       throw err
     } finally {
       setLoading(false)
@@ -82,10 +79,7 @@ export function useAuth(requireAuth = false) {
 
   const logout = async () => {
     try {
-      await fetch(`${API_URL}/api/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      })
+      await authApi.logout()
     } catch {
       // ignore
     } finally {

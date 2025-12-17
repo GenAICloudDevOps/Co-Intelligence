@@ -9,7 +9,15 @@ registry.register(AppConfig(
     init_function=seed_menu,
     display_name="Agentic Barista",
     description="LangGraph workflow with multi-agent coffee ordering system",
+    description_lines=[
+        "Natural Language Ordering",
+        "Menu Discovery",
+        "Smart Cart Management",
+        "Order Confirmation",
+    ],
     icon="☕",
     color="#f97316",
-    status="active"
+    status="active",
+    requires_auth=False,
+    show_in_ui=True,
 ))

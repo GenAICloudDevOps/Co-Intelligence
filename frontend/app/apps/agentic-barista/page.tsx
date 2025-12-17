@@ -107,6 +107,7 @@ export default function AgenticBarista() {
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #faf5f0 0%, #fff8f0 50%, #fff4e6 100%)' }}>
       <AppHeader 
         appName="Coffee and AI" 
+        requireAuth={false}
         showModelSelector={true}
         showCart={true}
         selectedModel={selectedModel}

@@ -7,6 +7,8 @@ import { useState, useEffect, useRef } from 'react'
 import { DEFAULT_MODEL } from '@/app/config/models'
 import { mlApi } from './api'
 import { Dataset, DatasetPreview, PredictionResult, ProgressUpdate, AlgorithmInfo } from './types'
+import { api } from '@/app/services/api'
+import { consumeNdjson } from '@/app/services/stream'
 
 export default function MLPredictor() {
   const { user, loading } = useAuth(true)
@@ -177,24 +179,10 @@ function SinglePrediction({ projectId, featureNames, problemType }: { projectId:
         processedFeatures[key] = isNaN(num) ? value : num
       }
       
-      const response = await fetch('/api/apps/ml-predictor/predict/single', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          project_id: projectId,
-          features: processedFeatures
-        })
+      const result = await api.post<any>('/api/apps/ml-predictor/predict/single', {
+        project_id: projectId,
+        features: processedFeatures
       })
-      
-      if (!response.ok) {
-        const err = await response.json()
-        throw new Error(err.detail || 'Prediction failed')
-      }
-      
-      const result = await response.json()
       setPrediction(result)
     } catch (e: any) {
       setError(e.message)
@@ -274,17 +262,6 @@ function SinglePrediction({ projectId, featureNames, problemType }: { projectId:
         problem_description: problemDescription,
         model: selectedModel
       })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: response.statusText }))
-        throw new Error(errorData.detail || `Failed to start prediction: ${response.status} ${response.statusText}`)
-      }
-
-      if (!response.body) throw new Error('No response body')
-
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
       let streamError = ''
 
       const statusToProgress: Record<string, number> = {
@@ -317,36 +294,7 @@ function SinglePrediction({ projectId, featureNames, problemType }: { projectId:
 
         setProgressLog(prev => [...prev, update])
       }
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        const chunk = decoder.decode(value, { stream: true })
-        buffer += chunk
-
-        let newlineIndex
-        while ((newlineIndex = buffer.indexOf('\n')) >= 0) {
-          const line = buffer.slice(0, newlineIndex).trim()
-          buffer = buffer.slice(newlineIndex + 1)
-          if (!line) continue
-          try {
-            const update = JSON.parse(line)
-            handleUpdate(update)
-          } catch (e) {
-            console.error('Error parsing stream line:', line, e)
-          }
-        }
-      }
-
-      if (buffer.trim()) {
-        try {
-          const update = JSON.parse(buffer)
-          handleUpdate(update)
-        } catch (e) {
-          console.error('Error parsing final buffer:', buffer, e)
-        }
-      }
+      await consumeNdjson(response, handleUpdate)
 
       if (streamError) {
         throw new Error(streamError)

@@ -9,7 +9,15 @@ registry.register(AppConfig(
     init_function=init_lms_db,
     display_name="Agentic LMS",
     description="AI-powered learning management with course discovery and enrollment",
+    description_lines=[
+        "AI Course Discovery",
+        "Natural Language Enrollment",
+        "Progress Tracking",
+        "LangGraph Agents",
+    ],
     icon="🎓",
     color="#8b5cf6",
-    status="active"
+    status="active",
+    requires_auth=True,
+    show_in_ui=True,
 ))

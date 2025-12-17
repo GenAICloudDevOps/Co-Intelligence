@@ -1,7 +1,8 @@
 from typing import AsyncGenerator
 from services.ai_service import ai_service, AIServiceError
 from services.guardrails import require_sources_footer, redact_pii
-from apps.ai_chat.utils import search_web, execute_code
+from services.web_search import search_web
+from services.code_executor import execute_python
 import re
 from urllib.parse import urlparse
 
@@ -41,11 +42,18 @@ async def stream_model(
                 if not url:
                     continue
                 parsed = urlparse(url)
-                if parsed.scheme in {"http", "https"} and parsed.netloc:
-                    for scheme in ("https", "http"):
-                        origin = f"{scheme}://{parsed.netloc}"
-                        if origin not in allow_urls_list:
-                            allow_urls_list.append(origin)
+                host = (parsed.hostname or "").strip().lower()
+                if parsed.scheme in {"http", "https"} and host:
+                    hosts = {host}
+                    if host.startswith("www."):
+                        hosts.add(host[4:])
+                    else:
+                        hosts.add(f"www.{host}")
+                    for h in hosts:
+                        for scheme in ("https", "http"):
+                            origin = f"{scheme}://{h}"
+                            if origin not in allow_urls_list:
+                                allow_urls_list.append(origin)
             search_context = "\n\nWeb Search Results:\n"
             for i, result in enumerate(search_results["results"], 1):
                 search_context += f"\n[{i}] {result['title']}\nURL: {result['url']}\n{result['content']}\n"
@@ -142,7 +150,7 @@ Available Python functions: print, len, range, str, int, float, list, dict, set,
             yield "\n\n🔄 *Executing code...*\n\n"
             
             # Execute the code
-            result = execute_code(code)
+            result = execute_python(code)
             
             if result['success']:
                 yield f"**Output:**\n```\n{result['output']}\n```\n\n"

@@ -7,7 +7,15 @@ registry.register(AppConfig(
     models_module="apps.ai_chat.models",
     display_name="AI Chat",
     description="Multi-AI chat with document upload, web search, and code execution",
+    description_lines=[
+        "AI Chat",
+        "Document Analysis",
+        "Web Search",
+        "Code Execution",
+    ],
     icon="💬",
     color="#6366f1",
-    status="active"
+    status="active",
+    requires_auth=True,
+    show_in_ui=True,
 ))

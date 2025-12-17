@@ -10,7 +10,7 @@ from .schemas import (
     ClaimNoteCreate, ClaimNoteResponse, AppRoleAssign
 )
 from .workflow import can_transition_status
-from services.ai_service import AIService
+from services.ai_service import ai_service
 from services.email_notifications import email_notifications
 import uuid
 import os
@@ -240,7 +240,6 @@ async def rewrite_text(
     current_user: User = Depends(get_current_user)
 ):
     """Rewrite text using AI for insurance claims"""
-    ai_service = AIService()
     prompt = f"Rewrite this insurance claim text professionally and clearly. Keep it concise but detailed:\n\n{request.text}"
     
     response = await ai_service.generate_response(
@@ -261,43 +260,45 @@ async def chat_assistant(
     current_user: User = Depends(get_current_user)
 ):
     """Insurance assistant chatbot with real user data"""
-    try:
-        # Fetch actual user policies and claims (customer_id is the FK field)
-        policies = await Policy.filter(customer_id=current_user.id)
-        claims = await Claim.filter(customer_id=current_user.id)
-        
-        # Build context with real data
-        policy_info = ""
-        for p in policies:
-            policy_info += f"- Policy {p.policy_number}: {p.vehicle_year} {p.vehicle_make} {p.vehicle_model}, License: {p.license_plate}, Coverage: ${p.coverage_amount}, Status: {'Active' if p.is_active else 'Inactive'}\n"
-        
-        claims_info = ""
-        for c in claims:
-            claims_info += f"- Claim {c.claim_number}: Status: {c.status}, Filed: {c.created_at.strftime('%Y-%m-%d')}, Description: {c.incident_description[:100]}...\n"
-        
-        user_context = f"""
+    # Fetch actual user policies and claims (customer_id is the FK field)
+    policies = await Policy.filter(customer_id=current_user.id)
+    claims = await Claim.filter(customer_id=current_user.id)
+
+    # Build context with real data
+    policy_info = ""
+    for p in policies:
+        policy_info += (
+            f"- Policy {p.policy_number}: {p.vehicle_year} {p.vehicle_make} {p.vehicle_model}, "
+            f"License: {p.license_plate}, Coverage: ${p.coverage_amount}, "
+            f"Status: {'Active' if p.is_active else 'Inactive'}\n"
+        )
+
+    claims_info = ""
+    for c in claims:
+        claims_info += (
+            f"- Claim {c.claim_number}: Status: {c.status}, Filed: {c.created_at.strftime('%Y-%m-%d')}, "
+            f"Description: {c.incident_description[:100]}...\n"
+        )
+
+    user_context = f"""
 User: {current_user.email}
 Policies ({len(policies)}):
 {policy_info if policy_info else 'No policies'}
 Claims ({len(claims)}):
 {claims_info if claims_info else 'No claims'}
 """
-        
-        ai_service = AIService()
-        system_prompt = """You are a helpful insurance assistant. You have access to the user's policy and claims data shown below.
+
+    system_prompt = """You are a helpful insurance assistant. You have access to the user's policy and claims data shown below.
 Answer questions using this data when relevant. For general insurance questions, provide helpful information.
 Be specific with policy numbers, coverage amounts, and claim details when the user asks about their data.
 Keep responses concise and helpful."""
-        
-        prompt = f"{system_prompt}\n\n{user_context}\n\nUser question: {request.message}"
-        
-        response = await ai_service.generate_response(
-            prompt=prompt,
-            model_name=request.model,
-            block_pii=False
-        )
-        
-        return {"response": response}
-    except Exception as e:
-        print(f"Chat error: {e}")
-        return {"response": f"I apologize, I encountered an issue. Please try again."}
+
+    prompt = f"{system_prompt}\n\n{user_context}\n\nUser question: {request.message}"
+
+    response = await ai_service.generate_response(
+        prompt=prompt,
+        model_name=request.model,
+        block_pii=False,
+    )
+
+    return {"response": response}

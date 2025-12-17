@@ -7,7 +7,7 @@ from typing import Any, Optional
 
 import asyncio
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 
 from auth.models import User
@@ -366,7 +366,7 @@ async def get_dataset_schema(dataset_id: int, current_user: User = Depends(get_c
 @router.post("/sources/upload")
 async def upload_source(
     file: UploadFile = File(...),
-    name: str = "Uploaded Dataset",
+    name: str = Form("Uploaded Dataset"),
     auto_run: bool = True,
     current_user: User = Depends(get_current_user),
 ):

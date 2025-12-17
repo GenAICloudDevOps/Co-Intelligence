@@ -23,16 +23,7 @@ export const mlApi = {
   },
 
   async uploadDataset(formData: FormData): Promise<Dataset> {
-    const response = await fetch('/api/apps/ml-predictor/upload-dataset', {
-      method: 'POST',
-      credentials: 'include',
-      body: formData
-    })
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}))
-      throw new Error(err.detail || 'Upload failed')
-    }
-    return response.json()
+    return api.post<Dataset>('/api/apps/ml-predictor/upload-dataset', formData)
   },
 
   async uploadText(payload: { text: string; name: string }): Promise<Dataset> {
@@ -45,12 +36,11 @@ export const mlApi = {
   },
 
   startPredictionStream(body: PredictStreamRequest): Promise<Response> {
-    return fetch(api.getStreamUrl('/api/apps/ml-predictor/predict/stream'), {
+    return api.request('/api/apps/ml-predictor/predict/stream', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      credentials: 'include',
       body: JSON.stringify(body)
     })
   }

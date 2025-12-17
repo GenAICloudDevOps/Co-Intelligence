@@ -9,7 +9,15 @@ registry.register(AppConfig(
     init_function=seed_topics,
     display_name="Agentic Tutor",
     description="AI-powered interactive learning with multi-agent tutoring system",
-    icon="👨🏫",
+    description_lines=[
+        "Interactive Learning",
+        "Practice Assessments",
+        "Multi-Agent System",
+        "Progress Tracking",
+    ],
+    icon="👨‍🏫",
     color="#f59e0b",
-    status="active"
+    status="active",
+    requires_auth=True,
+    show_in_ui=True,
 ))

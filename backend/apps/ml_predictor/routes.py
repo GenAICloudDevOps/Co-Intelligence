@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, Form
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List
@@ -15,6 +15,7 @@ from apps.ml_predictor.model_cache import model_cache, CachedModel
 from apps.ml_predictor.model_store import PersistedModel, download_model_bundle, upload_model_bundle
 from services.file_service import validate_file, save_temp_file, cleanup_file, TEMP_DIR, ALLOWED_EXTENSIONS, MAX_FILE_SIZE
 from services.streaming import safe_serialize, sse_event, create_sse_response
+from services.object_store import object_store
 
 router = APIRouter()
 data_processor = DataProcessor()
@@ -39,7 +40,7 @@ class PasteRequest(BaseModel):
 @router.post("/upload-dataset")
 async def upload_dataset(
     file: UploadFile = File(...),
-    name: str = "Uploaded Dataset",
+    name: str = Form("Uploaded Dataset"),
     current_user: User = Depends(get_current_user)
 ):
     """Upload a new dataset (CSV, JSON, Excel, PDF, Word)"""
@@ -844,7 +845,7 @@ async def predict_single(
         bundle = None
         if training_run.model_artifact_bucket and training_run.model_artifact_key:
             try:
-                cache_key = f"s3://{training_run.model_artifact_bucket}/{training_run.model_artifact_key}"
+                cache_key = object_store.build_uri(training_run.model_artifact_bucket, training_run.model_artifact_key)
                 cached = model_cache.get(project.id, best_model_name, cache_key)
                 if cached:
                     bundle = cached.model

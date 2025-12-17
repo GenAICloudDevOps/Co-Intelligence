@@ -6,11 +6,13 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import jsPDF from 'jspdf'
 import AppHeader from '../../components/AppHeader'
-import { DEFAULT_MODEL } from '../../config/models'
+import { ModelSelector, DEFAULT_MODEL } from '../../config/models'
 import { api } from '../../services/api'
+import { consumeSseJson } from '../../services/stream'
 import type { Message, Session, Document } from '../../types'
 import { useAuth } from '../../hooks/useAuth'
 import { useSpeechToText } from '../../hooks/useSpeechToText'
+import { useModelCatalog } from '../../hooks/useModelCatalog'
 
 interface ChatMessage extends Message {
   timestamp: Date
@@ -18,6 +20,7 @@ interface ChatMessage extends Message {
 
 export default function AIChat() {
   const { user, initializing } = useAuth(true)
+  const { models, defaultModel } = useModelCatalog()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [model, setModel] = useState(DEFAULT_MODEL)
@@ -38,6 +41,12 @@ export default function AIChat() {
   const { isSupported: voiceSupported, isListening, toggle: toggleSpeechToText } = useSpeechToText({
     onTranscript: (text) => setInput(text),
   })
+
+  useEffect(() => {
+    const ids = new Set((models || []).map((m) => m.id))
+    if (model && ids.has(model)) return
+    if (defaultModel) setModel(defaultModel)
+  }, [defaultModel, model, models])
 
   useEffect(() => {
     if (user) {
@@ -92,17 +101,12 @@ export default function AIChat() {
     formData.append('session_id', sessionId.toString())
 
     try {
-      const res = await fetch(`${api.getStreamUrl('/api/apps/ai-chat/upload')}`, {
-        method: 'POST',
-        credentials: 'include',
-        body: formData
-      })
-      if (!res.ok) throw new Error('Upload failed')
+      const res = await api.request('/api/apps/ai-chat/upload', { method: 'POST', body: formData })
       const data = await res.json()
       setDocuments(prev => [...prev, data])
     } catch (error: any) {
       console.error('Upload failed:', error)
-      alert('Failed to upload file')
+      alert(error?.message || 'Failed to upload file')
     } finally {
       setIsUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -151,12 +155,12 @@ export default function AIChat() {
     setStreamingMessage('')
 
     try {
-      const response = await fetch(api.getStreamUrl('/api/apps/ai-chat/chat/stream'), {
+      const wasNewSession = !sessionId
+      const response = await api.request('/api/apps/ai-chat/chat/stream', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        credentials: 'include',
         body: JSON.stringify({
           message: userInput,
           model,
@@ -166,67 +170,50 @@ export default function AIChat() {
         })
       })
 
-      if (response.status === 401) {
+      let fullResponse = ''
+      let newSessionId = sessionId
+      let didFinish = false
+      let streamError: string | null = null
+
+      await consumeSseJson(response, (data) => {
+        if (data?.error) {
+          streamError = String(data.error)
+          return
+        }
+        if (data?.chunk) {
+          fullResponse += String(data.chunk)
+          setStreamingMessage(fullResponse)
+        }
+        if (data?.session_id) {
+          newSessionId = data.session_id
+        }
+        if (data?.done) {
+          didFinish = true
+        }
+      })
+
+      if (streamError) throw new Error(streamError)
+      if (!didFinish) throw new Error('Stream ended unexpectedly')
+
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: fullResponse,
+        timestamp: new Date()
+      }])
+      setStreamingMessage('')
+      setSessionId(newSessionId)
+      if (wasNewSession) loadSessions()
+      if (newSessionId) loadContextInfo(newSessionId)
+    } catch (error: any) {
+      console.error('Chat error:', error)
+      if (error?.message === 'Session expired') {
         alert('Session expired. Please login again.')
         window.location.href = '/'
         return
       }
-
-      if (!response.ok) {
-        const errorBody = await response.text().catch(() => '')
-        let message = `Server error: ${response.status}`
-        try {
-          const data = JSON.parse(errorBody)
-          message = data?.detail || data?.error?.message || data?.message || message
-        } catch {
-          if (errorBody) message = errorBody
-        }
-        throw new Error(message)
-      }
-
-      const reader = response.body?.getReader()
-      const decoder = new TextDecoder()
-      let fullResponse = ''
-      let newSessionId = sessionId
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-
-          const chunk = decoder.decode(value)
-          const lines = chunk.split('\n')
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = JSON.parse(line.slice(6))
-              if (data.chunk) {
-                fullResponse += data.chunk
-                setStreamingMessage(fullResponse)
-              }
-              if (data.session_id) {
-                newSessionId = data.session_id
-              }
-              if (data.done) {
-                setMessages(prev => [...prev, {
-                  role: 'assistant',
-                  content: fullResponse,
-                  timestamp: new Date()
-                }])
-                setStreamingMessage('')
-                setSessionId(newSessionId)
-                if (!sessionId) loadSessions()
-                if (newSessionId) loadContextInfo(newSessionId)
-              }
-            }
-          }
-        }
-      }
-    } catch (error: any) {
-      console.error('Chat error:', error)
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: `Error: ${error.message || 'Failed to get response'}. Please check your connection and try again.`,
+        content: `❌ ${error?.message || 'Failed to get response'}`,
         timestamp: new Date()
       }])
       setStreamingMessage('')
@@ -426,30 +413,21 @@ export default function AIChat() {
             >
               🌐 Web Search: {webSearchEnabled ? 'ON' : 'OFF'}
             </button>
-            <select value={model} onChange={(e) => setModel(e.target.value)} style={{ 
-              padding: '10px 16px', 
-              background: 'rgba(15, 23, 42, 0.6)', 
-              color: 'white', 
-              border: '1px solid rgba(255, 255, 255, 0.1)', 
-              borderRadius: '10px',
-              fontSize: '14px',
-              fontWeight: '500',
-              cursor: 'pointer'
-            }}>
-              <optgroup label="Gemini">
-                <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
-                <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
-              </optgroup>
-              <optgroup label="Groq">
-                <option value="groq/compound">Groq Compound</option>
-                <option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4 Scout</option>
-              </optgroup>
-              <optgroup label="AWS Bedrock">
-                <option value="amazon.nova-lite-v1:0">Amazon Nova Lite</option>
-                <option value="amazon.nova-pro-v1:0">Amazon Nova Pro</option>
-              </optgroup>
-            </select>
+            <ModelSelector
+              value={model}
+              onChange={setModel}
+              models={models}
+              style={{
+                padding: '10px 16px',
+                background: 'rgba(15, 23, 42, 0.6)',
+                color: 'white',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '10px',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: 'pointer',
+              }}
+            />
             <div style={{ position: 'relative' }}>
               <button 
                 onClick={() => setShowDownload(!showDownload)} 

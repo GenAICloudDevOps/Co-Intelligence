@@ -1,11 +1,16 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from contextlib import asynccontextmanager
 from config import settings
 from core.logging import configure_logging
+from core.logging import REQUEST_ID_HEADER
+from middleware.request_context import get_request_id
 
 # Import centralized services
 from services.database import init_db, run_migrations, close_db
+from services.ai_service import AIServiceError
 
 # Import middleware
 from middleware.logging import RequestLoggingMiddleware
@@ -14,6 +19,7 @@ from middleware.request_context import RequestContextMiddleware
 from middleware.error_handler import ErrorHandlingMiddleware
 
 from auth.routes import router as auth_router
+from meta.routes import router as meta_router
 from apps import load_apps
 from apps.registry import registry
 
@@ -69,6 +75,34 @@ app = FastAPI(
     openapi_url="/api/openapi.json"
 )
 
+@app.exception_handler(AIServiceError)
+async def ai_service_error_handler(request: Request, exc: AIServiceError):
+    message = str(exc)
+    if message.startswith("Input blocked"):
+        status_code = 400
+    elif message.startswith("Output blocked"):
+        status_code = 422
+    else:
+        status_code = 503
+    req_id = get_request_id()
+    return JSONResponse(
+        status_code=status_code,
+        content={"detail": message, "request_id": req_id},
+        headers={REQUEST_ID_HEADER: req_id},
+    )
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    req_id = get_request_id()
+    headers = dict(getattr(exc, "headers", None) or {})
+    headers[REQUEST_ID_HEADER] = req_id
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail, "request_id": req_id},
+        headers=headers,
+    )
+
 # Add middleware (order matters - first added = last executed)
 app.add_middleware(RequestContextMiddleware)
 app.add_middleware(RateLimitMiddleware, requests_per_minute=120, requests_per_second=20)
@@ -91,6 +125,9 @@ async def health_check():
 
 # Register auth router
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
+
+# Meta/config endpoints
+app.include_router(meta_router, prefix="/api/meta", tags=["meta"])
 
 # Register app routers from registry
 for router_info in registry.get_routers():

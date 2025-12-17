@@ -4,12 +4,12 @@ from pydantic import BaseModel
 from auth.utils import get_current_user
 from auth.models import User
 from apps.ai_chat.agent import stream_model
-from apps.ai_chat.utils import extract_text_from_file, upload_to_s3
 from tortoise import Tortoise
 import json
-from services.file_service import validate_file
+import os
+from services.file_service import validate_file, extract_text_from_file
 from services.evaluation_service import evaluate_and_store
-from services.ai_service import AIServiceError
+from services.object_store import object_store
 
 router = APIRouter()
 
@@ -82,7 +82,14 @@ async def upload_document(
 
     try:
         extracted_text = extract_text_from_file(file.filename, file_content)
-        s3_url = upload_to_s3(file_content, file.filename, session_id)
+        s3_url = None
+        try:
+            bucket = object_store.require_bucket()
+            safe_name = os.path.basename(file.filename)
+            key = f"chat-documents/{session_id}/{safe_name}"
+            s3_url = object_store.put_bytes(bucket, key, file_content)
+        except Exception:
+            s3_url = None
         
         document = await ChatDocument.create(
             session_id=session_id,

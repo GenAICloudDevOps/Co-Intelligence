@@ -12,26 +12,48 @@ export const DEFAULT_MODEL = 'gemini-2.5-flash-lite'
 
 export type ModelId = typeof AI_MODELS[number]['id']
 
-export function ModelSelector({ value, onChange, style }: { value: string, onChange: (v: string) => void, style?: React.CSSProperties }) {
+export type ModelOption = {
+  id: string
+  name: string
+  provider: string
+  enabled?: boolean
+}
+
+export function ModelSelector({
+  value,
+  onChange,
+  style,
+  models,
+}: {
+  value: string
+  onChange: (v: string) => void
+  style?: React.CSSProperties
+  models?: ModelOption[]
+}) {
+  const options = (models && models.length ? models : AI_MODELS) as ModelOption[]
+  const grouped = options.reduce<Record<string, ModelOption[]>>((acc, model) => {
+    const provider = model.provider || 'Models'
+    acc[provider] = acc[provider] || []
+    acc[provider].push(model)
+    return acc
+  }, {})
+
   return (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
       style={{ padding: '10px', background: '#1f2937', border: '1px solid #374151', borderRadius: '6px', color: 'white', cursor: 'pointer', ...style }}
     >
-      <optgroup label="Gemini">
-        <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
-        <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-        <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
-      </optgroup>
-      <optgroup label="Groq">
-        <option value="groq/compound">Groq Compound</option>
-        <option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4 Scout</option>
-      </optgroup>
-      <optgroup label="AWS Bedrock">
-        <option value="amazon.nova-lite-v1:0">Amazon Nova Lite</option>
-        <option value="amazon.nova-pro-v1:0">Amazon Nova Pro</option>
-      </optgroup>
+      {Object.entries(grouped).map(([provider, items]) => (
+        <optgroup key={provider} label={provider}>
+          {items.map((model) => (
+            <option key={model.id} value={model.id} disabled={model.enabled === false}>
+              {model.name}
+              {model.enabled === false ? ' (not configured)' : ''}
+            </option>
+          ))}
+        </optgroup>
+      ))}
     </select>
   )
 }

@@ -6,10 +6,12 @@ import { ModelSelector, DEFAULT_MODEL } from '../../config/models'
 import { api } from '../../services/api'
 import { useAuth } from '../../hooks/useAuth'
 import { useSpeechToText } from '../../hooks/useSpeechToText'
+import { useModelCatalog } from '../../hooks/useModelCatalog'
 
 export default function InsuranceClaimsDashboard() {
   const router = useRouter()
   const { user, initializing } = useAuth(true)
+  const { models, defaultModel } = useModelCatalog()
   const [claims, setClaims] = useState<any[]>([])
   const [policies, setPolicies] = useState<any[]>([])
   const [roles, setRoles] = useState<string[]>([])
@@ -27,9 +29,21 @@ export default function InsuranceClaimsDashboard() {
   })
 
   useEffect(() => {
-    const savedModel = localStorage.getItem('insurance_ai_model') || 'gemini-2.5-flash-lite'
-    setSelectedModel(savedModel)
-  }, [])
+    const savedModel = localStorage.getItem('insurance_ai_model')
+    if (savedModel) {
+      setSelectedModel(savedModel)
+      return
+    }
+    if (defaultModel) setSelectedModel(defaultModel)
+  }, [defaultModel])
+
+  useEffect(() => {
+    if (!models?.length) return
+    const selected = models.find((m) => m.id === selectedModel)
+    if (selected && selected.enabled !== false) return
+    const fallback = models.find((m) => m.enabled !== false)?.id || defaultModel || DEFAULT_MODEL
+    if (selectedModel !== fallback) setSelectedModel(fallback)
+  }, [defaultModel, models, selectedModel])
 
   useEffect(() => {
     if (user) {
@@ -83,8 +97,9 @@ export default function InsuranceClaimsDashboard() {
       })
       
       setChatMessages(prev => [...prev, { role: 'assistant', content: res.response }])
-    } catch (error) {
-      setChatMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }])
+    } catch (error: any) {
+      const errorMessage = error?.message || 'API call failed'
+      setChatMessages(prev => [...prev, { role: 'assistant', content: `❌ ${errorMessage}` }])
     } finally {
       setChatLoading(false)
     }
@@ -125,7 +140,7 @@ export default function InsuranceClaimsDashboard() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <ModelSelector value={selectedModel} onChange={handleModelChange} />
+            <ModelSelector value={selectedModel} onChange={handleModelChange} models={models} />
             {roles.includes('customer') && (
               <>
                 <button onClick={() => router.push('/apps/insurance-claims/buy-policy')}

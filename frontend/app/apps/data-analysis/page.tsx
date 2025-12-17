@@ -7,6 +7,7 @@ import Button from '@/app/components/Button'
 import { useAuth } from '@/app/hooks/useAuth'
 import { DEFAULT_MODEL } from '@/app/config/models'
 import { daApi, type DatasetDetails, type DatasetListItem, type RunStatus, type ChatResponse, type AgentStep, type PreviewResponse, type ChartData, type SuggestionsResponse } from './api'
+import { api } from '@/app/services/api'
 
 const SAMPLE_DATASETS = [
   { name: 'Orders', file: 'orders.csv', description: 'E-commerce orders with revenue data' },
@@ -259,8 +260,8 @@ export default function DataAnalysisApp() {
     setPipelineConnected(false)
     setPipelineError('')
 
-    const url = `/api/apps/data-analysis/runs/${runId}/events?since_id=0`
-    const es = new EventSource(url)
+    const url = api.getStreamUrl(`/api/apps/data-analysis/runs/${runId}/events?since_id=0`)
+    const es = new EventSource(url, { withCredentials: true })
     es.onopen = () => setPipelineConnected(true)
     es.addEventListener('init', () => setPipelineConnected(true))
     es.addEventListener('event', (evt: any) => {
@@ -290,13 +291,7 @@ export default function DataAnalysisApp() {
     let active = true
     const tick = async () => {
       try {
-        const res = await fetch(`/api/apps/data-analysis/runs/${runId}/history`, { credentials: 'include' })
-        if (!res.ok) {
-          const errPayload = await res.json().catch(() => ({}))
-          const detail = (errPayload as any)?.detail
-          if (active && detail) setPipelineError(String(detail))
-          return
-        }
+        const res = await api.request(`/api/apps/data-analysis/runs/${runId}/history`)
         const payload = await res.json()
         const events = (payload?.events || []) as PipelineEvent[]
         if (!active) return
@@ -305,8 +300,8 @@ export default function DataAnalysisApp() {
           const merged = [...prev, ...events.filter(e => !existing.has(e.id))].sort((a, b) => a.id - b.id)
           return merged
         })
-      } catch {
-        // ignore; SSE may still work
+      } catch (e: any) {
+        if (active) setPipelineError(e?.message || 'Pipeline history unavailable')
       }
     }
     tick()

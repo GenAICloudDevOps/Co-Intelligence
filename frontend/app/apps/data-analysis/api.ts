@@ -116,13 +116,11 @@ export const daApi = {
   },
 
   async exportQuery(datasetId: number, sql: string): Promise<Blob> {
-    const response = await fetch(`/api/apps/data-analysis/datasets/${datasetId}/export`, {
+    const response = await api.request(`/api/apps/data-analysis/datasets/${datasetId}/export`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({ message: sql, dataset_id: datasetId })
     })
-    if (!response.ok) throw new Error('Export failed')
     return response.blob()
   },
 }
