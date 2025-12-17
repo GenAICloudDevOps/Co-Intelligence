@@ -127,8 +127,20 @@ def check_output(
         return GuardrailDecision(False, f"Code block contains risky import: {pattern}")
 
     if allow_urls is not None:
+        def _url_allowed(url: str, allowed_prefix: str) -> bool:
+            if not allowed_prefix:
+                return False
+            if not url.startswith(allowed_prefix):
+                return False
+            if allowed_prefix.endswith("/"):
+                return True
+            if len(url) == len(allowed_prefix):
+                return True
+            return url[len(allowed_prefix)] in "/?#"
+
         for match in URL_PATTERN.findall(text):
-            if not any(match.startswith(prefix) for prefix in allow_urls):
+            candidate = match.rstrip(").,;:!?\"'[]{}")
+            if not any(_url_allowed(candidate, prefix) for prefix in allow_urls):
                 return GuardrailDecision(False, "Unallowlisted URL in output")
 
     if require_sources:

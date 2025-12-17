@@ -80,11 +80,12 @@ export default function AgenticBarista() {
       setMessages(prev => [...prev, aiMessage]);
       setCart(data.cart || {});
       setTotalAmount(data.total_amount || 0);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error:', error);
+      const errorMessage = error?.message || 'Sorry, something went wrong. Please try again.'
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
-        text: '❌ Sorry, something went wrong. Please try again.',
+        text: `❌ ${errorMessage}`,
         isUser: false,
         timestamp: new Date()
       }]);

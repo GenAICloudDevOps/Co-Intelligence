@@ -3,6 +3,7 @@ from services.ai_service import ai_service, AIServiceError
 from services.guardrails import require_sources_footer, redact_pii
 from apps.ai_chat.utils import search_web, execute_code
 import re
+from urllib.parse import urlparse
 
 async def stream_model(
     messages: list,
@@ -18,8 +19,8 @@ async def stream_model(
     """Stream AI responses with document, web search, and code execution"""
     full_messages = []
     context_terms = context_terms or []
-    allow_urls = allow_urls or []
     personal_terms: list[str] = []
+    allow_urls_list: list[str] = list(allow_urls or [])
     
     # Add document context if provided
     if document_context:
@@ -28,11 +29,6 @@ async def stream_model(
             "content": f"You have access to the following document(s):\n\n{document_context}\n\nUse this information to answer questions."
         })
     
-    # Add conversation context
-    if context_messages:
-        for msg in context_messages:
-            full_messages.append({"role": msg["role"], "content": msg["content"]})
-    
     last_message = messages[-1]["content"] if messages else ""
     
     # Perform web search if enabled
@@ -40,6 +36,16 @@ async def stream_model(
     if web_search_enabled and last_message:
         search_results = search_web(last_message)
         if search_results.get("results"):
+            for result in search_results["results"]:
+                url = (result.get("url") or "").strip()
+                if not url:
+                    continue
+                parsed = urlparse(url)
+                if parsed.scheme in {"http", "https"} and parsed.netloc:
+                    for scheme in ("https", "http"):
+                        origin = f"{scheme}://{parsed.netloc}"
+                        if origin not in allow_urls_list:
+                            allow_urls_list.append(origin)
             search_context = "\n\nWeb Search Results:\n"
             for i, result in enumerate(search_results["results"], 1):
                 search_context += f"\n[{i}] {result['title']}\nURL: {result['url']}\n{result['content']}\n"
@@ -96,13 +102,17 @@ Available Python functions: print, len, range, str, int, float, list, dict, set,
             full_messages,
             require_sources=grounded,
             context_terms=context_terms,
-            allow_urls=allow_urls,
+            allow_urls=allow_urls_list,
             block_pii=False,
         ):
             chunks.append(chunk)
             full_response += chunk
     except AIServiceError as exc:
-        yield f"Response blocked: {exc}"
+        msg = str(exc)
+        if msg.startswith("Input blocked") or msg.startswith("Output blocked"):
+            yield f"Request blocked: {msg}"
+        else:
+            yield f"AI call failed: {msg}"
         return
 
     # Redact PII in output but keep the answer

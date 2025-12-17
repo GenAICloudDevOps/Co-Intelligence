@@ -5,7 +5,7 @@ from apps.agentic_barista.agents.menu_agent import MenuAgent
 from apps.agentic_barista.agents.order_agent import OrderAgent
 from apps.agentic_barista.agents.confirmation_agent import ConfirmationAgent
 from langchain_core.messages import HumanMessage, AIMessage
-from services.ai_service import ai_service
+from services.ai_service import ai_service, AIServiceError
 
 class BaristaCoordinator:
     def __init__(self, model_name: str = "gemini-2.5-flash-lite"):
@@ -57,7 +57,7 @@ Classify into ONE of these intents:
 - CONFIRM: User wants to confirm/place/complete their order (e.g., "confirm order", "place order", "checkout")
 - GENERAL: General questions, greetings, chitchat
 
-Respond with ONLY the intent word: MENU, ORDER, CONFIRM, or GENERAL"""
+        Respond with ONLY the intent word: MENU, ORDER, CONFIRM, or GENERAL"""
 
         try:
             ai_response = await ai_service.call_model(self.model_name, prompt)
@@ -77,10 +77,14 @@ Respond with ONLY the intent word: MENU, ORDER, CONFIRM, or GENERAL"""
                 state["current_agent"] = "general"
                 state["reasoning"] = "Detected general conversation intent"
                 
-        except Exception as e:
+        except AIServiceError:
+            state["current_agent"] = "general"
+            state["reasoning"] = "AI routing failed"
+            state["ai_error"] = "ai_unavailable"
+        except Exception:
             # Fallback to keyword matching
             msg_lower = last_message.lower()
-            if any(word in msg_lower for word in ["menu", "show", "what", "have", "available", "items", "drinks", "coffee", "food"]):
+            if any(word in msg_lower for word in ["menu", "available", "items", "drinks", "coffee", "food", "pastry", "pastries"]):
                 state["current_agent"] = "menu"
                 state["reasoning"] = "Keyword match: menu browsing"
             elif any(word in msg_lower for word in ["confirm", "place", "checkout", "complete", "finish"]):
@@ -119,18 +123,23 @@ Respond with ONLY the intent word: MENU, ORDER, CONFIRM, or GENERAL"""
     async def _general_node(self, state: CafeState) -> CafeState:
         """Handle general questions conversationally"""
         last_message = state["messages"][-1].content
-        
-        prompt = f"""You are a friendly barista assistant. The user asked a general question that doesn't require menu browsing or ordering.
+
+        if state.get("ai_error"):
+            response = "⚠️ I’m having trouble reaching the AI model right now. Please try again in a moment."
+        else:
+            prompt = f"""You are a friendly barista assistant. The user asked a general question that doesn't require menu browsing or ordering.
 
 User question: "{last_message}"
 
 Respond conversationally and helpfully. Keep it brief (2-3 sentences). Be warm and coffee-themed when appropriate.
 If they're asking about coffee in general, share interesting facts. If it's a greeting, be friendly."""
 
-        try:
-            response = await ai_service.call_model(self.model_name, prompt)
-        except:
-            response = "I'm here to help you with our menu and orders! Feel free to ask me anything about coffee or our offerings."
+            try:
+                response = await ai_service.call_model(self.model_name, prompt)
+            except AIServiceError:
+                response = "⚠️ I’m having trouble reaching the AI model right now. Please try again in a moment."
+            except Exception:
+                response = "I'm here to help you with our menu and orders! Feel free to ask me anything about coffee or our offerings."
         
         state["messages"].append(AIMessage(content=response))
         return state

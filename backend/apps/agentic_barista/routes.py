@@ -5,7 +5,7 @@ import os
 from apps.agentic_barista.agents.coordinator import BaristaCoordinator
 from apps.agentic_barista.models import MenuItem, Order
 from auth.models import User
-from auth.utils import get_current_user
+from auth.utils import get_current_user_optional
 from services.state_store import state_store
 from services.email_notifications import email_notifications
 
@@ -44,7 +44,7 @@ def _get_cart_ttl_seconds() -> int:
         return 86400
 
 @router.post("/chat")
-async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user)):
+async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_user: User | None = Depends(get_current_user_optional)):
     try:
         coordinator = BaristaCoordinator(model_name=request.model)
 
@@ -68,7 +68,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
             request.session_id,
             cart,
             request.model,
-            user_id=current_user.id,
+            user_id=current_user.id if current_user else None,
         )
 
         # Persist cart
@@ -81,7 +81,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
                 await state_store.delete(cart_key)
         
         order_id = result.get("order_id")
-        if order_id and current_user.email_notifications_enabled:
+        if order_id and current_user and current_user.email_notifications_enabled:
             order = await Order.get_or_none(id=order_id)
             if order:
                 items_summary = ""

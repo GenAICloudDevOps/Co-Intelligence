@@ -21,10 +21,8 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             return JSONResponse(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 content={
-                    "error": {
-                        "message": "Internal server error",
-                        "request_id": req_id,
-                    }
+                    "detail": "Internal server error",
+                    "request_id": req_id,
                 },
                 headers={REQUEST_ID_HEADER: req_id},
             )

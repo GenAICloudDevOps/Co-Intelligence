@@ -9,3 +9,4 @@ class CafeState(MessagesState):
     total_amount: float
     reasoning: str = ""
     last_order_id: int | None
+    ai_error: str | None

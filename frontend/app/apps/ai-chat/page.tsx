@@ -173,7 +173,15 @@ export default function AIChat() {
       }
 
       if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`)
+        const errorBody = await response.text().catch(() => '')
+        let message = `Server error: ${response.status}`
+        try {
+          const data = JSON.parse(errorBody)
+          message = data?.detail || data?.error?.message || data?.message || message
+        } catch {
+          if (errorBody) message = errorBody
+        }
+        throw new Error(message)
       }
 
       const reader = response.body?.getReader()

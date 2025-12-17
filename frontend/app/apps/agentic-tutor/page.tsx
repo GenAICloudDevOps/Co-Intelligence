@@ -107,9 +107,10 @@ export default function AgenticTutor() {
       if (data.agent_type === 'grader' || currentInput.toLowerCase().includes('progress')) {
         await fetchProgress()
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error:', error)
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' }])
+      const errorMessage = error?.message || 'Sorry, something went wrong. Please try again.'
+      setMessages(prev => [...prev, { role: 'assistant', content: `❌ ${errorMessage}` }])
     }
     setSending(false)
   }

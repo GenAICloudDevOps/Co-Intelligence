@@ -31,8 +31,13 @@ async function fetchWithRefresh<T>(url: string, options: RequestInit = {}): Prom
   
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}))
-    const detail = (errorData as any).detail
-    throw new Error(detail || `API error: ${res.status}`)
+    const detail =
+      (errorData as any).detail ??
+      (errorData as any).error?.message ??
+      (errorData as any).message
+    const requestId = (errorData as any).request_id ?? (errorData as any).error?.request_id
+    const message = detail || `API error: ${res.status}`
+    throw new Error(requestId ? `${message} (request_id: ${requestId})` : message)
   }
   return res.json()
 }
