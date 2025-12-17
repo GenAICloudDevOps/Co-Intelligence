@@ -13,7 +13,8 @@ def get_model(model_name: str):
         model_map = {
             "gemini-2.5-pro": "gemini-2.0-flash-exp",
             "gemini-2.5-flash": "gemini-2.0-flash-exp",
-            "gemini-2.5-flash-lite": "gemini-2.0-flash-exp"
+            "gemini-2.5-flash-lite": "gemini-2.0-flash-exp",
+            "gemini-3-flash-preview": "gemini-3-flash-preview",
         }
         
         model_id = model_map.get(model_name, "gemini-2.0-flash-exp")
@@ -36,4 +37,4 @@ def get_model(model_name: str):
     else:
         # Default to Gemini
         genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-        return genai.GenerativeModel("gemini-2.0-flash-exp")
+        return genai.GenerativeModel("gemini-3-flash-preview")

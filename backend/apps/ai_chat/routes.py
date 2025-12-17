@@ -21,7 +21,7 @@ def get_models():
 class ChatRequest(BaseModel):
     session_id: int | None = None
     message: str
-    model: str = "gemini"
+    model: str = "gemini-3-flash-preview"
     context_size: int = 10
     web_search: bool = False
 

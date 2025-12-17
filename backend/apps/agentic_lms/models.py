@@ -69,7 +69,7 @@ class EnrollmentResponse(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str
-    model: str = "gemini-2.5-flash-lite"
+    model: str = "gemini-3-flash-preview"
 
 
 class ChatResponse(BaseModel):

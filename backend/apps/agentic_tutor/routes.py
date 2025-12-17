@@ -14,7 +14,7 @@ class ChatRequest(BaseModel):
     session_id: int | None = None
     topic_id: int
     message: str
-    model: str = "gemini-2.5-flash-lite"
+    model: str = "gemini-3-flash-preview"
 
 class SessionCreate(BaseModel):
     topic_id: int

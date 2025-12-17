@@ -1,4 +1,5 @@
 export const AI_MODELS = [
+  { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash', provider: 'Google' },
   { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', provider: 'Google' },
   { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google' },
   { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google' },
@@ -8,7 +9,7 @@ export const AI_MODELS = [
   { id: 'amazon.nova-pro-v1:0', name: 'Nova Pro', provider: 'AWS Bedrock' },
 ]
 
-export const DEFAULT_MODEL = 'gemini-2.5-flash-lite'
+export const DEFAULT_MODEL = 'gemini-3-flash-preview'
 
 export type ModelId = typeof AI_MODELS[number]['id']
 

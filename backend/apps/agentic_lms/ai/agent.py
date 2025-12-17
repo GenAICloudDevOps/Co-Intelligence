@@ -237,7 +237,7 @@ class LMSAgent:
     async def process_message(
         self,
         message: str,
-        model: str = "gemini-2.5-flash-lite",
+        model: str = "gemini-3-flash-preview",
         student_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """Process user message using LangGraph workflow"""
@@ -307,7 +307,7 @@ class LMSAgent:
     async def process_message_stream(
         self,
         message: str,
-        model: str = "gemini-2.5-flash-lite",
+        model: str = "gemini-3-flash-preview",
         student_id: Optional[int] = None
     ) -> AsyncIterator[Dict[str, Any]]:
         """Process user message with streaming updates"""
@@ -396,7 +396,7 @@ class LMSAgent:
                 "message": f"Error: {str(e)}"
             }
     
-    def get_graph_visualization(self, model: str = "gemini-2.5-flash-lite") -> Dict[str, Any]:
+    def get_graph_visualization(self, model: str = "gemini-3-flash-preview") -> Dict[str, Any]:
         """Get graph structure for visualization"""
         try:
             graph = self._build_graph(model)

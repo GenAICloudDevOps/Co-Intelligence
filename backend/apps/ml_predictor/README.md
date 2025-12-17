@@ -72,7 +72,7 @@ curl -X POST http://localhost:8000/api/apps/ml-predictor/predict \
   -d '{
     "dataset_id": 1,
     "problem_description": "Predict house prices based on features",
-    "model": "gemini-2.5-flash-lite"
+    "model": "gemini-3-flash-preview"
   }'
 ```
 

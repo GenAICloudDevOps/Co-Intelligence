@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
     GEMINI_API_KEY: str
-    GEMINI_MODEL: str = "gemini-2.5-flash-lite"
+    GEMINI_MODEL: str = "gemini-3-flash-preview"
     
     GROQ_API_KEY: str
     
@@ -41,8 +41,8 @@ class Settings(BaseSettings):
     AZURE_SYNAPSE_DATABASE: str = "co_intelligence"
 
     # AI settings
-    AI_DEFAULT_MODEL: str = "gemini-2.5-flash"
-    AI_FAST_MODEL: str = "gemini-2.5-flash"
+    AI_DEFAULT_MODEL: str = "gemini-3-flash-preview"
+    AI_FAST_MODEL: str = "gemini-3-flash-preview"
     AI_QUALITY_MODEL: str = "gemini-1.5-pro"
     AI_ALT_MODEL: str = "groq/compound"
     AI_REQUEST_TIMEOUT: int = 60

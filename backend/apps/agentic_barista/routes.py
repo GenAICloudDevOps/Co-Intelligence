@@ -17,7 +17,7 @@ cart_storage: Dict[str, Dict[int, int]] = {}
 class ChatRequest(BaseModel):
     message: str
     session_id: str
-    model: Optional[str] = "gemini-2.0-flash-exp"
+    model: Optional[str] = "gemini-3-flash-preview"
 
 class MenuResponse(BaseModel):
     items: list

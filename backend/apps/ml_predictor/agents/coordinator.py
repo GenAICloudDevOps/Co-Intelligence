@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class MLPredictorCoordinator:
     """Orchestrates the ML Predictor workflow using LangGraph"""
     
-    def __init__(self, model_name: str = "gemini-2.5-flash-lite"):
+    def __init__(self, model_name: str = "gemini-3-flash-preview"):
         self.model_name = model_name
         self.master_agent = MasterAgent(model_name)
         self.evaluation_agent = EvaluationAgent()

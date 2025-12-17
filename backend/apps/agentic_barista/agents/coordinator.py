@@ -8,7 +8,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from services.ai_service import ai_service, AIServiceError
 
 class BaristaCoordinator:
-    def __init__(self, model_name: str = "gemini-2.5-flash-lite"):
+    def __init__(self, model_name: str = "gemini-3-flash-preview"):
         self.menu_agent = MenuAgent()
         self.order_agent = OrderAgent()
         self.confirmation_agent = ConfirmationAgent()
@@ -149,7 +149,7 @@ If they're asking about coffee in general, share interesting facts. If it's a gr
         message: str,
         session_id: str,
         cart: dict,
-        model_name: str = "gemini-2.5-flash-lite",
+        model_name: str = "gemini-3-flash-preview",
         user_id: int | None = None,
     ) -> dict:
         # Update model if different

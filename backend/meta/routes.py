@@ -57,6 +57,7 @@ async def list_models() -> dict[str, Any]:
     }
 
     models = [
+        {"id": "gemini-3-flash-preview", "name": "Gemini 3 Flash", "provider": "Google", "enabled": providers_enabled["gemini"]},
         {"id": "gemini-2.5-flash-lite", "name": "Gemini 2.5 Flash Lite", "provider": "Google", "enabled": providers_enabled["gemini"]},
         {"id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash", "provider": "Google", "enabled": providers_enabled["gemini"]},
         {"id": "gemini-2.5-pro", "name": "Gemini 2.5 Pro", "provider": "Google", "enabled": providers_enabled["gemini"]},
@@ -72,7 +73,7 @@ async def list_models() -> dict[str, Any]:
     ]
 
     routing = ai_service.get_available_models()
-    default_model = getattr(settings, "AI_DEFAULT_MODEL", "") or getattr(settings, "GEMINI_MODEL", "") or "gemini-2.5-flash-lite"
+    default_model = getattr(settings, "AI_DEFAULT_MODEL", "") or getattr(settings, "GEMINI_MODEL", "") or "gemini-3-flash-preview"
 
     return {
         "defaultModel": default_model,
