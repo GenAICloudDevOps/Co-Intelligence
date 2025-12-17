@@ -86,7 +86,7 @@ cd ../..  # Back to project root
 # Make script executable
 chmod +x deploy-gcp.sh
 
-# Deploy
+# Deploy (for Gitlab deployement - scroll down further)
 ./deploy-gcp.sh
 ```
 
@@ -219,16 +219,86 @@ Cloud SQL uses private IP. Ensure pods are in the same VPC:
 kubectl exec -it deployment/backend -n co-intelligence -- nc -zv <DB_HOST> 5432
 ```
 
+
 ---
 
-## Cost Estimate
+## GitLab CI/CD Deployment
 
-| Resource | Monthly Cost (approx) |
-|----------|----------------------|
-| GKE (2 e2-medium) | ~$50 |
-| Cloud SQL (db-custom-2-8192) | ~$100 |
-| Artifact Registry | ~$5 |
-| Cloud Storage | ~$1 |
-| **Total** | **~$156/month** |
+Deploy automatically via GitLab pipeline instead of running `deploy-gcp.sh` locally.
 
-*Costs vary by usage. Use [GCP Pricing Calculator](https://cloud.google.com/products/calculator) for accurate estimates.*
+### Prerequisites
+
+- GitLab repository with this codebase
+- Infrastructure already created via `terraform apply` (Steps 1-4 above)
+- GCP service account with required permissions
+
+### Step 1: Create GCP Service Account Key
+
+```bash
+# Create service account (if not exists)
+gcloud iam service-accounts create gitlab-deployer \
+  --display-name="GitLab CI/CD Deployer"
+
+# Grant required roles
+gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+  --member="serviceAccount:gitlab-deployer@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/container.developer"
+
+gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+  --member="serviceAccount:gitlab-deployer@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/artifactregistry.writer"
+
+# Create JSON key
+gcloud iam service-accounts keys create gitlab-key.json \
+  --iam-account=gitlab-deployer@YOUR_PROJECT_ID.iam.gserviceaccount.com
+```
+
+### Step 2: Get Terraform Outputs
+
+```bash
+cd infrastructure/gcp
+terraform output -json | jq -c .
+```
+
+Copy the single-line JSON output.
+
+### Step 3: Configure GitLab CI/CD Variables
+
+Go to GitLab → Settings → CI/CD → Variables and add:
+
+| Variable | Value | Protected | Masked |
+|----------|-------|-----------|--------|
+| `GCP_SERVICE_ACCOUNT_KEY` | Contents of `gitlab-key.json` | ✓ | ✗ |
+| `TF_OUTPUTS` | JSON from Step 2 | ✓ | ✗ |
+| `GEMINI_API_KEY` | Your Gemini API key | ✓ | ✓ |
+| `GROQ_API_KEY` | Your Groq API key | ✓ | ✓ |
+| `TAVILY_API_KEY` | Your Tavily API key | ✓ | ✓ |
+| `TINKER_API_KEY` | Your Tinker API key | ✓ | ✓ |
+
+> **Note:** `GCP_SERVICE_ACCOUNT_KEY` cannot be masked due to whitespace in JSON.
+
+### Step 4: Push to Deploy
+
+```bash
+git push origin main
+```
+
+The pipeline automatically:
+- Authenticates with GCP
+- Builds and pushes Docker images to Artifact Registry
+- Deploys to GKE cluster
+- Outputs the LoadBalancer URL
+
+### Update TF_OUTPUTS After Infrastructure Changes
+
+If you modify and re-apply Terraform, update the `TF_OUTPUTS` variable:
+
+```bash
+cd infrastructure/gcp
+terraform output -json | jq -c .
+# Copy output → GitLab → CI/CD Variables → Update TF_OUTPUTS
+```
+
+### Monitor Pipeline
+
+GitLab → CI/CD → Pipelines to view deployment progress and logs.

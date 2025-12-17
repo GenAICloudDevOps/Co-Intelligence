@@ -6,59 +6,55 @@ echo "Co-Intelligence GCP Deployment"
 echo "=========================================="
 
 command -v gcloud >/dev/null 2>&1 || { echo "gcloud CLI required"; exit 1; }
-command -v terraform >/dev/null 2>&1 || { echo "terraform required"; exit 1; }
 command -v kubectl >/dev/null 2>&1 || { echo "kubectl required"; exit 1; }
 command -v docker >/dev/null 2>&1 || { echo "docker required"; exit 1; }
 
-TERRAFORM_DIR="infrastructure/gcp"
-
-if [ ! -f "$TERRAFORM_DIR/terraform.tfstate" ]; then
-    echo "Error: Run 'terraform apply' first in $TERRAFORM_DIR"
-    exit 1
-fi
-
-# Load API keys from .env
+# Load from .env if exists (local dev)
 if [ -f ".env" ]; then
-    echo "Loading API keys from .env..."
-    export $(grep -E '^(GEMINI_API_KEY|GROQ_API_KEY|TAVILY_API_KEY|TINKER_API_KEY|TINKER_BASE_PATH|AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|AWS_REGION)=' .env | xargs)
+    echo "Loading from .env..."
+    export $(grep -v '^#' .env | xargs)
 fi
 
-echo "Fetching Terraform outputs..."
-cd $TERRAFORM_DIR
+# Check if using CI variables or terraform
+if [ -n "$BACKEND_REGISTRY" ] && [ -n "$DB_HOST" ]; then
+    echo "Using environment variables..."
+    PROJECT_ID=${GCP_PROJECT_ID}
+    REGION=${GCP_REGION}
+    GKE_CLUSTER=${GKE_CLUSTER_NAME}
+    GKE_ZONE_VAL=${GKE_ZONE}
+else
+    echo "Fetching from Terraform outputs..."
+    command -v terraform >/dev/null 2>&1 || { echo "terraform required"; exit 1; }
+    TERRAFORM_DIR="infrastructure/gcp"
+    cd $TERRAFORM_DIR
+    PROJECT_ID=$(terraform output -raw project_id)
+    REGION=$(terraform output -raw region)
+    GKE_CLUSTER=$(terraform output -raw gke_cluster_name)
+    GKE_ZONE_VAL=$(terraform output -raw gke_zone)
+    DB_HOST=$(terraform output -raw db_host)
+    DB_NAME=$(terraform output -raw db_name)
+    DB_USERNAME=$(terraform output -raw db_username)
+    DB_PASSWORD=$(terraform output -raw db_password)
+    SECRET_KEY=$(terraform output -raw secret_key)
+    BACKEND_REGISTRY=$(terraform output -raw backend_registry)
+    FRONTEND_REGISTRY=$(terraform output -raw frontend_registry)
+    BUCKET_NAME=$(terraform output -raw bucket_name)
+    cd ../..
+fi
 
-PROJECT_ID=$(terraform output -raw project_id)
-REGION=$(terraform output -raw region)
-GKE_CLUSTER=$(terraform output -raw gke_cluster_name)
-GKE_ZONE=$(terraform output -raw gke_zone)
-DB_HOST=$(terraform output -raw db_host)
-DB_NAME=$(terraform output -raw db_name)
-DB_USERNAME=$(terraform output -raw db_username)
-DB_PASSWORD=$(terraform output -raw db_password)
-SECRET_KEY=$(terraform output -raw secret_key)
-BACKEND_REGISTRY=$(terraform output -raw backend_registry)
-FRONTEND_REGISTRY=$(terraform output -raw frontend_registry)
-BUCKET_NAME=$(terraform output -raw bucket_name)
-
-cd ../..
-
-echo "✓ Terraform outputs retrieved"
+echo "✓ Configuration loaded"
 
 # Update .env with infrastructure values
 echo "Updating .env..."
 cat > .env << EOF
-# AI API Keys
 GEMINI_API_KEY=${GEMINI_API_KEY:-}
 GROQ_API_KEY=${GROQ_API_KEY:-}
 TAVILY_API_KEY=${TAVILY_API_KEY:-}
 TINKER_API_KEY=${TINKER_API_KEY:-}
 TINKER_BASE_PATH=${TINKER_BASE_PATH:-/app}
-
-# AWS Credentials (for Bedrock)
 AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
 AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
 AWS_REGION=${AWS_REGION:-us-east-1}
-
-# Infrastructure (auto-populated)
 DATABASE_URL=postgres://$DB_USERNAME:$DB_PASSWORD@$DB_HOST:5432/$DB_NAME
 SECRET_KEY=$SECRET_KEY
 GCS_BUCKET=$BUCKET_NAME
@@ -82,7 +78,7 @@ echo "✓ Images pushed"
 
 # Configure kubectl
 echo "Configuring kubectl for GKE..."
-gcloud container clusters get-credentials $GKE_CLUSTER --zone $GKE_ZONE --project $PROJECT_ID
+gcloud container clusters get-credentials $GKE_CLUSTER --zone $GKE_ZONE_VAL --project $PROJECT_ID
 echo "✓ kubectl configured"
 
 # Create namespace
@@ -248,11 +244,9 @@ EOF
 
 echo "✓ Manifests generated"
 
-# Apply manifests with image substitution
+# Apply manifests
 echo "Deploying to GKE..."
-for f in k8s-gcp/*.yaml; do
-    sed -e "s|GCP_PROJECT_PLACEHOLDER|$PROJECT_ID|g" -e "s|GCP_REGION|$REGION|g" "$f" | kubectl apply -f -
-done
+kubectl apply -f k8s-gcp/
 echo "✓ Deployed"
 
 # Wait for LoadBalancer
