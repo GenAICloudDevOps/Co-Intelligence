@@ -5,7 +5,7 @@ import AppHeader from '@/app/components/AppHeader'
 import Card from '@/app/components/Card'
 import Button from '@/app/components/Button'
 import { useAuth } from '@/app/hooks/useAuth'
-import { DEFAULT_MODEL } from '@/app/config/models'
+import { useModel } from '@/app/components/ModelProvider'
 import { daApi, type DatasetDetails, type DatasetListItem, type RunStatus, type ChatResponse, type AgentStep, type PreviewResponse, type ChartData, type SuggestionsResponse } from './api'
 import { api } from '@/app/services/api'
 
@@ -44,8 +44,8 @@ const STATUS_STYLE: Record<StepStatus, { label: string; color: string; border: s
 
 export default function DataAnalysisApp() {
   const { user, loading } = useAuth(true)
+  const { selectedModel, setSelectedModel } = useModel()
 
-  const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL)
   const [datasets, setDatasets] = useState<DatasetListItem[]>([])
   const [selectedDatasetId, setSelectedDatasetId] = useState<number | null>(null)
   const [datasetDetails, setDatasetDetails] = useState<DatasetDetails | null>(null)

@@ -19,7 +19,7 @@ router = APIRouter()
 
 class RewriteRequest(BaseModel):
     text: str
-    model: str = "gemini"
+    model: str | None = None
 
 # Auto-assign customer role on first access
 async def ensure_customer_role(user: User):
@@ -251,7 +251,7 @@ async def rewrite_text(
 
 class ChatRequest(BaseModel):
     message: str
-    model: str = "gemini-3-flash-preview"
+    model: str | None = None
     context: str = ""
 
 @router.post("/chat")

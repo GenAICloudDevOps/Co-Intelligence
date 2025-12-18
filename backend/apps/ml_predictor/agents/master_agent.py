@@ -2,6 +2,7 @@ from typing import Dict, Any
 from services.ai_service import ai_service
 from apps.ml_predictor.algorithm_registry import algorithm_registry
 from apps.ml_predictor.data_processor import DataProcessor
+from services.model_catalog import DEFAULT_MODEL_ID
 import json
 import logging
 
@@ -10,7 +11,7 @@ logger = logging.getLogger(__name__)
 class MasterAgent:
     """Master agent for problem analysis and algorithm selection"""
     
-    def __init__(self, model_name: str = "gemini-3-flash-preview"):
+    def __init__(self, model_name: str = DEFAULT_MODEL_ID):
         self.model_name = model_name
         self.data_processor = DataProcessor()
     

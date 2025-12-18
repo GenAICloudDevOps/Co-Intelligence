@@ -4,7 +4,7 @@ import { useAuth } from '@/app/hooks/useAuth'
 import AppHeader from '@/app/components/AppHeader'
 import Card from '@/app/components/Card'
 import { useState, useEffect, useRef } from 'react'
-import { DEFAULT_MODEL } from '@/app/config/models'
+import { useModel } from '@/app/components/ModelProvider'
 import { mlApi } from './api'
 import { Dataset, DatasetPreview, PredictionResult, ProgressUpdate, AlgorithmInfo } from './types'
 import { api } from '@/app/services/api'
@@ -12,10 +12,10 @@ import { consumeNdjson } from '@/app/services/stream'
 
 export default function MLPredictor() {
   const { user, loading } = useAuth(true)
+  const { selectedModel, setSelectedModel } = useModel()
   const [datasets, setDatasets] = useState<Dataset[]>([])
   const [selectedDataset, setSelectedDataset] = useState<Dataset | null>(null)
   const [problemDescription, setProblemDescription] = useState('')
-  const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL)
   const [results, setResults] = useState<PredictionResult | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')

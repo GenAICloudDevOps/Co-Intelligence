@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Send, MessageCircle, Brain, Zap, X, Mic } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import AppHeader from '../../components/AppHeader';
-import { DEFAULT_MODEL } from '../../config/models';
+import { useModel } from '../../components/ModelProvider';
 import { api } from '../../services/api';
 import { useSpeechToText } from '../../hooks/useSpeechToText';
 
@@ -18,13 +18,13 @@ interface Message {
 }
 
 export default function AgenticBarista() {
+  const { selectedModel, setSelectedModel } = useModel()
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState('');
   const [cart, setCart] = useState<Record<number, number>>({});
   const [totalAmount, setTotalAmount] = useState(0);
-  const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { isSupported: voiceSupported, isListening, toggle: toggleSpeechToText } = useSpeechToText({

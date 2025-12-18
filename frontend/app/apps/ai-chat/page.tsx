@@ -6,13 +6,13 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import jsPDF from 'jspdf'
 import AppHeader from '../../components/AppHeader'
-import { ModelSelector, DEFAULT_MODEL } from '../../config/models'
+import { ModelSelector } from '../../config/models'
 import { api } from '../../services/api'
 import { consumeSseJson } from '../../services/stream'
 import type { Message, Session, Document } from '../../types'
 import { useAuth } from '../../hooks/useAuth'
 import { useSpeechToText } from '../../hooks/useSpeechToText'
-import { useModelCatalog } from '../../hooks/useModelCatalog'
+import { useModel } from '../../components/ModelProvider'
 
 interface ChatMessage extends Message {
   timestamp: Date
@@ -20,10 +20,9 @@ interface ChatMessage extends Message {
 
 export default function AIChat() {
   const { user, initializing } = useAuth(true)
-  const { models, defaultModel } = useModelCatalog()
+  const { models, defaultModel, selectedModel: model, setSelectedModel: setModel } = useModel()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
-  const [model, setModel] = useState(DEFAULT_MODEL)
   const [sessionId, setSessionId] = useState<number | null>(null)
   const [sessions, setSessions] = useState<Session[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -41,12 +40,6 @@ export default function AIChat() {
   const { isSupported: voiceSupported, isListening, toggle: toggleSpeechToText } = useSpeechToText({
     onTranscript: (text) => setInput(text),
   })
-
-  useEffect(() => {
-    const ids = new Set((models || []).map((m) => m.id))
-    if (model && ids.has(model)) return
-    if (defaultModel) setModel(defaultModel)
-  }, [defaultModel, model, models])
 
   useEffect(() => {
     if (user) {
@@ -417,6 +410,7 @@ export default function AIChat() {
               value={model}
               onChange={setModel}
               models={models}
+              defaultModel={defaultModel}
               style={{
                 padding: '10px 16px',
                 background: 'rgba(15, 23, 42, 0.6)',

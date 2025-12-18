@@ -57,6 +57,10 @@ class AIService:
         self._cache: Dict[Tuple[str, str], Tuple[float, str]] = {}
         self._cache_ttl = 60  # seconds
 
+    def resolve_model(self, model_or_tier: Optional[str]) -> str:
+        """Resolve a logical tier (e.g. 'default') or model id to a concrete model id."""
+        return self._resolve_model(model_or_tier)
+
     def get_available_models(self) -> Dict[str, List[str]]:
         """Return known logical tiers and provider defaults."""
         return {

@@ -89,7 +89,7 @@ class StartRunRequest(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     dataset_id: int
-    model: Optional[str] = "gemini-3-flash-preview"
+    model: Optional[str] = None
 
 async def _start_pipeline_run(
     *,
@@ -274,7 +274,7 @@ async def get_dataset_suggestions(dataset_id: int, current_user: User = Depends(
 Generate exactly 4 short analytical questions a user might ask. Return as JSON array of strings only.
 Example: ["What is total revenue by region?", "Show top 5 customers"]"""
         
-        response = await ai_service.generate_response(prompt, settings.AI_DEFAULT_MODEL)
+        response = await ai_service.generate_response(prompt)
         response = response.strip()
         if response.startswith("```"):
             lines = response.split("\n")[1:-1]

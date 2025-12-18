@@ -1,5 +1,7 @@
 from pydantic_settings import BaseSettings
 
+from services.model_catalog import DEFAULT_MODEL_ID
+
 class Settings(BaseSettings):
     DATABASE_URL: str
     SECRET_KEY: str
@@ -8,7 +10,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
     GEMINI_API_KEY: str
-    GEMINI_MODEL: str = "gemini-3-flash-preview"
+    GEMINI_MODEL: str = DEFAULT_MODEL_ID
     
     GROQ_API_KEY: str
     
@@ -41,8 +43,8 @@ class Settings(BaseSettings):
     AZURE_SYNAPSE_DATABASE: str = "co_intelligence"
 
     # AI settings
-    AI_DEFAULT_MODEL: str = "gemini-3-flash-preview"
-    AI_FAST_MODEL: str = "gemini-3-flash-preview"
+    AI_DEFAULT_MODEL: str = DEFAULT_MODEL_ID
+    AI_FAST_MODEL: str = DEFAULT_MODEL_ID
     AI_QUALITY_MODEL: str = "gemini-1.5-pro"
     AI_ALT_MODEL: str = "groq/compound"
     AI_REQUEST_TIMEOUT: int = 60

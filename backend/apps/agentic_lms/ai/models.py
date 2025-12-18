@@ -2,9 +2,11 @@ import os
 import google.generativeai as genai
 from langchain_aws import ChatBedrock
 
+from services.model_catalog import DEFAULT_MODEL_ID
 
-def get_model(model_name: str):
+def get_model(model_name: str | None):
     """Get the appropriate LLM model based on name"""
+    model_name = model_name or DEFAULT_MODEL_ID
     
     if model_name.startswith("gemini"):
         # Use direct Google Generative AI SDK
@@ -37,4 +39,4 @@ def get_model(model_name: str):
     else:
         # Default to Gemini
         genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-        return genai.GenerativeModel("gemini-3-flash-preview")
+        return genai.GenerativeModel(DEFAULT_MODEL_ID)

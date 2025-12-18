@@ -6,9 +6,10 @@ from apps.agentic_barista.agents.order_agent import OrderAgent
 from apps.agentic_barista.agents.confirmation_agent import ConfirmationAgent
 from langchain_core.messages import HumanMessage, AIMessage
 from services.ai_service import ai_service, AIServiceError
+from services.model_catalog import DEFAULT_MODEL_ID
 
 class BaristaCoordinator:
-    def __init__(self, model_name: str = "gemini-3-flash-preview"):
+    def __init__(self, model_name: str = DEFAULT_MODEL_ID):
         self.menu_agent = MenuAgent()
         self.order_agent = OrderAgent()
         self.confirmation_agent = ConfirmationAgent()
@@ -149,7 +150,7 @@ If they're asking about coffee in general, share interesting facts. If it's a gr
         message: str,
         session_id: str,
         cart: dict,
-        model_name: str = "gemini-3-flash-preview",
+        model_name: str = DEFAULT_MODEL_ID,
         user_id: int | None = None,
     ) -> dict:
         # Update model if different

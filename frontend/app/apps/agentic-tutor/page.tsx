@@ -4,7 +4,7 @@ import { useAuth } from '@/app/hooks/useAuth'
 import AppHeader from '@/app/components/AppHeader'
 import Card from '@/app/components/Card'
 import { useState, useEffect, useRef } from 'react'
-import { DEFAULT_MODEL } from '@/app/config/models'
+import { useModel } from '@/app/components/ModelProvider'
 import { api } from '@/app/services/api'
 import type { Message } from '@/app/types'
 
@@ -29,6 +29,7 @@ interface Progress {
 
 export default function AgenticTutor() {
   const { user, loading } = useAuth(true)
+  const { selectedModel, setSelectedModel } = useModel()
   const [topics, setTopics] = useState<Topic[]>([])
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null)
   const [sessionId, setSessionId] = useState<number | null>(null)
@@ -36,7 +37,6 @@ export default function AgenticTutor() {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState('All')
-  const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL)
   const [progress, setProgress] = useState<Progress[]>([])
   const [showProgress, setShowProgress] = useState(false)
   const [currentAgent, setCurrentAgent] = useState<string>('')

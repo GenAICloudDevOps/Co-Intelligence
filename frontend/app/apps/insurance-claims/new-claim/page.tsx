@@ -3,12 +3,13 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '../../../services/api'
-import { DEFAULT_MODEL } from '../../../config/models'
 import { useAuth } from '../../../hooks/useAuth'
+import { useModel } from '../../../components/ModelProvider'
 
 export default function NewClaim() {
   const router = useRouter()
   const { user, initializing } = useAuth(true)
+  const { selectedModel } = useModel()
   const [policies, setPolicies] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [checkingPolicies, setCheckingPolicies] = useState(true)
@@ -26,12 +27,6 @@ export default function NewClaim() {
     rewritten: '',
     loading: false
   })
-  const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL)
-
-  useEffect(() => {
-    const savedModel = localStorage.getItem('insurance_ai_model') || 'gemini'
-    setSelectedModel(savedModel)
-  }, [])
 
   useEffect(() => {
     if (user) {

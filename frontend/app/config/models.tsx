@@ -9,8 +9,6 @@ export const AI_MODELS = [
   { id: 'amazon.nova-pro-v1:0', name: 'Nova Pro', provider: 'AWS Bedrock' },
 ]
 
-export const DEFAULT_MODEL = 'gemini-3-flash-preview'
-
 export type ModelId = typeof AI_MODELS[number]['id']
 
 export type ModelOption = {
@@ -25,11 +23,13 @@ export function ModelSelector({
   onChange,
   style,
   models,
+  defaultModel,
 }: {
   value: string
   onChange: (v: string) => void
   style?: React.CSSProperties
   models?: ModelOption[]
+  defaultModel?: string
 }) {
   const options = (models && models.length ? models : AI_MODELS) as ModelOption[]
   const grouped = options.reduce<Record<string, ModelOption[]>>((acc, model) => {
@@ -50,6 +50,7 @@ export function ModelSelector({
           {items.map((model) => (
             <option key={model.id} value={model.id} disabled={model.enabled === false}>
               {model.name}
+              {defaultModel && model.id === defaultModel ? ' (default)' : ''}
               {model.enabled === false ? ' (not configured)' : ''}
             </option>
           ))}

@@ -8,6 +8,7 @@ from langchain_core.messages.utils import trim_messages
 from pydantic import BaseModel, Field
 from .models import get_model
 from .tools import get_courses_tool, enroll_student_tool, search_courses_tool
+from services.model_catalog import DEFAULT_MODEL_ID
 import json
 import re
 import asyncio
@@ -237,7 +238,7 @@ class LMSAgent:
     async def process_message(
         self,
         message: str,
-        model: str = "gemini-3-flash-preview",
+        model: str = DEFAULT_MODEL_ID,
         student_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """Process user message using LangGraph workflow"""
@@ -307,7 +308,7 @@ class LMSAgent:
     async def process_message_stream(
         self,
         message: str,
-        model: str = "gemini-3-flash-preview",
+        model: str = DEFAULT_MODEL_ID,
         student_id: Optional[int] = None
     ) -> AsyncIterator[Dict[str, Any]]:
         """Process user message with streaming updates"""
@@ -396,7 +397,7 @@ class LMSAgent:
                 "message": f"Error: {str(e)}"
             }
     
-    def get_graph_visualization(self, model: str = "gemini-3-flash-preview") -> Dict[str, Any]:
+    def get_graph_visualization(self, model: str = DEFAULT_MODEL_ID) -> Dict[str, Any]:
         """Get graph structure for visualization"""
         try:
             graph = self._build_graph(model)

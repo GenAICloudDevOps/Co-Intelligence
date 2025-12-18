@@ -97,6 +97,7 @@ async def enroll_course(course_id: int, background_tasks: BackgroundTasks, curre
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user)):
     try:
+        resolved_model = ai_service.resolve_model(request.model)
         # Get all courses for context
         courses = await LMSCourse.all()
         course_list = "\n".join([f"- ID:{c.id} {c.title} ({c.category}, {c.difficulty})" for c in courses])
@@ -142,17 +143,17 @@ Help the user discover courses and answer questions about them. Be conversationa
             
             response_text = await ai_service.generate_response(
                 prompt=full_prompt,
-                model_name=request.model
+                model_name=resolved_model
             )
         
         await LMSChatHistory.create(
             user_id=current_user.id,
             message=request.message,
             response=response_text,
-            model_used=request.model
+            model_used=resolved_model
         )
         
-        return ChatResponse(response=response_text, model_used=request.model)
+        return ChatResponse(response=response_text, model_used=resolved_model)
     except AIServiceError:
         raise
     except Exception as e:

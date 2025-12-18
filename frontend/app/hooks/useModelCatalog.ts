@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { AI_MODELS, DEFAULT_MODEL } from '../config/models'
+import { AI_MODELS } from '../config/models'
 import { metaApi, type MetaModelsResponse, type MetaModel } from '../services/meta'
 
 let cachedCatalog: MetaModelsResponse | null = null
@@ -35,7 +35,7 @@ export function useModelCatalog() {
 
   return useMemo(() => {
     const models = catalog?.models?.length ? catalog.models : fallbackModels
-    const defaultModel = catalog?.defaultModel || DEFAULT_MODEL
+    const defaultModel = catalog?.defaultModel || AI_MODELS[0]?.id || ''
     return {
       loading: !catalog && !error,
       error,
@@ -48,4 +48,3 @@ export function useModelCatalog() {
     }
   }, [catalog, error])
 }
-

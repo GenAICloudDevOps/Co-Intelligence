@@ -23,7 +23,7 @@ data_processor = DataProcessor()
 class PredictRequest(BaseModel):
     dataset_id: int
     problem_description: str
-    model: Optional[str] = "gemini-3-flash-preview"
+    model: Optional[str] = None
 
 class DatasetResponse(BaseModel):
     id: int

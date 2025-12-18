@@ -2,21 +2,20 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { ModelSelector, DEFAULT_MODEL } from '../../config/models'
+import { ModelSelector } from '../../config/models'
+import { useModel } from '../../components/ModelProvider'
 import { api } from '../../services/api'
 import { useAuth } from '../../hooks/useAuth'
 import { useSpeechToText } from '../../hooks/useSpeechToText'
-import { useModelCatalog } from '../../hooks/useModelCatalog'
 
 export default function InsuranceClaimsDashboard() {
   const router = useRouter()
   const { user, initializing } = useAuth(true)
-  const { models, defaultModel } = useModelCatalog()
+  const { models, defaultModel, selectedModel, setSelectedModel } = useModel()
   const [claims, setClaims] = useState<any[]>([])
   const [policies, setPolicies] = useState<any[]>([])
   const [roles, setRoles] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL)
   
   // Chatbot state
   const [chatOpen, setChatOpen] = useState(false)
@@ -29,23 +28,6 @@ export default function InsuranceClaimsDashboard() {
   })
 
   useEffect(() => {
-    const savedModel = localStorage.getItem('insurance_ai_model')
-    if (savedModel) {
-      setSelectedModel(savedModel)
-      return
-    }
-    if (defaultModel) setSelectedModel(defaultModel)
-  }, [defaultModel])
-
-  useEffect(() => {
-    if (!models?.length) return
-    const selected = models.find((m) => m.id === selectedModel)
-    if (selected && selected.enabled !== false) return
-    const fallback = models.find((m) => m.enabled !== false)?.id || defaultModel || DEFAULT_MODEL
-    if (selectedModel !== fallback) setSelectedModel(fallback)
-  }, [defaultModel, models, selectedModel])
-
-  useEffect(() => {
     if (user) {
       loadData()
     }
@@ -54,11 +36,6 @@ export default function InsuranceClaimsDashboard() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatMessages])
-
-  const handleModelChange = (model: string) => {
-    setSelectedModel(model)
-    localStorage.setItem('insurance_ai_model', model)
-  }
 
   const loadData = async () => {
     try {
@@ -140,7 +117,7 @@ export default function InsuranceClaimsDashboard() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <ModelSelector value={selectedModel} onChange={handleModelChange} models={models} />
+            <ModelSelector value={selectedModel} onChange={setSelectedModel} models={models} defaultModel={defaultModel} />
             {roles.includes('customer') && (
               <>
                 <button onClick={() => router.push('/apps/insurance-claims/buy-policy')}

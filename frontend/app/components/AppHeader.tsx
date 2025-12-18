@@ -2,9 +2,9 @@
 
 import { useEffect } from 'react';
 import { Coffee, ShoppingCart } from 'lucide-react';
-import { ModelSelector, DEFAULT_MODEL } from '../config/models';
+import { ModelSelector } from '../config/models';
 import { useAuth } from '../hooks/useAuth';
-import { useModelCatalog } from '../hooks/useModelCatalog';
+import { useModel } from './ModelProvider';
 import { useRouter } from 'next/navigation';
 
 interface AppHeaderProps {
@@ -22,22 +22,24 @@ export default function AppHeader({
   requireAuth = true,
   showModelSelector = false,
   showCart = false,
-  selectedModel = DEFAULT_MODEL,
-  onModelChange,
+  selectedModel: selectedModelProp,
+  onModelChange: onModelChangeProp,
   cartCount = 0
 }: AppHeaderProps) {
   const router = useRouter();
   const { user, logout, initializing } = useAuth(requireAuth);
-  const { models, defaultModel } = useModelCatalog();
+  const { models, defaultModel, selectedModel, setSelectedModel } = useModel();
+  const effectiveSelectedModel = selectedModelProp ?? selectedModel;
+  const onModelChange = onModelChangeProp ?? setSelectedModel;
 
   useEffect(() => {
     if (!showModelSelector || !onModelChange) return
     if (!models?.length) return
-    const selected = models.find((m) => m.id === selectedModel)
+    const selected = models.find((m) => m.id === effectiveSelectedModel)
     if (selected && selected.enabled !== false) return
-    const fallback = models.find((m) => m.enabled !== false)?.id || defaultModel || DEFAULT_MODEL
-    if (selectedModel !== fallback) onModelChange(fallback)
-  }, [defaultModel, models, onModelChange, selectedModel, showModelSelector])
+    const fallback = models.find((m) => m.enabled !== false)?.id || defaultModel || ''
+    if (effectiveSelectedModel !== fallback) onModelChange(fallback)
+  }, [defaultModel, effectiveSelectedModel, models, onModelChange, showModelSelector])
 
   if (requireAuth && (initializing || !user)) {
     return (
@@ -60,9 +62,10 @@ export default function AppHeader({
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           {showModelSelector && onModelChange && (
             <ModelSelector
-              value={selectedModel}
+              value={effectiveSelectedModel}
               onChange={onModelChange}
               models={models}
+              defaultModel={defaultModel}
               style={{
                 padding: '8px 16px',
                 border: '1px solid #d6d3d1',

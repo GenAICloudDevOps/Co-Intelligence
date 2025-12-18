@@ -6,6 +6,7 @@ from apps.ml_predictor.agents.algorithm_agent import AlgorithmAgent
 from apps.ml_predictor.agents.evaluation_agent import EvaluationAgent
 from apps.ml_predictor.data_processor import DataProcessor
 from apps.ml_predictor.models import MLProject
+from services.model_catalog import DEFAULT_MODEL_ID
 import asyncio
 import logging
 
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 class MLPredictorCoordinator:
     """Orchestrates the ML Predictor workflow using LangGraph"""
     
-    def __init__(self, model_name: str = "gemini-3-flash-preview"):
+    def __init__(self, model_name: str = DEFAULT_MODEL_ID):
         self.model_name = model_name
         self.master_agent = MasterAgent(model_name)
         self.evaluation_agent = EvaluationAgent()

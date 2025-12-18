@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from auth.utils import get_current_user
 from auth.models import User
 from apps.ai_chat.agent import stream_model
+from services.ai_service import ai_service
 from tortoise import Tortoise
 import json
 import os
@@ -21,7 +22,7 @@ def get_models():
 class ChatRequest(BaseModel):
     session_id: int | None = None
     message: str
-    model: str = "gemini-3-flash-preview"
+    model: str | None = None
     context_size: int = 10
     web_search: bool = False
 
@@ -154,7 +155,12 @@ async def chat(data: ChatRequest, current_user: User = Depends(get_current_user)
     
     await ChatMessage.create(session_id=session_id, role="user", content=data.message)
     response_text = "Please use /chat/stream endpoint for responses"
-    await ChatMessage.create(session_id=session_id, role="assistant", content=response_text, model=data.model)
+    await ChatMessage.create(
+        session_id=session_id,
+        role="assistant",
+        content=response_text,
+        model=ai_service.resolve_model(data.model),
+    )
     
     return {"session_id": session_id, "response": response_text}
 
@@ -195,9 +201,10 @@ async def chat_stream(data: ChatRequest, current_user: User = Depends(get_curren
     async def generate():
         ChatSession, ChatMessage, ChatDocument = get_models()
         full_response = ""
+        resolved_model = ai_service.resolve_model(data.model)
         async for chunk in stream_model(
             [{"role": "user", "content": data.message}],
-            data.model,
+            resolved_model,
             context_messages[:-1],
             document_context,
             data.web_search,
@@ -208,13 +215,13 @@ async def chat_stream(data: ChatRequest, current_user: User = Depends(get_curren
             yield f"data: {json.dumps({'chunk': chunk, 'session_id': session_id})}\n\n"
         
         # Save response
-        await ChatMessage.create(session_id=session_id, role="assistant", content=full_response, model=data.model)
+        await ChatMessage.create(session_id=session_id, role="assistant", content=full_response, model=resolved_model)
         # Evaluate and store (best-effort)
         try:
             await evaluate_and_store(
                 user_id=current_user.id,
                 app_name="ai-chat",
-                model_used=data.model,
+                model_used=resolved_model,
                 user_prompt=data.message,
                 assistant_response=full_response,
                 context=document_context,

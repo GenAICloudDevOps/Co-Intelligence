@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import AppHeader from '../../components/AppHeader'
-import { ModelSelector, DEFAULT_MODEL } from '../../config/models'
+import { ModelSelector } from '../../config/models'
+import { useModel } from '../../components/ModelProvider'
 import { api } from '../../services/api'
 import { useSpeechToText } from '../../hooks/useSpeechToText'
-import { useModelCatalog } from '../../hooks/useModelCatalog'
 
 interface Course {
   id: number
@@ -33,7 +33,7 @@ const SUBTOPICS = [
 ]
 
 export default function AgenticLMS() {
-  const { models, defaultModel } = useModelCatalog()
+  const { models, defaultModel, selectedModel, setSelectedModel } = useModel()
   const [view, setView] = useState<'home' | 'catalog' | 'enrollments'>('home')
   const [courses, setCourses] = useState<Course[]>([])
   const [enrollments, setEnrollments] = useState<Enrollment[]>([])
@@ -43,7 +43,6 @@ export default function AgenticLMS() {
   const [loading, setLoading] = useState(false)
   const [completedSubtopics, setCompletedSubtopics] = useState<{[enrollmentId: number]: number[]}>({})
   const [expandedEnrollment, setExpandedEnrollment] = useState<number | null>(null)
-  const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL)
   const { isSupported: voiceSupported, isListening, toggle: toggleSpeechToText } = useSpeechToText({
     onTranscript: (text) => setChatMessage(text),
   })
@@ -54,23 +53,6 @@ export default function AgenticLMS() {
     const saved = localStorage.getItem('lms_progress')
     if (saved) setCompletedSubtopics(JSON.parse(saved))
   }, [])
-
-  useEffect(() => {
-    const savedModel = localStorage.getItem('lms_model')
-    if (savedModel) {
-      setSelectedModel(savedModel)
-      return
-    }
-    if (defaultModel) setSelectedModel(defaultModel)
-  }, [defaultModel])
-
-  useEffect(() => {
-    if (!models?.length) return
-    const selected = models.find((m) => m.id === selectedModel)
-    if (selected && selected.enabled !== false) return
-    const fallback = models.find((m) => m.enabled !== false)?.id || defaultModel || DEFAULT_MODEL
-    if (selectedModel !== fallback) setSelectedModel(fallback)
-  }, [defaultModel, models, selectedModel])
 
   const fetchCourses = async () => {
     try {
@@ -139,11 +121,6 @@ export default function AgenticLMS() {
     }
   }
 
-  const handleModelChange = (model: string) => {
-    setSelectedModel(model)
-    localStorage.setItem('lms_model', model)
-  }
-
   const isEnrolled = (courseId: number) => enrollments.some(e => e.course.id === courseId)
   const featuredCourses = courses.slice(0, 4)
 
@@ -157,7 +134,7 @@ export default function AgenticLMS() {
           <button onClick={() => setView('catalog')} style={{ padding: '10px 20px', background: view === 'catalog' ? '#6366f1' : 'transparent', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>📚 Course Catalog</button>
           <button onClick={() => setView('enrollments')} style={{ padding: '10px 20px', background: view === 'enrollments' ? '#6366f1' : 'transparent', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>📖 My Enrollments</button>
           <div style={{ marginLeft: 'auto' }}>
-            <ModelSelector value={selectedModel} onChange={handleModelChange} models={models} />
+            <ModelSelector value={selectedModel} onChange={setSelectedModel} models={models} defaultModel={defaultModel} />
           </div>
         </div>
 
