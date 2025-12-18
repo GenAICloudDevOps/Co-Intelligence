@@ -51,9 +51,11 @@ async def seed_topics():
     ]
     
     for topic_data in topics:
-        existing = await Topic.get_or_none(name=topic_data['name'])
-        if not existing:
-            await Topic.create(**topic_data)
-            print(f"✓ Created topic: {topic_data['name']}")
+        # Be resilient to existing duplicates (e.g., multi-pod startup races).
+        existing = await Topic.filter(name=topic_data["name"]).order_by("id").first()
+        if existing:
+            continue
+        await Topic.create(**topic_data)
+        print(f"✓ Created topic: {topic_data['name']}")
     
     print(f"✅ Seeded {len(topics)} topics")

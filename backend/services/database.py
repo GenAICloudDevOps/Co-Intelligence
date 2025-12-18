@@ -94,7 +94,52 @@ async def run_migrations():
         "ALTER TABLE evaluation_results ADD COLUMN IF NOT EXISTS response_relevancy FLOAT DEFAULT 0",
         "ALTER TABLE evaluation_results ADD COLUMN IF NOT EXISTS faithfulness FLOAT DEFAULT 0",
         # Data Analysis (App 8)
-        "ALTER TABLE data_analysis_datasets ADD COLUMN IF NOT EXISTS last_run_id INTEGER"
+        "ALTER TABLE data_analysis_datasets ADD COLUMN IF NOT EXISTS last_run_id INTEGER",
+        # Agentic Tutor - make topic seeding idempotent in multi-pod deployments
+        # 1) Re-point references to the lowest id per name
+        """
+        WITH ranked AS (
+            SELECT
+                id,
+                name,
+                ROW_NUMBER() OVER (PARTITION BY name ORDER BY id) AS rn,
+                MIN(id) OVER (PARTITION BY name) AS keep_id
+            FROM tutor_topics
+        )
+        UPDATE tutor_sessions s
+        SET topic_id = r.keep_id
+        FROM ranked r
+        WHERE s.topic_id = r.id AND r.rn > 1
+        """,
+        """
+        WITH ranked AS (
+            SELECT
+                id,
+                name,
+                ROW_NUMBER() OVER (PARTITION BY name ORDER BY id) AS rn,
+                MIN(id) OVER (PARTITION BY name) AS keep_id
+            FROM tutor_topics
+        )
+        UPDATE tutor_progress p
+        SET topic_id = r.keep_id
+        FROM ranked r
+        WHERE p.topic_id = r.id AND r.rn > 1
+        """,
+        # 2) Delete duplicate topic rows, keeping the lowest id per name
+        """
+        DELETE FROM tutor_topics t
+        USING (
+            SELECT id
+            FROM (
+                SELECT id, ROW_NUMBER() OVER (PARTITION BY name ORDER BY id) AS rn
+                FROM tutor_topics
+            ) x
+            WHERE rn > 1
+        ) d
+        WHERE t.id = d.id
+        """,
+        # 3) Prevent future duplicates
+        "CREATE UNIQUE INDEX IF NOT EXISTS tutor_topics_name_uniq ON tutor_topics (name)"
     ]
     
     for sql in migrations:

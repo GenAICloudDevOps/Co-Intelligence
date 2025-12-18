@@ -2,7 +2,7 @@ from models.base import BaseModel
 from tortoise import fields
 
 class Topic(BaseModel):
-    name = fields.CharField(max_length=200)
+    name = fields.CharField(max_length=200, unique=True)
     category = fields.CharField(max_length=100)
     difficulty = fields.CharField(max_length=50)
     description = fields.TextField()
