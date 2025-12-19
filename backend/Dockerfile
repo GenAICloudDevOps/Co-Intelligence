@@ -11,7 +11,6 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir --no-deps tinker==0.7.0 tinker-cookbook==0.1.0 && \
     find /usr/local/lib/python3.12/site-packages -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true && \
     find /usr/local/lib/python3.12/site-packages -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true && \
-    find /usr/local/lib/python3.12/site-packages -type d -name "test" -exec rm -rf {} + 2>/dev/null || true && \
     rm -rf /usr/local/lib/python3.12/site-packages/torch/test && \
     rm -rf /usr/local/lib/python3.12/site-packages/torch/include && \
     rm -rf /usr/local/lib/python3.12/site-packages/torch/share && \
