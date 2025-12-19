@@ -10,6 +10,14 @@ Deploy Co-Intelligence to Microsoft Azure using AKS, Azure Database for PostgreS
 - kubectl installed
 - Azure subscription with sufficient quota
 
+> **Important:** Azure SDKs are commented out in `backend/requirements.txt` by default. Before deploying to Azure, uncomment the Azure SDK section in that file:
+> ```
+> azure-storage-blob>=12.19.0
+> azure-identity>=1.15.0
+> azure-mgmt-logic>=10.0.0
+> pyodbc>=5.0.0
+> ```
+
 ## Fresh Deployment
 
 ### Step 1: Authenticate & Configure Azure

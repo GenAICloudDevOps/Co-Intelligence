@@ -42,15 +42,24 @@ sympy>=1.12
 scipy>=1.11.0
 textarena>=0.7.4
 math-verify>=0.1.6
+
+# ============================================================
 # GCP SDKs (for Data Analysis on GCP)
-google-cloud-storage>=2.14.0
-google-cloud-bigquery>=3.14.0
-google-cloud-workflows>=1.14.0
+# Uncomment these when deploying to GCP - see DEPLOYMENT_GUIDE_GCP.md
+# ============================================================
+# google-cloud-storage>=2.14.0
+# google-cloud-bigquery>=3.14.0
+# google-cloud-workflows>=1.14.0
+
+# ============================================================
 # Azure SDKs (for Data Analysis on Azure)
-azure-storage-blob>=12.19.0
-azure-identity>=1.15.0
-azure-mgmt-logic>=10.0.0
-pyodbc>=5.0.0
+# Uncomment these when deploying to Azure - see DEPLOYMENT_GUIDE_AZURE.md
+# ============================================================
+# azure-storage-blob>=12.19.0
+# azure-identity>=1.15.0
+# azure-mgmt-logic>=10.0.0
+# pyodbc>=5.0.0
+
 # CPU-only torch required by tinker; pulled from PyTorch CPU index
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.4.1

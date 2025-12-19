@@ -9,6 +9,13 @@ Deploy Co-Intelligence to Google Cloud Platform using GKE, Cloud SQL, and Artifa
 - Docker installed
 - kubectl installed
 
+> **Important:** GCP SDKs are commented out in `backend/requirements.txt` by default. Before deploying to GCP, uncomment the GCP SDK section in that file:
+> ```
+> google-cloud-storage>=2.14.0
+> google-cloud-bigquery>=3.14.0
+> google-cloud-workflows>=1.14.0
+> ```
+
 ## Fresh Deployment
 
 ### Step 1: Authenticate & Configure GCP
