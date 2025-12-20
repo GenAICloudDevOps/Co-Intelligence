@@ -41,7 +41,7 @@ spec:
     app: jaeger
   ports:
     - name: ui
-      port: 16686
+      port: 80
       targetPort: 16686
     - name: collector-http
       port: 14268
