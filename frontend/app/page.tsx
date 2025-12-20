@@ -125,6 +125,8 @@ const themes = {
 
 type ThemeKey = keyof typeof themes
 
+const themeStorageKey = 'coi-theme'
+
 export default function Home() {
   const { user, loading, message, setMessage, login, register, logout, isAuthenticated, refresh } = useAuth()
   const [appCatalog, setAppCatalog] = useState(apps)
@@ -165,6 +167,19 @@ export default function Home() {
     const interval = setInterval(updateTime, 1000)
     return () => clearInterval(interval)
   }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const storedTheme = window.localStorage.getItem(themeStorageKey)
+    if (storedTheme && storedTheme in themes) {
+      setThemeKey(storedTheme as ThemeKey)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(themeStorageKey, themeKey)
+  }, [themeKey])
 
   useEffect(() => {
     let active = true
@@ -332,7 +347,12 @@ export default function Home() {
         <section style={{ textAlign: 'center', marginBottom: '30px' }}>
           <h1 style={{ fontSize: '4rem', fontWeight: 'bold', marginBottom: '12px', lineHeight: '1.2' }}>
             Where Human Meets<br/>
-            <span style={{ background: theme.heroGradient, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>AI Intelligence</span>
+            <span
+              className="hero-gradient"
+              style={{ '--hero-gradient': theme.heroGradient, '--hero-fallback': theme.titleAccent } as React.CSSProperties}
+            >
+              AI Intelligence
+            </span>
           </h1>
           <p style={{ fontSize: '1.1rem', color: theme.mutedText, maxWidth: '900px', margin: '0 auto', lineHeight: '1.8' }}>
             <div style={{ textAlign: 'center' }}>Build once. Deploy to AWS, GCP, or Azure.</div>
@@ -669,6 +689,21 @@ export default function Home() {
           </span>
         </p>
       </Modal>
+      <style jsx>{`
+        .hero-gradient {
+          color: var(--hero-fallback);
+        }
+
+        @supports ((-webkit-background-clip: text) or (background-clip: text)) {
+          .hero-gradient {
+            background: var(--hero-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            -webkit-text-fill-color: transparent;
+          }
+        }
+      `}</style>
     </div>
   )
 }
