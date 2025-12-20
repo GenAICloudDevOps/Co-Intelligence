@@ -26,6 +26,12 @@ type EvalSummary = {
   scope: string
 }
 
+const observabilityLinks = [
+  { name: 'Grafana', description: 'Dashboards and alerts', href: process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3000' },
+  { name: 'Prometheus', description: 'Metrics and targets', href: process.env.NEXT_PUBLIC_PROMETHEUS_URL || 'http://localhost:9090' },
+  { name: 'Jaeger', description: 'Tracing and latency', href: process.env.NEXT_PUBLIC_JAEGER_URL || 'http://localhost:16686' },
+]
+
 const themes = {
   default: {
     pageBg: '#0f172a',
@@ -392,6 +398,42 @@ export default function Home() {
                     {feature.desc}
                   </p>
                 </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Observability Section */}
+        <section style={{ marginBottom: '60px' }}>
+          <div style={{ background: theme.panelAltBg, borderRadius: '16px', padding: '40px', border: `1px solid ${theme.border}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap', marginBottom: '20px' }}>
+              <div>
+                <h2 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '8px' }}>Observability</h2>
+                <p style={{ color: theme.mutedText }}>Monitor metrics, logs, and traces across the platform.</p>
+              </div>
+              <div style={{ color: theme.softText, fontSize: '0.9rem' }}>Prometheus • Grafana • Jaeger</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+              {observabilityLinks.map((link) => (
+                <a
+                  key={link.name}
+                  href={link.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    display: 'block',
+                    background: theme.panelBg,
+                    borderRadius: '12px',
+                    padding: '18px',
+                    border: `1px solid ${theme.border}`,
+                    textDecoration: 'none',
+                    color: 'white',
+                  }}
+                >
+                  <div style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '6px' }}>{link.name}</div>
+                  <div style={{ color: theme.softText, fontSize: '0.9rem', marginBottom: '10px' }}>{link.description}</div>
+                  <div style={{ color: theme.accent, fontSize: '0.85rem' }}>Open →</div>
+                </a>
               ))}
             </div>
           </div>

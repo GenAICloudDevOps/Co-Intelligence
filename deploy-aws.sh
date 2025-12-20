@@ -194,6 +194,36 @@ echo "✓ Secrets created"
 echo "Applying IRSA service account and X-Ray daemonset..."
 kubectl apply -f k8s/sa-backend-irsa.yaml
 kubectl apply -f k8s/xray-daemonset.yaml
+echo "Applying observability stack..."
+kubectl apply -f k8s/observability/
+echo "✓ Observability stack applied"
+
+echo "Waiting for observability LoadBalancers..."
+OBS_ATTEMPTS=30
+for i in $(seq 1 $OBS_ATTEMPTS); do
+    GRAFANA_LB=$(kubectl get svc grafana -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
+    PROMETHEUS_LB=$(kubectl get svc prometheus -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
+    JAEGER_LB=$(kubectl get svc jaeger -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
+    if [ -n "$GRAFANA_LB" ] && [ -n "$PROMETHEUS_LB" ] && [ -n "$JAEGER_LB" ]; then break; fi
+    sleep 10
+done
+if [ -n "$GRAFANA_LB" ]; then
+    NEXT_PUBLIC_GRAFANA_URL="http://$GRAFANA_LB"
+    echo "Configuring Grafana root URL..."
+    kubectl set env deployment/grafana GF_SERVER_DOMAIN="$GRAFANA_LB" \
+        GF_SERVER_ROOT_URL="http://$GRAFANA_LB"
+    kubectl rollout restart deployment/grafana
+fi
+if [ -n "$PROMETHEUS_LB" ]; then
+    NEXT_PUBLIC_PROMETHEUS_URL="http://$PROMETHEUS_LB"
+fi
+if [ -n "$JAEGER_LB" ]; then
+    NEXT_PUBLIC_JAEGER_URL="http://$JAEGER_LB"
+fi
+echo "Observability endpoints:"
+echo "  Grafana: ${NEXT_PUBLIC_GRAFANA_URL:-pending}"
+echo "  Prometheus: ${NEXT_PUBLIC_PROMETHEUS_URL:-pending}"
+echo "  Jaeger: ${NEXT_PUBLIC_JAEGER_URL:-pending}"
 
 # Login to ECR
 echo "Logging into ECR..."
@@ -232,7 +262,12 @@ fi
 # Use empty NEXT_PUBLIC_API_URL so browser uses relative /api/* paths
 # Next.js rewrites will proxy to backend via BACKEND_URL env var at runtime
 echo "Building frontend with empty NEXT_PUBLIC_API_URL (uses Next.js rewrites)..."
-docker build --build-arg NEXT_PUBLIC_API_URL="" -t $ECR_FRONTEND:$IMAGE_TAG ./frontend
+docker build \
+  --build-arg NEXT_PUBLIC_API_URL="" \
+  --build-arg NEXT_PUBLIC_GRAFANA_URL="${NEXT_PUBLIC_GRAFANA_URL:-}" \
+  --build-arg NEXT_PUBLIC_PROMETHEUS_URL="${NEXT_PUBLIC_PROMETHEUS_URL:-}" \
+  --build-arg NEXT_PUBLIC_JAEGER_URL="${NEXT_PUBLIC_JAEGER_URL:-}" \
+  -t $ECR_FRONTEND:$IMAGE_TAG ./frontend
 docker push $ECR_FRONTEND:$IMAGE_TAG
 echo "✓ Images pushed with tag $IMAGE_TAG"
 
@@ -300,7 +335,23 @@ echo "=========================================="
 echo "Deployment Complete!"
 echo "=========================================="
 echo "Frontend: http://$FRONTEND_URL"
+if [ -n "$BACKEND_LB" ]; then
+    echo "Backend: http://$BACKEND_LB"
+fi
+if [ -n "$NEXT_PUBLIC_GRAFANA_URL" ] || [ -n "$NEXT_PUBLIC_PROMETHEUS_URL" ] || [ -n "$NEXT_PUBLIC_JAEGER_URL" ]; then
+    echo ""
+    echo "Observability:"
+    echo "  Grafana: ${NEXT_PUBLIC_GRAFANA_URL:-pending}"
+    echo "  Prometheus: ${NEXT_PUBLIC_PROMETHEUS_URL:-pending}"
+    echo "  Jaeger: ${NEXT_PUBLIC_JAEGER_URL:-pending}"
+fi
 echo ""
 echo "Commands:"
 echo "  kubectl get pods"
 echo "  kubectl logs -f deployment/backend"
+echo ""
+echo "Starting observability port-forwards (Grafana/Prometheus/Jaeger)..."
+kubectl port-forward svc/grafana 3000:3000 >/tmp/grafana-port-forward.log 2>&1 &
+kubectl port-forward svc/prometheus 9090:9090 >/tmp/prometheus-port-forward.log 2>&1 &
+kubectl port-forward svc/jaeger 16686:16686 >/tmp/jaeger-port-forward.log 2>&1 &
+echo "✓ Port-forwards running (logs in /tmp/*-port-forward.log)"
