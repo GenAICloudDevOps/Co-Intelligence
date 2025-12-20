@@ -36,6 +36,7 @@ class DataAnalysisRun(BaseModel):
 
     execution_arn = fields.CharField(max_length=2048, null=True)
     aws_region = fields.CharField(max_length=64, null=True)
+    notification_sent = fields.BooleanField(default=False)
 
     class Meta:
         table = "data_analysis_runs"

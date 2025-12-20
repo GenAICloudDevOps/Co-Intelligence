@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from apps.llms_fine_tuning.models import FineTuningRun
+from auth.models import User
+from services.email_notifications import email_notifications
 
 
 @dataclass
@@ -22,6 +24,7 @@ class JobConfig:
 @dataclass
 class JobRunState:
     run_id: str
+    user_id: Optional[int]
     job_key: str
     status: str  # queued | running | success | failed
     start_time: datetime
@@ -34,11 +37,18 @@ class JobRunState:
     task: Optional[asyncio.Task] = None
     lines_since_persist: int = 0
     last_persist_monotonic: float = 0.0
+    notification_sent: bool = False
 
 
 class JobRunner:
     def __init__(self):
         base_path = self._resolve_base_path()
+
+        self.workflow_labels = {
+            "multilingual": "Multilingual Classification",
+            "sft": "Instruction Tuning (SFT)",
+            "rl": "RL Mini-App",
+        }
 
         self.jobs: Dict[str, JobConfig] = {
             "multilingual-generate": JobConfig(
@@ -145,6 +155,7 @@ class JobRunner:
         try:
             await FineTuningRun.update_or_create(
                 defaults={
+                    "user_id": run.user_id,
                     "job_key": run.job_key,
                     "status": run.status,
                     "start_time": run.start_time,
@@ -154,19 +165,53 @@ class JobRunner:
                     "error": run.error,
                     "runtime_env": run.runtime_env or {},
                     "worker_id": run.worker_id,
+                    "notification_sent": run.notification_sent,
                 },
                 run_id=run.run_id,
             )
         except Exception:
             return
 
-    async def enqueue_run(self, job_key: str, runtime_env: Optional[Dict[str, str]] = None) -> JobRunState:
+    async def _maybe_notify_completion(self, run: JobRunState) -> None:
+        if run.notification_sent or not run.job_key.endswith("-train"):
+            return
+        if not run.user_id:
+            return
+        user = await User.get_or_none(id=run.user_id)
+        if not user or not user.email_notifications_enabled or not user.email:
+            return
+        workflow_key = run.job_key.split("-", 1)[0]
+        workflow_label = self.workflow_labels.get(workflow_key, workflow_key)
+        model_name = run.runtime_env.get("MODEL_NAME") or "n/a"
+        dataset_path = run.runtime_env.get("DATASET_PATH") or run.runtime_env.get("DATA_FILE") or "n/a"
+        status_label = "succeeded" if run.status == "success" else "failed"
+        end_time = run.end_time.isoformat() + "Z" if run.end_time else datetime.utcnow().isoformat() + "Z"
+        subject = f"LLM fine-tuning training {status_label}"
+        body = (
+            f"Hi {user.username},\n\n"
+            f"Your fine-tuning training job has {status_label}.\n"
+            f"Workflow: {workflow_label}\n"
+            f"Step: Train\n"
+            f"Job: {run.job_key}\n"
+            f"Run ID: {run.run_id}\n"
+            f"Status: {status_label}\n"
+            f"Model: {model_name}\n"
+            f"Dataset: {dataset_path}\n"
+            f"Exit code: {run.exit_code if run.exit_code is not None else 'n/a'}\n"
+            f"Finished at: {end_time}\n\n"
+            "Thanks,\nCo-Intelligence"
+        )
+        await asyncio.to_thread(email_notifications.send_text_email_safe, user.email, subject, body)
+        run.notification_sent = True
+
+    async def enqueue_run(self, job_key: str, runtime_env: Optional[Dict[str, str]] = None, user_id: Optional[int] = None) -> JobRunState:
         if job_key not in self.jobs:
             raise KeyError(f"Unknown job key: {job_key}")
 
         run_id = str(uuid.uuid4())
         run = JobRunState(
             run_id=run_id,
+            user_id=user_id,
             job_key=job_key,
             status="queued",
             start_time=datetime.utcnow(),
@@ -180,6 +225,7 @@ class JobRunner:
         try:
             await FineTuningRun.update_or_create(
                 defaults={
+                    "user_id": user_id,
                     "job_key": job_key,
                     "status": run.status,
                     "start_time": run.start_time,
@@ -189,6 +235,7 @@ class JobRunner:
                     "error": None,
                     "runtime_env": run.runtime_env or {},
                     "worker_id": None,
+                    "notification_sent": False,
                 },
                 run_id=run_id,
             )
@@ -220,6 +267,7 @@ class JobRunner:
 
         return JobRunState(
             run_id=record.run_id,
+            user_id=record.user_id,
             job_key=record.job_key,
             status="running",
             start_time=now,
@@ -229,6 +277,7 @@ class JobRunner:
             error=None,
             runtime_env=record.runtime_env or {},
             worker_id=worker_id,
+            notification_sent=bool(record.notification_sent),
         )
 
     async def execute_claimed(self, run: JobRunState) -> None:
@@ -237,6 +286,7 @@ class JobRunner:
             run.error = f"Unknown job key: {run.job_key}"
             run.end_time = datetime.utcnow()
             run.exit_code = -1
+            await self._maybe_notify_completion(run)
             await self._persist_run(run, force=True)
             return
 
@@ -261,6 +311,7 @@ class JobRunner:
             run.error = f"Command not found: {exc}"
             run.end_time = datetime.utcnow()
             run.exit_code = -1
+            await self._maybe_notify_completion(run)
             await self._persist_run(run, force=True)
             return
         except Exception as exc:
@@ -268,6 +319,7 @@ class JobRunner:
             run.error = f"Failed to start process: {exc}"
             run.end_time = datetime.utcnow()
             run.exit_code = -1
+            await self._maybe_notify_completion(run)
             await self._persist_run(run, force=True)
             return
 
@@ -276,6 +328,7 @@ class JobRunner:
             run.error = "Process has no stdout"
             run.end_time = datetime.utcnow()
             run.exit_code = -1
+            await self._maybe_notify_completion(run)
             await self._persist_run(run, force=True)
             return
 
@@ -292,6 +345,7 @@ class JobRunner:
             run.status = "success" if process.returncode == 0 else "failed"
         finally:
             run.end_time = datetime.utcnow()
+            await self._maybe_notify_completion(run)
             await self._persist_run(run, force=True)
 
     async def get_run(self, run_id: str) -> Optional[JobRunState]:

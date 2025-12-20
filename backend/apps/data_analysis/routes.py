@@ -7,13 +7,14 @@ from typing import Any, Optional
 
 import asyncio
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 
 from auth.models import User
 from auth.utils import get_current_user
 from config import settings
 from services.file_service import validate_file
+from services.email_notifications import email_notifications
 from services.streaming import create_sse_response, sse_event
 from apps.data_analysis.cloud_clients import get_cloud_client, DataAnalysisNotConfigured
 from apps.data_analysis.graph import create_data_analysis_graph
@@ -513,7 +514,7 @@ def _sanitize_table_name(user_id: int, dataset_id: int) -> str:
 
 
 @router.get("/runs/{run_id}")
-async def get_run(run_id: int, current_user: User = Depends(get_current_user)):
+async def get_run(run_id: int, background_tasks: BackgroundTasks, current_user: User = Depends(get_current_user)):
     run = await DataAnalysisRun.get_or_none(id=run_id, user_id=current_user.id).prefetch_related("dataset")
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
@@ -536,6 +537,7 @@ async def get_run(run_id: int, current_user: User = Depends(get_current_user)):
             payload["execution_start"] = exec_info.get("startDate").isoformat() if exec_info.get("startDate") else None
             payload["execution_stop"] = exec_info.get("stopDate").isoformat() if exec_info.get("stopDate") else None
             if exec_status in ("SUCCEEDED", "FAILED", "TIMED_OUT", "ABORTED"):
+                should_notify = not run.notification_sent
                 if exec_status == "SUCCEEDED":
                     run.status = "succeeded"
                     run.dataset.status = "ready"
@@ -545,6 +547,21 @@ async def get_run(run_id: int, current_user: User = Depends(get_current_user)):
                     run.dataset.last_error = exec_info.get("cause") or exec_info.get("error") or run.dataset.last_error
                 await run.save()
                 await run.dataset.save()
+                if should_notify and current_user.email_notifications_enabled and current_user.email:
+                    status_label = "succeeded" if run.status == "succeeded" else "failed"
+                    subject = f"Data analysis pipeline {status_label}"
+                    body = (
+                        f"Hi {current_user.username},\n\n"
+                        f"Your data analysis pipeline has {status_label}.\n"
+                        f"Dataset: {run.dataset.name}\n"
+                        f"Run ID: {run.id}\n"
+                        f"Status: {status_label}\n"
+                        f"Execution: {exec_status}\n\n"
+                        "Thanks,\nCo-Intelligence"
+                    )
+                    background_tasks.add_task(email_notifications.send_text_email_safe, current_user.email, subject, body)
+                    run.notification_sent = True
+                    await run.save(update_fields=["notification_sent"])
         except Exception:
             pass
 
