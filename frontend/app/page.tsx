@@ -26,6 +26,99 @@ type EvalSummary = {
   scope: string
 }
 
+const themes = {
+  default: {
+    pageBg: '#0f172a',
+    headerBg: '#1e293b',
+    headerBorder: 'rgba(255,255,255,0.1)',
+    panelBg: '#1e293b',
+    panelAltBg: '#0f172a',
+    border: '#334155',
+    mutedText: '#94a3b8',
+    softText: '#64748b',
+    titleAccent: '#a78bfa',
+    heroGradient: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+    brandGradient: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+    controlBg: '#334155',
+    controlBorder: '#64748b',
+    primaryButtonBg: '#10b981',
+    dangerButtonBg: '#ef4444',
+    success: '#10b981',
+    warning: '#f97316',
+    accent: '#6366f1',
+    accentSoft: '#a78bfa',
+    accentGradient: 'linear-gradient(90deg, #22c55e, #a78bfa)',
+  },
+  diwali: {
+    pageBg: '#1b0c2e',
+    headerBg: '#2a0f3f',
+    headerBorder: 'rgba(255,255,255,0.12)',
+    panelBg: '#241038',
+    panelAltBg: '#1b0c2e',
+    border: '#3b1a52',
+    mutedText: '#f1c27d',
+    softText: '#d49b5f',
+    titleAccent: '#ffd166',
+    heroGradient: 'linear-gradient(135deg, #ff7a00 0%, #ffb703 100%)',
+    brandGradient: 'linear-gradient(135deg, #ff7a00 0%, #ffb703 100%)',
+    controlBg: '#3b1a52',
+    controlBorder: '#6b2d73',
+    primaryButtonBg: '#ff7a00',
+    dangerButtonBg: '#ef476f',
+    success: '#06d6a0',
+    warning: '#ffd166',
+    accent: '#ff7a00',
+    accentSoft: '#ffd166',
+    accentGradient: 'linear-gradient(90deg, #ff7a00, #ffd166)',
+  },
+  christmas: {
+    pageBg: '#0b1f1a',
+    headerBg: '#113128',
+    headerBorder: 'rgba(255,255,255,0.12)',
+    panelBg: '#0f2a22',
+    panelAltBg: '#0b1f1a',
+    border: '#1f4a3d',
+    mutedText: '#cfe7df',
+    softText: '#9fc9ba',
+    titleAccent: '#fef3c7',
+    heroGradient: 'linear-gradient(135deg, #22c55e 0%, #ef4444 100%)',
+    brandGradient: 'linear-gradient(135deg, #22c55e 0%, #ef4444 100%)',
+    controlBg: '#1f4a3d',
+    controlBorder: '#2b6b57',
+    primaryButtonBg: '#ef4444',
+    dangerButtonBg: '#b91c1c',
+    success: '#22c55e',
+    warning: '#f59e0b',
+    accent: '#22c55e',
+    accentSoft: '#fef3c7',
+    accentGradient: 'linear-gradient(90deg, #22c55e, #fef3c7)',
+  },
+  newyear: {
+    pageBg: '#0b1020',
+    headerBg: '#121a33',
+    headerBorder: 'rgba(255,255,255,0.12)',
+    panelBg: '#121a33',
+    panelAltBg: '#0b1020',
+    border: '#223056',
+    mutedText: '#c7d2fe',
+    softText: '#94a3b8',
+    titleAccent: '#f8fafc',
+    heroGradient: 'linear-gradient(135deg, #38bdf8 0%, #a855f7 100%)',
+    brandGradient: 'linear-gradient(135deg, #38bdf8 0%, #a855f7 100%)',
+    controlBg: '#223056',
+    controlBorder: '#37477a',
+    primaryButtonBg: '#38bdf8',
+    dangerButtonBg: '#ef4444',
+    success: '#22c55e',
+    warning: '#f59e0b',
+    accent: '#38bdf8',
+    accentSoft: '#a855f7',
+    accentGradient: 'linear-gradient(90deg, #38bdf8, #a855f7)',
+  },
+}
+
+type ThemeKey = keyof typeof themes
+
 export default function Home() {
   const { user, loading, message, setMessage, login, register, logout, isAuthenticated, refresh } = useAuth()
   const [appCatalog, setAppCatalog] = useState(apps)
@@ -39,6 +132,8 @@ export default function Home() {
   const [evalSummary, setEvalSummary] = useState<EvalSummary | null>(null)
   const [evalError, setEvalError] = useState<string | null>(null)
   const [evalScope, setEvalScope] = useState<'all' | 'me'>('all')
+  const [themeKey, setThemeKey] = useState<ThemeKey>('default')
+  const theme = themes[themeKey]
 
   const handleToggleEmailNotifications = async () => {
     if (!user) return
@@ -134,52 +229,73 @@ export default function Home() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0f172a', color: 'white' }}>
+    <div style={{ minHeight: '100vh', background: theme.pageBg, color: 'white' }}>
       {/* Header */}
-      <header style={{ padding: '16px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', background: '#1e293b' }}>
+      <header style={{ padding: '16px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${theme.headerBorder}`, background: theme.headerBg }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ width: '40px', height: '40px', background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>✨</div>
+          <div style={{ width: '40px', height: '40px', background: theme.brandGradient, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>✨</div>
           <div>
-            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#a78bfa' }}>Co-Intelligence V4.0 Beta</div>
-            <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>AI-Powered Applications</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: theme.titleAccent }}>Co-Intelligence V4.0 Beta</div>
+            <div style={{ fontSize: '0.75rem', color: theme.mutedText }}>AI-Powered Applications</div>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '8px', height: '8px', background: '#10b981', borderRadius: '50%' }}></div>
-            <span style={{ fontSize: '0.9rem', color: '#94a3b8' }}>Online</span>
+            <div style={{ width: '8px', height: '8px', background: theme.success, borderRadius: '50%' }}></div>
+            <span style={{ fontSize: '0.9rem', color: theme.mutedText }}>Online</span>
           </div>
-          <div style={{ fontSize: '0.9rem', color: '#94a3b8' }}>Updated: {currentTime}</div>
+          <div style={{ fontSize: '0.9rem', color: theme.mutedText }}>Updated: {currentTime}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '0.9rem', color: theme.mutedText }}>Theme</span>
+            <select
+              value={themeKey}
+              onChange={(e) => setThemeKey(e.target.value as ThemeKey)}
+              style={{
+                background: theme.controlBg,
+                color: 'white',
+                border: `1px solid ${theme.controlBorder}`,
+                borderRadius: '6px',
+                padding: '8px 10px',
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="default">Default</option>
+              <option value="diwali">Diwali</option>
+              <option value="christmas">Christmas</option>
+              <option value="newyear">Happy New Year</option>
+            </select>
+          </div>
           {isAuthenticated ? (
             <>
               <div style={{ position: 'relative' }}>
                 <button 
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  style={{ padding: '8px 16px', background: '#334155', borderRadius: '6px', fontSize: '0.9rem', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                  style={{ padding: '8px 16px', background: theme.controlBg, borderRadius: '6px', fontSize: '0.9rem', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                   👤 {user?.username || 'User'}
                 </button>
                 {showUserMenu && (
-                  <div style={{ position: 'absolute', top: '45px', right: '0', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '12px', minWidth: '200px', zIndex: 100 }}>
-                    <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '8px' }}>
+                  <div style={{ position: 'absolute', top: '45px', right: '0', background: theme.panelBg, border: `1px solid ${theme.border}`, borderRadius: '8px', padding: '12px', minWidth: '200px', zIndex: 100 }}>
+                    <div style={{ fontSize: '0.85rem', color: theme.mutedText, marginBottom: '8px' }}>
                       <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Username</div>
                       {user?.username || '—'}
                     </div>
-	                    <div style={{ fontSize: '0.85rem', color: '#94a3b8', paddingTop: '8px', borderTop: '1px solid #334155' }}>
+	                    <div style={{ fontSize: '0.85rem', color: theme.mutedText, paddingTop: '8px', borderTop: `1px solid ${theme.border}` }}>
 	                      <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Email</div>
 	                      {user?.email || '—'}
 	                    </div>
-                      <div style={{ fontSize: '0.85rem', color: '#94a3b8', paddingTop: '8px', borderTop: '1px solid #334155' }}>
+                      <div style={{ fontSize: '0.85rem', color: theme.mutedText, paddingTop: '8px', borderTop: `1px solid ${theme.border}` }}>
                         <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Role</div>
                         {(() => {
                           const role = (user?.global_role || 'user').toLowerCase()
                           return role === 'user' ? 'User' : role.charAt(0).toUpperCase() + role.slice(1)
                         })()}
                       </div>
-                      <div style={{ fontSize: '0.85rem', color: '#94a3b8', paddingTop: '8px', borderTop: '1px solid #334155', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                      <div style={{ fontSize: '0.85rem', color: theme.mutedText, paddingTop: '8px', borderTop: `1px solid ${theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
                         <div>
                           <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Email Notifications</div>
-                          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Default: Off</div>
+                          <div style={{ fontSize: '0.75rem', color: theme.softText }}>Default: Off</div>
                         </div>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: updatingEmailPrefs ? 'not-allowed' : 'pointer' }}>
                           <input
@@ -194,12 +310,12 @@ export default function Home() {
 	                  </div>
 	                )}
 	              </div>
-              <button onClick={handleLogout} style={{ padding: '10px 24px', background: '#ef4444', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>🚪 Logout</button>
+              <button onClick={handleLogout} style={{ padding: '10px 24px', background: theme.dangerButtonBg, border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>🚪 Logout</button>
             </>
           ) : (
             <>
-              <button onClick={() => { setShowAuth(true); setIsLogin(true); }} style={{ padding: '10px 24px', background: 'transparent', border: '1px solid #64748b', borderRadius: '6px', color: 'white', cursor: 'pointer' }}>Login</button>
-              <button onClick={() => { setShowAuth(true); setIsLogin(false); }} style={{ padding: '10px 24px', background: '#10b981', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>Register</button>
+              <button onClick={() => { setShowAuth(true); setIsLogin(true); }} style={{ padding: '10px 24px', background: 'transparent', border: `1px solid ${theme.controlBorder}`, borderRadius: '6px', color: 'white', cursor: 'pointer' }}>Login</button>
+              <button onClick={() => { setShowAuth(true); setIsLogin(false); }} style={{ padding: '10px 24px', background: theme.primaryButtonBg, border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>Register</button>
             </>
           )}
         </div>
@@ -210,9 +326,9 @@ export default function Home() {
         <section style={{ textAlign: 'center', marginBottom: '30px' }}>
           <h1 style={{ fontSize: '4rem', fontWeight: 'bold', marginBottom: '12px', lineHeight: '1.2' }}>
             Where Human Meets<br/>
-            <span style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>AI Intelligence</span>
+            <span style={{ background: theme.heroGradient, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>AI Intelligence</span>
           </h1>
-          <p style={{ fontSize: '1.1rem', color: '#94a3b8', maxWidth: '900px', margin: '0 auto', lineHeight: '1.8' }}>
+          <p style={{ fontSize: '1.1rem', color: theme.mutedText, maxWidth: '900px', margin: '0 auto', lineHeight: '1.8' }}>
             <div style={{ textAlign: 'center' }}>Build once. Deploy to AWS, GCP, or Azure.</div>
             <div style={{ textAlign: 'center' }}>Agentic workflows • Serverless • Managed databases • Full-stack • Evals &amp; Guardrails</div>
           </p>
@@ -222,7 +338,7 @@ export default function Home() {
         <section style={{ marginBottom: '80px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
             <h2 style={{ fontSize: '2rem', fontWeight: 'bold' }}>AI Applications</h2>
-            <div style={{ display: 'flex', gap: '20px', fontSize: '0.9rem', color: '#64748b' }}>
+            <div style={{ display: 'flex', gap: '20px', fontSize: '0.9rem', color: theme.softText }}>
               <span>⚡ {appCatalog.filter(a => a.status === 'active').length} active</span>
               <span>🕐 Last updated: {currentTime}</span>
               {cloudProvider && <span>☁️ {cloudProvider.toUpperCase()}</span>}
@@ -248,7 +364,7 @@ export default function Home() {
 
         {/* Platform Features Section */}
         <section style={{ marginBottom: '60px' }}>
-          <div style={{ background: '#1e293b', borderRadius: '16px', padding: '50px', border: '1px solid #334155' }}>
+          <div style={{ background: theme.panelBg, borderRadius: '16px', padding: '50px', border: `1px solid ${theme.border}` }}>
             <h2 style={{ fontSize: '2rem', marginBottom: '50px', textAlign: 'center', fontWeight: 'bold' }}>Platform Features</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '30px' }}>
               {[
@@ -264,15 +380,15 @@ export default function Home() {
                 { icon: '🛡️', title: 'Guardrails & Evaluation', desc: 'Auth-gated quality metrics, top issues, and safety', color: '#6366f1' }
               ].map((feature, idx) => (
                 <div key={idx} style={{
-                  background: '#0f172a',
+                  background: theme.panelAltBg,
                   borderRadius: '12px',
                   padding: '28px',
-                  border: '1px solid #1e293b',
+                  border: `1px solid ${theme.border}`,
                   textAlign: 'center'
                 }}>
                   <div style={{ width: '56px', height: '56px', background: feature.color, borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', margin: '0 auto 20px' }}>{feature.icon}</div>
                   <h3 style={{ fontSize: '1.05rem', marginBottom: '12px', fontWeight: 'bold' }}>{feature.title}</h3>
-                  <p style={{ color: '#64748b', lineHeight: '1.6', fontSize: '0.85rem' }}>
+                  <p style={{ color: theme.softText, lineHeight: '1.6', fontSize: '0.85rem' }}>
                     {feature.desc}
                   </p>
                 </div>
@@ -284,17 +400,17 @@ export default function Home() {
         {/* Evaluation Dashboard (auth-gated) */}
         {isAuthenticated && (
           <section style={{ marginBottom: '60px' }}>
-            <div style={{ background: '#0f172a', borderRadius: '16px', padding: '40px', border: '1px solid #334155' }}>
+            <div style={{ background: theme.panelAltBg, borderRadius: '16px', padding: '40px', border: `1px solid ${theme.border}` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
                   <h2 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '8px' }}>Evaluation Dashboard</h2>
-                  <p style={{ color: '#94a3b8' }}>
+                  <p style={{ color: theme.mutedText }}>
                     Judge: {evalSummary?.judge_model || 'loading...'} • Last run: {evalSummary ? new Date(evalSummary.run_timestamp).toLocaleString() : '--'}
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <div style={{ color: '#94a3b8', fontSize: '0.95rem' }}>Total cases: {evalSummary?.total_cases ?? '--'}</div>
-                  <div style={{ display: 'flex', gap: '8px', background: '#1e293b', padding: '6px', borderRadius: '10px', border: '1px solid #334155' }}>
+                  <div style={{ color: theme.mutedText, fontSize: '0.95rem' }}>Total cases: {evalSummary?.total_cases ?? '--'}</div>
+                  <div style={{ display: 'flex', gap: '8px', background: theme.panelBg, padding: '6px', borderRadius: '10px', border: `1px solid ${theme.border}` }}>
                     {(['all', 'me'] as const).map(scope => (
                       <button
                         key={scope}
@@ -303,8 +419,8 @@ export default function Home() {
                           padding: '8px 12px',
                           borderRadius: '8px',
                           border: 'none',
-                          background: evalScope === scope ? '#6366f1' : 'transparent',
-                          color: evalScope === scope ? 'white' : '#94a3b8',
+                          background: evalScope === scope ? theme.accent : 'transparent',
+                          color: evalScope === scope ? 'white' : theme.mutedText,
                           cursor: 'pointer',
                           fontWeight: 600
                         }}
@@ -316,7 +432,7 @@ export default function Home() {
                 </div>
               </div>
               {evalError && (
-                <div style={{ background: '#1e293b', borderRadius: '12px', padding: '16px', border: '1px solid #334155', color: '#f97316', marginBottom: '12px' }}>
+                <div style={{ background: theme.panelBg, borderRadius: '12px', padding: '16px', border: `1px solid ${theme.border}`, color: theme.warning, marginBottom: '12px' }}>
                   {evalError}
                 </div>
               )}
@@ -327,19 +443,19 @@ export default function Home() {
                   { name: 'Response Relevancy', score: 0, delta: 0 },
                   { name: 'Faithfulness', score: 0, delta: 0 }
                 ]).map((metric, idx) => (
-                  <div key={idx} style={{ background: '#1e293b', borderRadius: '12px', padding: '20px', border: '1px solid #334155' }}>
-                    <div style={{ fontSize: '0.95rem', color: '#94a3b8', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                  <div key={idx} style={{ background: theme.panelBg, borderRadius: '12px', padding: '20px', border: `1px solid ${theme.border}` }}>
+                    <div style={{ fontSize: '0.95rem', color: theme.mutedText, marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
                       <span>{metric.name}</span>
-                      <span style={{ color: metric.delta >= 0 ? '#10b981' : '#ef4444' }}>
+                      <span style={{ color: metric.delta >= 0 ? theme.success : theme.dangerButtonBg }}>
                         {metric.delta >= 0 ? '▲' : '▼'} {(metric.delta * 100).toFixed(1)}%
                       </span>
                     </div>
-                    <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#a78bfa', marginBottom: '8px' }}>{(metric.score * 100).toFixed(0)}%</div>
-                    <div style={{ background: '#0f172a', borderRadius: '999px', height: '10px', overflow: 'hidden', border: '1px solid #334155' }}>
+                    <div style={{ fontSize: '2rem', fontWeight: 'bold', color: theme.accentSoft, marginBottom: '8px' }}>{(metric.score * 100).toFixed(0)}%</div>
+                    <div style={{ background: theme.panelAltBg, borderRadius: '999px', height: '10px', overflow: 'hidden', border: `1px solid ${theme.border}` }}>
                       <div style={{
                         width: `${Math.max(0, Math.min(100, metric.score * 100))}%`,
                         height: '100%',
-                        background: 'linear-gradient(90deg, #22c55e, #a78bfa)'
+                        background: theme.accentGradient
                       }}></div>
                     </div>
                   </div>
@@ -348,60 +464,60 @@ export default function Home() {
 
               {/* Safety and Model usage row */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '24px', alignItems: 'stretch' }}>
-                <div style={{ background: '#1e293b', borderRadius: '12px', padding: '16px', border: '1px solid #334155' }}>
+                <div style={{ background: theme.panelBg, borderRadius: '12px', padding: '16px', border: `1px solid ${theme.border}` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <div style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Safety blocks (24h)</div>
-                      <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#f97316' }}>{evalSummary?.safety_blocks?.count_24h ?? 0}</div>
+                      <div style={{ color: theme.mutedText, fontSize: '0.9rem' }}>Safety blocks (24h)</div>
+                      <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: theme.warning }}>{evalSummary?.safety_blocks?.count_24h ?? 0}</div>
                     </div>
-                    <div style={{ color: (evalSummary?.safety_blocks?.change ?? 0) <= 0 ? '#10b981' : '#f97316' }}>
+                    <div style={{ color: (evalSummary?.safety_blocks?.change ?? 0) <= 0 ? theme.success : theme.warning }}>
                       {(evalSummary?.safety_blocks?.change ?? 0) >= 0 ? '▲' : '▼'} {Math.abs(evalSummary?.safety_blocks?.change ?? 0)}
                     </div>
                   </div>
                 </div>
-                <div style={{ background: '#1e293b', borderRadius: '12px', padding: '16px', border: '1px solid #334155' }}>
-                  <div style={{ color: '#94a3b8', marginBottom: '8px', fontSize: '0.95rem' }}>Model usage (top 5)</div>
+                <div style={{ background: theme.panelBg, borderRadius: '12px', padding: '16px', border: `1px solid ${theme.border}` }}>
+                  <div style={{ color: theme.mutedText, marginBottom: '8px', fontSize: '0.95rem' }}>Model usage (top 5)</div>
                   {(evalSummary?.model_usage || []).map((m, idx) => (
                     <div key={idx} style={{ marginBottom: '6px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#cbd5e1' }}>
                         <span>{m.model}</span>
-                        <span style={{ color: '#94a3b8' }}>{m.count}</span>
+                        <span style={{ color: theme.mutedText }}>{m.count}</span>
                       </div>
-                      <div style={{ background: '#0f172a', borderRadius: '999px', height: '8px', overflow: 'hidden', border: '1px solid #334155' }}>
+                      <div style={{ background: theme.panelAltBg, borderRadius: '999px', height: '8px', overflow: 'hidden', border: `1px solid ${theme.border}` }}>
                         <div style={{
                           width: `${Math.min(100, (m.count / Math.max(1, (evalSummary?.model_usage?.[0]?.count || 1))) * 100)}%`,
                           height: '100%',
-                          background: '#22c55e'
+                          background: theme.success
                         }}></div>
                       </div>
                     </div>
                   ))}
                   {(evalSummary?.model_usage?.length ?? 0) === 0 && (
-                    <div style={{ color: '#64748b' }}>No usage data yet.</div>
+                    <div style={{ color: theme.softText }}>No usage data yet.</div>
                   )}
                 </div>
               </div>
 
               {/* Top issues */}
-              <div style={{ background: '#1e293b', borderRadius: '12px', padding: '16px', border: '1px solid #334155', marginTop: '16px' }}>
+              <div style={{ background: theme.panelBg, borderRadius: '12px', padding: '16px', border: `1px solid ${theme.border}`, marginTop: '16px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                   <h4 style={{ margin: 0, color: 'white' }}>Top issues</h4>
-                  <span style={{ color: '#94a3b8', fontSize: '0.9rem', textAlign: 'center', width: '200px' }}>Lowest faithfulness/relevancy</span>
+                  <span style={{ color: theme.mutedText, fontSize: '0.9rem', textAlign: 'center', width: '200px' }}>Lowest faithfulness/relevancy</span>
                 </div>
                 {(evalSummary?.issues || []).length === 0 ? (
-                  <div style={{ color: '#64748b' }}>No issues yet.</div>
+                  <div style={{ color: theme.softText }}>No issues yet.</div>
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr', gap: '8px', color: '#cbd5e1', fontSize: '0.9rem' }}>
-                    <div style={{ color: '#94a3b8' }}>Prompt</div>
-                    <div style={{ color: '#94a3b8' }}>Response</div>
-                    <div style={{ color: '#94a3b8' }}>Faithfulness</div>
-                    <div style={{ color: '#94a3b8' }}>Relevancy</div>
+                    <div style={{ color: theme.mutedText }}>Prompt</div>
+                    <div style={{ color: theme.mutedText }}>Response</div>
+                    <div style={{ color: theme.mutedText }}>Faithfulness</div>
+                    <div style={{ color: theme.mutedText }}>Relevancy</div>
                     {(evalSummary?.issues || []).map((issue, idx) => (
                       <React.Fragment key={idx}>
                         <div>{issue.prompt || '—'}</div>
                         <div>{issue.response || '—'}</div>
-                        <div style={{ color: issue.faithfulness < 0.6 ? '#f97316' : '#22c55e' }}>{(issue.faithfulness * 100).toFixed(0)}%</div>
-                        <div style={{ color: issue.response_relevancy < 0.6 ? '#f97316' : '#22c55e' }}>{(issue.response_relevancy * 100).toFixed(0)}%</div>
+                        <div style={{ color: issue.faithfulness < 0.6 ? theme.warning : theme.success }}>{(issue.faithfulness * 100).toFixed(0)}%</div>
+                        <div style={{ color: issue.response_relevancy < 0.6 ? theme.warning : theme.success }}>{(issue.response_relevancy * 100).toFixed(0)}%</div>
                       </React.Fragment>
                     ))}
                   </div>
@@ -413,13 +529,13 @@ export default function Home() {
 
         {/* Architecture Diagram Section */}
         <section style={{ marginBottom: '60px' }}>
-          <div style={{ background: '#0f172a', borderRadius: '16px', padding: '40px', border: '1px solid #334155' }}>
+          <div style={{ background: theme.panelAltBg, borderRadius: '16px', padding: '40px', border: `1px solid ${theme.border}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap', marginBottom: '16px' }}>
               <div>
                 <h2 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '8px' }}>Architecture</h2>
-                <p style={{ color: '#94a3b8' }}>A quick, high-level view of how the UI, APIs, evals, and infrastructure fit together.</p>
+                <p style={{ color: theme.mutedText }}>A quick, high-level view of how the UI, APIs, evals, and infrastructure fit together.</p>
               </div>
-              <div style={{ color: '#64748b', fontSize: '0.9rem' }}>Multi-cloud • Modular • Auth-gated evals</div>
+              <div style={{ color: theme.softText, fontSize: '0.9rem' }}>Multi-cloud • Modular • Auth-gated evals</div>
             </div>
             <ArchitectureDiagram />
           </div>
@@ -427,24 +543,24 @@ export default function Home() {
 
         {/* Platform Metrics Section */}
         <section style={{ marginBottom: '60px' }}>
-          <div style={{ background: '#1e293b', borderRadius: '16px', padding: '50px', border: '1px solid #334155', textAlign: 'center' }}>
+          <div style={{ background: theme.panelBg, borderRadius: '16px', padding: '50px', border: `1px solid ${theme.border}`, textAlign: 'center' }}>
             <h2 style={{ fontSize: '2rem', marginBottom: '40px', fontWeight: 'bold' }}>Platform Metrics</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '40px', maxWidth: '800px', margin: '0 auto' }}>
               <div>
-                <div style={{ fontSize: '3rem', fontWeight: 'bold', color: '#10b981', marginBottom: '8px' }}>7</div>
-                <div style={{ fontSize: '1.1rem', color: '#94a3b8' }}>AI Models</div>
+                <div style={{ fontSize: '3rem', fontWeight: 'bold', color: theme.success, marginBottom: '8px' }}>7</div>
+                <div style={{ fontSize: '1.1rem', color: theme.mutedText }}>AI Models</div>
               </div>
               <div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#f59e0b', marginBottom: '8px' }}>Role-Based Access</div>
-                <div style={{ fontSize: '0.95rem', color: '#94a3b8' }}>Platform + App Roles</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: theme.warning, marginBottom: '8px' }}>Role-Based Access</div>
+                <div style={{ fontSize: '0.95rem', color: theme.mutedText }}>Platform + App Roles</div>
               </div>
               <div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#06b6d4', marginBottom: '8px' }}>Multi-Cloud</div>
-                <div style={{ fontSize: '0.95rem', color: '#94a3b8' }}>AWS, GCP, Azure</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: theme.accent, marginBottom: '8px' }}>Multi-Cloud</div>
+                <div style={{ fontSize: '0.95rem', color: theme.mutedText }}>AWS, GCP, Azure</div>
               </div>
               <div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#6366f1', marginBottom: '8px' }}>Guardrails & Evaluation</div>
-                <div style={{ fontSize: '0.95rem', color: '#94a3b8' }}>Safety blocks, metrics, issues</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: theme.accentSoft, marginBottom: '8px' }}>Guardrails & Evaluation</div>
+                <div style={{ fontSize: '0.95rem', color: theme.mutedText }}>Safety blocks, metrics, issues</div>
               </div>
             </div>
           </div>
@@ -452,15 +568,15 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      <footer style={{ background: '#0f172a', borderTop: '1px solid #1e293b', padding: '40px 0', textAlign: 'center' }}>
+      <footer style={{ background: theme.panelAltBg, borderTop: `1px solid ${theme.border}`, padding: '40px 0', textAlign: 'center' }}>
         <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 40px' }}>
-          <div style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '12px', color: '#a78bfa' }}>
+          <div style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '12px', color: theme.titleAccent }}>
             Co-Intelligence V4.0 Beta
           </div>
-          <div style={{ fontSize: '0.95rem', color: '#64748b', marginBottom: '8px' }}>
+          <div style={{ fontSize: '0.95rem', color: theme.softText, marginBottom: '8px' }}>
             Built with ❤️ on AWS, GCP, Azure
           </div>
-          <div style={{ fontSize: '0.85rem', color: '#475569' }}>
+          <div style={{ fontSize: '0.85rem', color: theme.softText }}>
             © 2025 All rights reserved
           </div>
         </div>
@@ -468,12 +584,12 @@ export default function Home() {
 
       {/* Auth Modal */}
       <Modal isOpen={showAuth} onClose={() => setShowAuth(false)} title={isLogin ? 'Login' : 'Register'} maxWidth="400px">
-        <input 
+        <input
           type="email" 
           placeholder="Email" 
           value={formData.email}
           onChange={(e) => setFormData({...formData, email: e.target.value})}
-          style={{ width: '100%', padding: '12px', marginBottom: '15px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white' }} 
+          style={{ width: '100%', padding: '12px', marginBottom: '15px', background: theme.panelAltBg, border: `1px solid ${theme.border}`, borderRadius: '6px', color: 'white' }}
         />
         {!isLogin && (
           <input 
@@ -481,7 +597,7 @@ export default function Home() {
             placeholder="Username" 
             value={formData.username}
             onChange={(e) => setFormData({...formData, username: e.target.value})}
-            style={{ width: '100%', padding: '12px', marginBottom: '15px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white' }} 
+            style={{ width: '100%', padding: '12px', marginBottom: '15px', background: theme.panelAltBg, border: `1px solid ${theme.border}`, borderRadius: '6px', color: 'white' }}
           />
         )}
         <input 
@@ -490,23 +606,23 @@ export default function Home() {
           value={formData.password}
           onChange={(e) => setFormData({...formData, password: e.target.value})}
           onKeyPress={(e) => e.key === 'Enter' && handleAuth()}
-          style={{ width: '100%', padding: '12px', marginBottom: '20px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white' }} 
+          style={{ width: '100%', padding: '12px', marginBottom: '20px', background: theme.panelAltBg, border: `1px solid ${theme.border}`, borderRadius: '6px', color: 'white' }}
         />
         {message && (
-          <p style={{ marginBottom: '15px', color: message.includes('successful') ? '#10b981' : '#ef4444', textAlign: 'center' }}>
+          <p style={{ marginBottom: '15px', color: message.includes('successful') ? theme.success : theme.dangerButtonBg, textAlign: 'center' }}>
             {message}
           </p>
         )}
         <button 
           onClick={handleAuth}
           disabled={loading}
-          style={{ width: '100%', padding: '12px', background: loading ? '#475569' : '#6366f1', border: 'none', borderRadius: '6px', color: 'white', fontSize: '1rem', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: '600', marginBottom: '15px' }}
+          style={{ width: '100%', padding: '12px', background: loading ? theme.softText : theme.accent, border: 'none', borderRadius: '6px', color: 'white', fontSize: '1rem', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: '600', marginBottom: '15px' }}
         >
           {loading ? 'Processing...' : (isLogin ? 'Login' : 'Register')}
         </button>
-        <p style={{ textAlign: 'center', fontSize: '0.9rem', color: '#64748b' }}>
+        <p style={{ textAlign: 'center', fontSize: '0.9rem', color: theme.softText }}>
           {isLogin ? "Don't have an account? " : "Already have an account? "}
-          <span onClick={() => { setIsLogin(!isLogin); setMessage(''); }} style={{ color: '#6366f1', cursor: 'pointer', textDecoration: 'underline' }}>
+          <span onClick={() => { setIsLogin(!isLogin); setMessage(''); }} style={{ color: theme.accent, cursor: 'pointer', textDecoration: 'underline' }}>
             {isLogin ? 'Register' : 'Login'}
           </span>
         </p>
