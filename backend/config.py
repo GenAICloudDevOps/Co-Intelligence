@@ -62,6 +62,13 @@ class Settings(BaseSettings):
     COOKIE_DOMAIN: str | None = None
     COOKIE_PATH: str = "/"
 
+    # Frontend URL for auth emails
+    FRONTEND_URL: str = ""
+
+    # Password reset
+    PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 60
+    TEMP_PASSWORD_LENGTH: int = 12
+
     # Email (Gmail SMTP)
     GMAIL_SMTP_USER: str = ""
     GMAIL_SMTP_APP_PASSWORD: str = ""

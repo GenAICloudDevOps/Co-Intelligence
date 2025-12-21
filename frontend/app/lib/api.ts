@@ -23,7 +23,21 @@ export async function login(email: string, password: string) {
   return res.data
 }
 
-export async function register(email: string, username: string, password: string) {
-  const res = await apiClient.post('/api/auth/register', { email, username, password })
+export async function register(email: string, username: string, password: string | null, sendPasswordEmail = false) {
+  const payload: Record<string, unknown> = { email, username, send_password_email: sendPasswordEmail }
+  if (!sendPasswordEmail && password) {
+    payload.password = password
+  }
+  const res = await apiClient.post('/api/auth/register', payload)
+  return res.data
+}
+
+export async function requestPasswordReset(email: string) {
+  const res = await apiClient.post('/api/auth/forgot-password', { email })
+  return res.data
+}
+
+export async function resetPassword(token: string, password: string) {
+  const res = await apiClient.post('/api/auth/reset-password', { token, password })
   return res.data
 }

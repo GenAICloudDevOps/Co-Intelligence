@@ -131,13 +131,17 @@ export const authApi = {
     )
   },
 
-  async register(email: string, username: string, password: string) {
+  async register(email: string, username: string, password: string | null, sendPasswordEmail = false) {
+    const payload: Record<string, unknown> = { email, username, send_password_email: sendPasswordEmail }
+    if (!sendPasswordEmail && password) {
+      payload.password = password
+    }
     return fetchJson<{ access_token: string; refresh_token: string; token_type: string }>(
       `${API_URL}/api/auth/register`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, username, password })
+        body: JSON.stringify(payload)
       },
       { refreshOn401: false }
     )
@@ -153,6 +157,30 @@ export const authApi = {
     return fetchJson<{ success: boolean }>(
       `${API_URL}/api/auth/logout`,
       { method: 'POST' },
+      { refreshOn401: false }
+    )
+  },
+
+  async requestPasswordReset(email: string) {
+    return fetchJson<{ success: boolean; message?: string }>(
+      `${API_URL}/api/auth/forgot-password`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      },
+      { refreshOn401: false }
+    )
+  },
+
+  async resetPassword(token: string, password: string) {
+    return fetchJson<{ success: boolean }>(
+      `${API_URL}/api/auth/reset-password`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password })
+      },
       { refreshOn401: false }
     )
   }

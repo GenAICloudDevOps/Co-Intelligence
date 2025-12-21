@@ -1,8 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+import secrets
 from fastapi import APIRouter, HTTPException, status, Depends, Body, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, EmailStr, validator
-from auth.models import User, RefreshToken
+from auth.models import User, RefreshToken, PasswordResetToken
 from auth.utils import (
     get_password_hash,
     verify_password,
@@ -10,8 +11,11 @@ from auth.utils import (
     create_refresh_token,
     get_current_user,
     hash_refresh_token,
+    hash_password_reset_token,
+    generate_temp_password,
 )
 from config import settings
+from services.email_notifications import email_notifications
 
 router = APIRouter()
 
@@ -54,7 +58,8 @@ def _clear_auth_cookies(response: JSONResponse) -> None:
 class UserCreate(BaseModel):
     email: EmailStr
     username: str
-    password: str
+    password: str | None = None
+    send_password_email: bool = False
     
     @validator('username')
     def username_valid(cls, v):
@@ -68,6 +73,8 @@ class UserCreate(BaseModel):
     
     @validator('password')
     def password_valid(cls, v):
+        if v is None or v == "":
+            return v
         if len(v) < 6:
             raise ValueError('Password must be at least 6 characters')
         if len(v) > 100:
@@ -89,15 +96,30 @@ class TokenResponse(BaseModel):
 class PreferencesUpdate(BaseModel):
     email_notifications_enabled: bool
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    password: str
+
 @router.post("/register", response_model=TokenResponse)
 async def register(user_data: UserCreate):
     try:
         # Validate input
-        if not user_data.email or not user_data.username or not user_data.password:
-            raise HTTPException(status_code=400, detail="Email, username, and password required")
-        
-        if len(user_data.password) < 6:
-            raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+        if not user_data.email or not user_data.username:
+            raise HTTPException(status_code=400, detail="Email and username required")
+
+        if user_data.send_password_email:
+            if not email_notifications.is_configured():
+                raise HTTPException(status_code=503, detail="Email service not configured")
+            raw_password = generate_temp_password(settings.TEMP_PASSWORD_LENGTH)
+        else:
+            if not user_data.password:
+                raise HTTPException(status_code=400, detail="Password required")
+            if len(user_data.password) < 6:
+                raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+            raw_password = user_data.password
         
         # Check if email exists
         existing_email = await User.exists(email=user_data.email)
@@ -113,8 +135,24 @@ async def register(user_data: UserCreate):
         user = await User.create(
             email=user_data.email,
             username=user_data.username,
-            hashed_password=get_password_hash(user_data.password)
+            hashed_password=get_password_hash(raw_password)
         )
+
+        if user_data.send_password_email:
+            try:
+                email_notifications.send_text_email(
+                    to_email=user.email,
+                    subject="Your Co-Intelligence account password",
+                    body=(
+                        f"Hello {user.username},\n\n"
+                        "Your account has been created. Use this temporary password to log in:\n\n"
+                        f"{raw_password}\n\n"
+                        "For security, reset your password after logging in.\n"
+                    ),
+                )
+            except Exception as e:
+                await user.delete()
+                raise HTTPException(status_code=500, detail=f"Failed to send password email: {e}")
         
         # Create tokens
         access_token = create_access_token(data={"sub": user.id})
@@ -136,6 +174,71 @@ async def register(user_data: UserCreate):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+
+@router.post("/forgot-password")
+async def forgot_password(payload: ForgotPasswordRequest):
+    if not email_notifications.is_configured():
+        raise HTTPException(status_code=503, detail="Email service not configured")
+    if not settings.FRONTEND_URL or "localhost" in settings.FRONTEND_URL or "127.0.0.1" in settings.FRONTEND_URL:
+        raise HTTPException(status_code=503, detail="Frontend URL not configured")
+
+    email = payload.email.strip()
+    user = await User.get_or_none(email=email)
+    if user:
+        now = datetime.now(timezone.utc)
+        await PasswordResetToken.filter(user_id=user.id, used_at__isnull=True).update(used_at=now)
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hash_password_reset_token(raw_token)
+        expires_at = now + timedelta(minutes=settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES)
+        await PasswordResetToken.create(user_id=user.id, token=token_hash, expires_at=expires_at)
+
+        reset_link = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={raw_token}"
+        email_notifications.send_text_email_safe(
+            to_email=user.email,
+            subject="Reset your Co-Intelligence password",
+            body=(
+                f"Hello {user.username},\n\n"
+                "We received a request to reset your password.\n\n"
+                f"Reset link: {reset_link}\n\n"
+                f"This link expires in {settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES} minutes. "
+                "If you didn't request this, you can ignore this email.\n"
+            ),
+        )
+
+    return {"success": True, "message": "If that email exists, a reset link has been sent."}
+
+@router.post("/reset-password")
+async def reset_password(payload: ResetPasswordRequest):
+    token = payload.token.strip() if payload.token else ""
+    if not token:
+        raise HTTPException(status_code=400, detail="Reset token required")
+    if not payload.password or len(payload.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    if len(payload.password) > 100:
+        raise HTTPException(status_code=400, detail="Password must be less than 100 characters")
+
+    token_hash = hash_password_reset_token(token)
+    token_record = await PasswordResetToken.get_or_none(token=token_hash)
+    now = datetime.now(timezone.utc)
+    if not token_record:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+    if token_record.expires_at < now:
+        await token_record.delete()
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+    if token_record.used_at is not None:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+
+    user = await User.get_or_none(id=token_record.user_id)
+    if not user:
+        await token_record.delete()
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+
+    user.hashed_password = get_password_hash(payload.password)
+    await user.save(update_fields=["hashed_password"])
+    await RefreshToken.filter(user_id=user.id).delete()
+    await PasswordResetToken.filter(user_id=user.id, used_at__isnull=True).update(used_at=now)
+
+    return {"success": True}
 
 @router.post("/login", response_model=TokenResponse)
 async def login(user_data: UserLogin):

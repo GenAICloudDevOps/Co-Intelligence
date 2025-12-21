@@ -32,12 +32,14 @@ load_from_dotenv() {
 load_from_dotenv \
   GEMINI_API_KEY GROQ_API_KEY TAVILY_API_KEY TINKER_API_KEY \
   AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION \
-  DB_USERNAME TINKER_BASE_PATH CORS_ALLOW_ORIGINS AUTO_GENERATE_SCHEMAS \
+  DB_USERNAME TINKER_BASE_PATH CORS_ALLOW_ORIGINS AUTO_GENERATE_SCHEMAS FRONTEND_URL \
   GMAIL_SMTP_USER GMAIL_SMTP_APP_PASSWORD GMAIL_SMTP_FROM_NAME
 
 if [ -z "${GMAIL_SMTP_USER:-}" ] || [ -z "${GMAIL_SMTP_APP_PASSWORD:-}" ]; then
   echo "⚠ Gmail SMTP env vars not set (GMAIL_SMTP_USER / GMAIL_SMTP_APP_PASSWORD). Email notifications will NOT send."
 fi
+
+FRONTEND_URL_ORIGINAL="${FRONTEND_URL:-}"
 
 AWS_REGION=${AWS_REGION:-us-east-1}
 DB_USERNAME=${DB_USERNAME:-cointelligence}
@@ -150,6 +152,8 @@ DATA_ANALYSIS_GLUE_DATABASE=${DATA_ANALYSIS_GLUE_DB:-co_intelligence_data_analys
 DATA_ANALYSIS_ATHENA_WORKGROUP=${DATA_ANALYSIS_ATHENA_WG:-co-intelligence-data-analysis}
 # CORS / API surface (comma-separated, e.g., https://app.example.com,https://admin.example.com)
 CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS:-}
+# Frontend (password reset links)
+FRONTEND_URL=${FRONTEND_URL:-}
 # Leave true for dev; set false and run migrations in prod
 AUTO_GENERATE_SCHEMAS=${AUTO_GENERATE_SCHEMAS:-true}
 # Tinker assets base path (container default)
@@ -185,6 +189,7 @@ kubectl create secret generic app-secrets \
     --from-literal=DATA_ANALYSIS_GLUE_DATABASE="${DATA_ANALYSIS_GLUE_DB:-co_intelligence_data_analysis}" \
     --from-literal=DATA_ANALYSIS_ATHENA_WORKGROUP="${DATA_ANALYSIS_ATHENA_WG:-co-intelligence-data-analysis}" \
     --from-literal=CORS_ALLOW_ORIGINS="${CORS_ALLOW_ORIGINS:-}" \
+    --from-literal=FRONTEND_URL="${FRONTEND_URL:-}" \
     --from-literal=AUTO_GENERATE_SCHEMAS="${AUTO_GENERATE_SCHEMAS:-true}" \
     --from-literal=TINKER_BASE_PATH="${TINKER_BASE_PATH:-/app}" \
     | kubectl apply -f -
@@ -287,20 +292,32 @@ echo "✓ Deployed"
 
 # Wait for LoadBalancer
 echo "Waiting for LoadBalancer..."
+FRONTEND_LB_HOST=""
 for i in {1..30}; do
-    FRONTEND_URL=$(kubectl get svc frontend -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
-    if [ -n "$FRONTEND_URL" ]; then break; fi
+    FRONTEND_LB_HOST=$(kubectl get svc frontend -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
+    if [ -n "$FRONTEND_LB_HOST" ]; then break; fi
     sleep 10
 done
-if [ -n "$FRONTEND_URL" ]; then
-    echo "ℹ️  Frontend LB hostname detected: http://$FRONTEND_URL"
+if [ -n "$FRONTEND_LB_HOST" ]; then
+    echo "ℹ️  Frontend LB hostname detected: http://$FRONTEND_LB_HOST"
     echo "ℹ️  Set CORS_ALLOW_ORIGINS to match your frontend origin."
     echo "    Examples:"
-    echo "      CORS_ALLOW_ORIGINS=http://$FRONTEND_URL"
+    echo "      CORS_ALLOW_ORIGINS=http://$FRONTEND_LB_HOST"
     echo "      CORS_ALLOW_ORIGINS=https://app.yourdomain.com,http://localhost:3000"
+    UPDATE_SECRET=false
+    if [ -z "$FRONTEND_URL_ORIGINAL" ] || [[ "$FRONTEND_URL_ORIGINAL" == *"localhost"* || "$FRONTEND_URL_ORIGINAL" == *"127.0.0.1"* ]]; then
+        FRONTEND_URL="http://$FRONTEND_LB_HOST"
+        echo "Auto-setting FRONTEND_URL to $FRONTEND_URL"
+        UPDATE_SECRET=true
+    fi
     if [ -z "$CORS_ALLOW_ORIGINS" ]; then
-        DEFAULT_ORIGIN="http://$FRONTEND_URL"
-        echo "Auto-setting CORS_ALLOW_ORIGINS to $DEFAULT_ORIGIN and updating secret..."
+        DEFAULT_ORIGIN="http://$FRONTEND_LB_HOST"
+        CORS_ALLOW_ORIGINS="$DEFAULT_ORIGIN"
+        echo "Auto-setting CORS_ALLOW_ORIGINS to $DEFAULT_ORIGIN"
+        UPDATE_SECRET=true
+    fi
+    if [ "$UPDATE_SECRET" = true ]; then
+        echo "Updating app-secrets and restarting backend..."
         kubectl create secret generic app-secrets \
             --dry-run=client -o yaml \
             --from-literal=DATABASE_URL="postgres://$DB_USERNAME:$DB_PASSWORD@$RDS_ENDPOINT:5432/postgres?sslmode=require" \
@@ -321,12 +338,13 @@ if [ -n "$FRONTEND_URL" ]; then
             --from-literal=DATA_ANALYSIS_STATE_MACHINE_ARN="$DATA_ANALYSIS_SFN_ARN" \
             --from-literal=DATA_ANALYSIS_GLUE_DATABASE="${DATA_ANALYSIS_GLUE_DB:-co_intelligence_data_analysis}" \
             --from-literal=DATA_ANALYSIS_ATHENA_WORKGROUP="${DATA_ANALYSIS_ATHENA_WG:-co-intelligence-data-analysis}" \
-            --from-literal=CORS_ALLOW_ORIGINS="$DEFAULT_ORIGIN" \
+            --from-literal=CORS_ALLOW_ORIGINS="$CORS_ALLOW_ORIGINS" \
+            --from-literal=FRONTEND_URL="$FRONTEND_URL" \
             --from-literal=AUTO_GENERATE_SCHEMAS="${AUTO_GENERATE_SCHEMAS:-true}" \
             --from-literal=TINKER_BASE_PATH="${TINKER_BASE_PATH:-/app}" \
             | kubectl apply -f -
         kubectl rollout restart deployment/backend
-        echo "✓ Backend restarted with CORS_ALLOW_ORIGINS=$DEFAULT_ORIGIN"
+        echo "✓ Backend restarted with CORS_ALLOW_ORIGINS=$CORS_ALLOW_ORIGINS FRONTEND_URL=$FRONTEND_URL"
     fi
 fi
 
@@ -334,7 +352,11 @@ echo ""
 echo "=========================================="
 echo "Deployment Complete!"
 echo "=========================================="
-echo "Frontend: http://$FRONTEND_URL"
+if [ -n "${FRONTEND_URL:-}" ]; then
+    echo "Frontend: $FRONTEND_URL"
+elif [ -n "${FRONTEND_LB_HOST:-}" ]; then
+    echo "Frontend: http://$FRONTEND_LB_HOST"
+fi
 if [ -n "$BACKEND_LB" ]; then
     echo "Backend: http://$BACKEND_LB"
 fi

@@ -62,11 +62,11 @@ export function useAuth(requireAuth = false) {
     }
   }
 
-  const doRegister = async (email: string, username: string, password: string) => {
+  const doRegister = async (email: string, username: string, password: string | null, sendPasswordEmail = false) => {
     setLoading(true)
     setMessage('')
     try {
-      await authApi.register(email, username, password)
+      await authApi.register(email, username, password, sendPasswordEmail)
       await fetchCurrentUser()
       setMessage('Registration successful!')
     } catch (err: any) {

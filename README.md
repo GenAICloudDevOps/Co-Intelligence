@@ -245,6 +245,8 @@ docker-compose up
 ### Authentication
 - `POST /api/auth/register` - Register new user
 - `POST /api/auth/login` - Login user
+- `POST /api/auth/forgot-password` - Send password reset email
+- `POST /api/auth/reset-password` - Reset password with token
 - `GET /api/auth/me` - Get current user
 
 ### AI Chat

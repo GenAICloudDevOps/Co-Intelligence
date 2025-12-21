@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import secrets
 import hashlib
+import string
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status, Request
@@ -25,6 +26,9 @@ def create_access_token(data: dict):
     if "sub" in to_encode:
         to_encode["sub"] = str(to_encode["sub"])
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+def hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
 
 async def create_refresh_token(user_id: int) -> str:
     token = secrets.token_urlsafe(32)
@@ -75,7 +79,14 @@ async def get_current_user_optional(
 
 
 def hash_refresh_token(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
+    return hash_token(token)
+
+def hash_password_reset_token(token: str) -> str:
+    return hash_token(token)
+
+def generate_temp_password(length: int = 12) -> str:
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
 def require_app_role(app_name: str, allowed_roles: list):

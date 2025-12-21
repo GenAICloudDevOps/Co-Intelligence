@@ -19,3 +19,12 @@ class RefreshToken(BaseModel):
     
     class Meta:
         table = "refresh_tokens"
+
+class PasswordResetToken(BaseModel):
+    user_id = fields.IntField()
+    token = fields.CharField(max_length=255, unique=True)
+    expires_at = fields.DatetimeField()
+    used_at = fields.DatetimeField(null=True)
+
+    class Meta:
+        table = "password_reset_tokens"

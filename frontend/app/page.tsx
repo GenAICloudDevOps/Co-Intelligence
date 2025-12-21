@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import Link from 'next/link'
 import AppCard from './components/AppCard'
 import Modal from './components/Modal'
 import ArchitectureDiagram from './components/ArchitectureDiagram'
@@ -134,6 +135,7 @@ export default function Home() {
   const [showAuth, setShowAuth] = useState(false)
   const [isLogin, setIsLogin] = useState(true)
   const [formData, setFormData] = useState({ email: '', username: '', password: '' })
+  const [sendPasswordEmail, setSendPasswordEmail] = useState(false)
   const [currentTime, setCurrentTime] = useState('')
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [updatingEmailPrefs, setUpdatingEmailPrefs] = useState(false)
@@ -225,10 +227,16 @@ export default function Home() {
           setFormData({ email: '', username: '', password: '' })
         }, 800)
       } else {
-        await register(formData.email, formData.username, formData.password)
+        await register(
+          formData.email,
+          formData.username,
+          sendPasswordEmail ? null : formData.password,
+          sendPasswordEmail
+        )
         setTimeout(() => {
           setShowAuth(false)
           setFormData({ email: '', username: '', password: '' })
+          setSendPasswordEmail(false)
         }, 800)
       }
     } catch (error: any) {
@@ -662,14 +670,57 @@ export default function Home() {
             style={{ width: '100%', padding: '12px', marginBottom: '15px', background: theme.panelAltBg, border: `1px solid ${theme.border}`, borderRadius: '6px', color: 'white' }}
           />
         )}
-        <input 
-          type="password" 
-          placeholder="Password" 
-          value={formData.password}
-          onChange={(e) => setFormData({...formData, password: e.target.value})}
-          onKeyPress={(e) => e.key === 'Enter' && handleAuth()}
-          style={{ width: '100%', padding: '12px', marginBottom: '20px', background: theme.panelAltBg, border: `1px solid ${theme.border}`, borderRadius: '6px', color: 'white' }}
-        />
+        {isLogin ? (
+          <>
+            <input 
+              type="password" 
+              placeholder="Password" 
+              value={formData.password}
+              onChange={(e) => setFormData({...formData, password: e.target.value})}
+              onKeyPress={(e) => e.key === 'Enter' && handleAuth()}
+              style={{ width: '100%', padding: '12px', marginBottom: '10px', background: theme.panelAltBg, border: `1px solid ${theme.border}`, borderRadius: '6px', color: 'white' }}
+            />
+            <div style={{ textAlign: 'right', marginBottom: '20px' }}>
+              <Link href="/forgot-password" style={{ fontSize: '0.85rem', color: theme.accent, textDecoration: 'underline' }}>
+                Forgot password?
+              </Link>
+            </div>
+          </>
+        ) : (
+          <>
+            <input 
+              type="password" 
+              placeholder={sendPasswordEmail ? "Password will be emailed" : "Password"}
+              value={formData.password}
+              onChange={(e) => setFormData({...formData, password: e.target.value})}
+              onKeyPress={(e) => e.key === 'Enter' && handleAuth()}
+              disabled={sendPasswordEmail}
+              style={{
+                width: '100%',
+                padding: '12px',
+                marginBottom: '12px',
+                background: theme.panelAltBg,
+                border: `1px solid ${theme.border}`,
+                borderRadius: '6px',
+                color: 'white',
+                opacity: sendPasswordEmail ? 0.6 : 1,
+                cursor: sendPasswordEmail ? 'not-allowed' : 'text'
+              }}
+            />
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: theme.softText, marginBottom: '20px' }}>
+              <input
+                type="checkbox"
+                checked={sendPasswordEmail}
+                onChange={(e) => {
+                  const checked = e.target.checked
+                  setSendPasswordEmail(checked)
+                  if (checked) setFormData({ ...formData, password: '' })
+                }}
+              />
+              Email me a temporary password
+            </label>
+          </>
+        )}
         {message && (
           <p style={{ marginBottom: '15px', color: message.includes('successful') ? theme.success : theme.dangerButtonBg, textAlign: 'center' }}>
             {message}
@@ -684,7 +735,15 @@ export default function Home() {
         </button>
         <p style={{ textAlign: 'center', fontSize: '0.9rem', color: theme.softText }}>
           {isLogin ? "Don't have an account? " : "Already have an account? "}
-          <span onClick={() => { setIsLogin(!isLogin); setMessage(''); }} style={{ color: theme.accent, cursor: 'pointer', textDecoration: 'underline' }}>
+          <span
+            onClick={() => {
+              setIsLogin(!isLogin)
+              setMessage('')
+              setSendPasswordEmail(false)
+              setFormData({ ...formData, password: '' })
+            }}
+            style={{ color: theme.accent, cursor: 'pointer', textDecoration: 'underline' }}
+          >
             {isLogin ? 'Register' : 'Login'}
           </span>
         </p>
