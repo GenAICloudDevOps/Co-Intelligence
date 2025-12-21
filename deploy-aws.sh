@@ -32,7 +32,7 @@ load_from_dotenv() {
 load_from_dotenv \
   GEMINI_API_KEY GROQ_API_KEY TAVILY_API_KEY TINKER_API_KEY \
   AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION \
-  DB_USERNAME TINKER_BASE_PATH CORS_ALLOW_ORIGINS AUTO_GENERATE_SCHEMAS FRONTEND_URL \
+  DB_USERNAME TINKER_BASE_PATH CORS_ALLOW_ORIGINS AUTO_GENERATE_SCHEMAS FRONTEND_URL ENABLE_OBSERVABILITY \
   GMAIL_SMTP_USER GMAIL_SMTP_APP_PASSWORD GMAIL_SMTP_FROM_NAME
 
 if [ -z "${GMAIL_SMTP_USER:-}" ] || [ -z "${GMAIL_SMTP_APP_PASSWORD:-}" ]; then
@@ -43,6 +43,7 @@ FRONTEND_URL_ORIGINAL="${FRONTEND_URL:-}"
 
 AWS_REGION=${AWS_REGION:-us-east-1}
 DB_USERNAME=${DB_USERNAME:-cointelligence}
+ENABLE_OBSERVABILITY=${ENABLE_OBSERVABILITY:-false}
 
 # Validate AWS credentials
 if ! aws sts get-caller-identity > /dev/null 2>&1; then
@@ -154,6 +155,8 @@ DATA_ANALYSIS_ATHENA_WORKGROUP=${DATA_ANALYSIS_ATHENA_WG:-co-intelligence-data-a
 CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS:-}
 # Frontend (password reset links)
 FRONTEND_URL=${FRONTEND_URL:-}
+# Observability (Grafana/Prometheus/Loki/Jaeger)
+ENABLE_OBSERVABILITY=${ENABLE_OBSERVABILITY:-false}
 # Leave true for dev; set false and run migrations in prod
 AUTO_GENERATE_SCHEMAS=${AUTO_GENERATE_SCHEMAS:-true}
 # Tinker assets base path (container default)
@@ -195,40 +198,45 @@ kubectl create secret generic app-secrets \
     | kubectl apply -f -
 echo "✓ Secrets created"
 
-# Apply IRSA service account and observability DaemonSet
-echo "Applying IRSA service account and X-Ray daemonset..."
+# Apply IRSA service account
+echo "Applying IRSA service account..."
 kubectl apply -f k8s/sa-backend-irsa.yaml
-kubectl apply -f k8s/xray-daemonset.yaml
-echo "Applying observability stack..."
-kubectl apply -f k8s/observability/
-echo "✓ Observability stack applied"
 
-echo "Waiting for observability LoadBalancers..."
-OBS_ATTEMPTS=30
-for i in $(seq 1 $OBS_ATTEMPTS); do
-    GRAFANA_LB=$(kubectl get svc grafana -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
-    PROMETHEUS_LB=$(kubectl get svc prometheus -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
-    JAEGER_LB=$(kubectl get svc jaeger -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
-    if [ -n "$GRAFANA_LB" ] && [ -n "$PROMETHEUS_LB" ] && [ -n "$JAEGER_LB" ]; then break; fi
-    sleep 10
-done
-if [ -n "$GRAFANA_LB" ]; then
-    NEXT_PUBLIC_GRAFANA_URL="http://$GRAFANA_LB"
-    echo "Configuring Grafana root URL..."
-    kubectl set env deployment/grafana GF_SERVER_DOMAIN="$GRAFANA_LB" \
-        GF_SERVER_ROOT_URL="http://$GRAFANA_LB"
-    kubectl rollout restart deployment/grafana
+if [ "$ENABLE_OBSERVABILITY" = "true" ] || [ "$ENABLE_OBSERVABILITY" = "1" ]; then
+    echo "Applying X-Ray daemonset and observability stack..."
+    kubectl apply -f k8s/xray-daemonset.yaml
+    kubectl apply -f k8s/observability/
+    echo "✓ Observability stack applied"
+
+    echo "Waiting for observability LoadBalancers..."
+    OBS_ATTEMPTS=30
+    for i in $(seq 1 $OBS_ATTEMPTS); do
+        GRAFANA_LB=$(kubectl get svc grafana -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
+        PROMETHEUS_LB=$(kubectl get svc prometheus -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
+        JAEGER_LB=$(kubectl get svc jaeger -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
+        if [ -n "$GRAFANA_LB" ] && [ -n "$PROMETHEUS_LB" ] && [ -n "$JAEGER_LB" ]; then break; fi
+        sleep 10
+    done
+    if [ -n "$GRAFANA_LB" ]; then
+        NEXT_PUBLIC_GRAFANA_URL="http://$GRAFANA_LB"
+        echo "Configuring Grafana root URL..."
+        kubectl set env deployment/grafana GF_SERVER_DOMAIN="$GRAFANA_LB" \
+            GF_SERVER_ROOT_URL="http://$GRAFANA_LB"
+        kubectl rollout restart deployment/grafana
+    fi
+    if [ -n "$PROMETHEUS_LB" ]; then
+        NEXT_PUBLIC_PROMETHEUS_URL="http://$PROMETHEUS_LB"
+    fi
+    if [ -n "$JAEGER_LB" ]; then
+        NEXT_PUBLIC_JAEGER_URL="http://$JAEGER_LB"
+    fi
+    echo "Observability endpoints:"
+    echo "  Grafana: ${NEXT_PUBLIC_GRAFANA_URL:-pending}"
+    echo "  Prometheus: ${NEXT_PUBLIC_PROMETHEUS_URL:-pending}"
+    echo "  Jaeger: ${NEXT_PUBLIC_JAEGER_URL:-pending}"
+else
+    echo "Observability disabled (ENABLE_OBSERVABILITY=$ENABLE_OBSERVABILITY). Skipping X-Ray and observability stack."
 fi
-if [ -n "$PROMETHEUS_LB" ]; then
-    NEXT_PUBLIC_PROMETHEUS_URL="http://$PROMETHEUS_LB"
-fi
-if [ -n "$JAEGER_LB" ]; then
-    NEXT_PUBLIC_JAEGER_URL="http://$JAEGER_LB"
-fi
-echo "Observability endpoints:"
-echo "  Grafana: ${NEXT_PUBLIC_GRAFANA_URL:-pending}"
-echo "  Prometheus: ${NEXT_PUBLIC_PROMETHEUS_URL:-pending}"
-echo "  Jaeger: ${NEXT_PUBLIC_JAEGER_URL:-pending}"
 
 # Login to ECR
 echo "Logging into ECR..."
@@ -372,8 +380,12 @@ echo "Commands:"
 echo "  kubectl get pods"
 echo "  kubectl logs -f deployment/backend"
 echo ""
-echo "Starting observability port-forwards (Grafana/Prometheus/Jaeger)..."
-kubectl port-forward svc/grafana 3000:3000 >/tmp/grafana-port-forward.log 2>&1 &
-kubectl port-forward svc/prometheus 9090:9090 >/tmp/prometheus-port-forward.log 2>&1 &
-kubectl port-forward svc/jaeger 16686:16686 >/tmp/jaeger-port-forward.log 2>&1 &
-echo "✓ Port-forwards running (logs in /tmp/*-port-forward.log)"
+if [ "$ENABLE_OBSERVABILITY" = "true" ] || [ "$ENABLE_OBSERVABILITY" = "1" ]; then
+    echo "Starting observability port-forwards (Grafana/Prometheus/Jaeger)..."
+    kubectl port-forward svc/grafana 3000:3000 >/tmp/grafana-port-forward.log 2>&1 &
+    kubectl port-forward svc/prometheus 9090:9090 >/tmp/prometheus-port-forward.log 2>&1 &
+    kubectl port-forward svc/jaeger 16686:16686 >/tmp/jaeger-port-forward.log 2>&1 &
+    echo "✓ Port-forwards running (logs in /tmp/*-port-forward.log)"
+else
+    echo "Observability port-forwards skipped (ENABLE_OBSERVABILITY=$ENABLE_OBSERVABILITY)."
+fi
