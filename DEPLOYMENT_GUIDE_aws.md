@@ -108,7 +108,7 @@ It also auto-populates Data Analysis (App 8) AWS resources:
 | Resource | Spec | Purpose |
 |----------|------|---------|
 | EKS Cluster | 2-3 t3.medium nodes | Kubernetes |
-| RDS | PostgreSQL 15, db.t3.medium, 20GB | Database |
+| RDS | PostgreSQL 15, db.t3.medium, 20GB (Multi-AZ) | Database |
 | ECR | 2 repos (backend, frontend) | Docker images |
 | S3 | 1 bucket | File storage |
 | Secrets Manager | 2 secrets | DB password, SECRET_KEY |

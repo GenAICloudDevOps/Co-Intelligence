@@ -2,6 +2,8 @@
 
 This environment uses an RDS PostgreSQL instance configured with Multi-AZ for automatic failover. The primary endpoint stays the same; AWS promotes the standby in another AZ.
 
+For login steps, see `rds_login.md`.
+
 ## What to Expect
 - Short disconnect window (seconds to a few minutes)
 - Same endpoint, new primary AZ

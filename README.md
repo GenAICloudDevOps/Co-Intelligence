@@ -229,6 +229,7 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 
 See **[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)** for complete deployment instructions.
 See **[rds_failover.md](rds_failover.md)** for RDS Multi-AZ failover testing.
+See **[rds_login.md](rds_login.md)** for RDS login steps from EKS.
 
 ## Local Development
 
