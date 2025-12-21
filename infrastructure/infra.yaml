@@ -288,6 +288,7 @@ Resources:
       VPCSecurityGroups:
         - !Ref DBSecurityGroup
       PubliclyAccessible: false
+      MultiAZ: true
       BackupRetentionPeriod: 7
       DeletionProtection: false
       Tags:
