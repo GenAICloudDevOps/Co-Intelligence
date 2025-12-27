@@ -47,13 +47,29 @@ async def create_policy(
         customer_id=current_user.id,
         **policy.dict()
     )
-    if current_user.email_notifications_enabled:
+
+    # Per-app notification handling
+    from services.notification_prefs import notification_prefs
+    from services.in_app_notifications import in_app_notifications
+    app_id = "insurance-claims"
+
+    if await notification_prefs.should_send_email(current_user.id, app_id):
         background_tasks.add_task(
             email_notifications.send_text_email_safe,
             current_user.email,
             "Insurance policy created",
             f"Hi {current_user.username},\n\nYour policy has been created:\nPolicy Number: {policy_number}\nVehicle: {policy.vehicle_year} {policy.vehicle_make} {policy.vehicle_model}\nCoverage: ${policy.coverage_amount:,.0f}\n\nThanks,\nCo-Intelligence",
         )
+
+    if await notification_prefs.should_send_in_app(current_user.id, app_id):
+        await in_app_notifications.create_notification(
+            user_id=current_user.id,
+            app_id=app_id,
+            title=f"Policy {policy_number} created",
+            message=f"Your insurance policy for {policy.vehicle_year} {policy.vehicle_make} {policy.vehicle_model} is active.",
+            link=f"/apps/insurance-claims?tab=policies",
+        )
+
     return PolicyResponse(**new_policy.__dict__)
 
 @router.get("/policies", response_model=List[PolicyResponse])
@@ -86,14 +102,31 @@ async def create_claim(
         incident_description=claim.incident_description,
         incident_location=claim.incident_location
     )
+
+    # Per-app notification handling for the policy owner
+    from services.notification_prefs import notification_prefs
+    from services.in_app_notifications import in_app_notifications
+    app_id = "insurance-claims"
     recipient = current_user if policy.customer_id == current_user.id else await User.get_or_none(id=policy.customer_id)
-    if recipient and recipient.email_notifications_enabled:
-        background_tasks.add_task(
-            email_notifications.send_text_email_safe,
-            recipient.email,
-            "Insurance claim filed",
-            f"Hi {recipient.username},\n\nYour claim has been filed:\nClaim Number: {claim_number}\nPolicy ID: {claim.policy_id}\nLocation: {claim.incident_location}\n\nThanks,\nCo-Intelligence",
-        )
+
+    if recipient:
+        if await notification_prefs.should_send_email(recipient.id, app_id):
+            background_tasks.add_task(
+                email_notifications.send_text_email_safe,
+                recipient.email,
+                "Insurance claim filed",
+                f"Hi {recipient.username},\n\nYour claim has been filed:\nClaim Number: {claim_number}\nPolicy ID: {claim.policy_id}\nLocation: {claim.incident_location}\n\nThanks,\nCo-Intelligence",
+            )
+
+        if await notification_prefs.should_send_in_app(recipient.id, app_id):
+            await in_app_notifications.create_notification(
+                user_id=recipient.id,
+                app_id=app_id,
+                title=f"Claim {claim_number} filed",
+                message=f"Your insurance claim has been submitted and is pending review.",
+                link=f"/apps/insurance-claims?tab=claims",
+            )
+
     return ClaimResponse(**new_claim.__dict__)
 
 @router.get("/claims", response_model=List[ClaimResponse])

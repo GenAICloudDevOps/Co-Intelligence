@@ -81,9 +81,13 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
                 await state_store.delete(cart_key)
         
         order_id = result.get("order_id")
-        if order_id and current_user and current_user.email_notifications_enabled:
+        if order_id and current_user:
             order = await Order.get_or_none(id=order_id)
             if order:
+                # Import notification services
+                from services.notification_prefs import notification_prefs
+                from services.in_app_notifications import in_app_notifications
+
                 items_summary = ""
                 for item in (order.items or []):
                     qty = item.get("quantity")
@@ -97,12 +101,27 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
                             except Exception:
                                 pass
                         items_summary += "\n"
-                background_tasks.add_task(
-                    email_notifications.send_text_email_safe,
-                    current_user.email,
-                    "Barista order confirmed",
-                    f"Hi {current_user.username},\n\nYour coffee order is confirmed (Order #{order.id}).\n\nItems:\n{items_summary}\nTotal: ${float(order.total):.2f}\n\nThanks,\nCo-Intelligence",
-                )
+
+                app_id = "agentic-barista"
+
+                # Check per-app email preference
+                if await notification_prefs.should_send_email(current_user.id, app_id):
+                    background_tasks.add_task(
+                        email_notifications.send_text_email_safe,
+                        current_user.email,
+                        "Barista order confirmed",
+                        f"Hi {current_user.username},\n\nYour coffee order is confirmed (Order #{order.id}).\n\nItems:\n{items_summary}\nTotal: ${float(order.total):.2f}\n\nThanks,\nCo-Intelligence",
+                    )
+
+                # Check per-app in-app notification preference
+                if await notification_prefs.should_send_in_app(current_user.id, app_id):
+                    await in_app_notifications.create_notification(
+                        user_id=current_user.id,
+                        app_id=app_id,
+                        title=f"Order #{order.id} confirmed",
+                        message=f"Your coffee order (${float(order.total):.2f}) is confirmed!",
+                        link=f"/apps/agentic-barista?order={order.id}",
+                    )
 
         return {
             "response": result["response"],

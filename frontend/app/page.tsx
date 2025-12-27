@@ -5,6 +5,8 @@ import Link from 'next/link'
 import AppCard from './components/AppCard'
 import Modal from './components/Modal'
 import ArchitectureDiagram from './components/ArchitectureDiagram'
+import NotificationBell from './components/NotificationBell'
+import NotificationPreferences from './components/NotificationPreferences'
 import { apps } from './config/apps'
 import { useAuth } from './hooks/useAuth'
 import { api } from './services/api'
@@ -298,7 +300,7 @@ export default function Home() {
           {isAuthenticated ? (
             <>
               <div style={{ position: 'relative' }}>
-                <button 
+                <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
                   style={{ padding: '8px 16px', background: theme.controlBg, borderRadius: '6px', fontSize: '0.9rem', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
@@ -310,35 +312,26 @@ export default function Home() {
                       <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Username</div>
                       {user?.username || '—'}
                     </div>
-	                    <div style={{ fontSize: '0.85rem', color: theme.mutedText, paddingTop: '8px', borderTop: `1px solid ${theme.border}` }}>
-	                      <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Email</div>
-	                      {user?.email || '—'}
-	                    </div>
-                      <div style={{ fontSize: '0.85rem', color: theme.mutedText, paddingTop: '8px', borderTop: `1px solid ${theme.border}` }}>
-                        <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Role</div>
-                        {(() => {
-                          const role = (user?.global_role || 'user').toLowerCase()
-                          return role === 'user' ? 'User' : role.charAt(0).toUpperCase() + role.slice(1)
-                        })()}
-                      </div>
-                      <div style={{ fontSize: '0.85rem', color: theme.mutedText, paddingTop: '8px', borderTop: `1px solid ${theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-                        <div>
-                          <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Email Notifications</div>
-                          <div style={{ fontSize: '0.75rem', color: theme.softText }}>Default: Off</div>
-                        </div>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: updatingEmailPrefs ? 'not-allowed' : 'pointer' }}>
-                          <input
-                            type="checkbox"
-                            checked={!!user?.email_notifications_enabled}
-                            onChange={handleToggleEmailNotifications}
-                            disabled={updatingEmailPrefs}
-                          />
-                          <span style={{ color: 'white' }}>{user?.email_notifications_enabled ? 'On' : 'Off'}</span>
-                        </label>
-                      </div>
-	                  </div>
-	                )}
-	              </div>
+                    <div style={{ fontSize: '0.85rem', color: theme.mutedText, paddingTop: '8px', borderTop: `1px solid ${theme.border}` }}>
+                      <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Email</div>
+                      {user?.email || '—'}
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: theme.mutedText, paddingTop: '8px', borderTop: `1px solid ${theme.border}` }}>
+                      <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Role</div>
+                      {(() => {
+                        const role = (user?.global_role || 'user').toLowerCase()
+                        return role === 'user' ? 'User' : role.charAt(0).toUpperCase() + role.slice(1)
+                      })()}
+                    </div>
+                    <NotificationPreferences
+                      theme={theme}
+                      globalEmailEnabled={!!user?.email_notifications_enabled}
+                      onGlobalEmailToggle={handleToggleEmailNotifications}
+                    />
+                  </div>
+                )}
+              </div>
+              <NotificationBell theme={theme} />
               <button onClick={handleLogout} style={{ padding: '10px 24px', background: theme.dangerButtonBg, border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>🚪 Logout</button>
             </>
           ) : (
@@ -354,7 +347,7 @@ export default function Home() {
         {/* Hero Section */}
         <section style={{ textAlign: 'center', marginBottom: '30px' }}>
           <h1 style={{ fontSize: '4rem', fontWeight: 'bold', marginBottom: '12px', lineHeight: '1.2' }}>
-            Where Human Meets<br/>
+            Where Human Meets<br />
             <span
               className="hero-gradient"
               style={{ '--hero-gradient': theme.heroGradient, '--hero-fallback': theme.titleAccent } as React.CSSProperties}
@@ -655,28 +648,28 @@ export default function Home() {
       {/* Auth Modal */}
       <Modal isOpen={showAuth} onClose={() => setShowAuth(false)} title={isLogin ? 'Login' : 'Register'} maxWidth="400px">
         <input
-          type="email" 
-          placeholder="Email" 
+          type="email"
+          placeholder="Email"
           value={formData.email}
-          onChange={(e) => setFormData({...formData, email: e.target.value})}
+          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
           style={{ width: '100%', padding: '12px', marginBottom: '15px', background: theme.panelAltBg, border: `1px solid ${theme.border}`, borderRadius: '6px', color: 'white' }}
         />
         {!isLogin && (
-          <input 
-            type="text" 
-            placeholder="Username" 
+          <input
+            type="text"
+            placeholder="Username"
             value={formData.username}
-            onChange={(e) => setFormData({...formData, username: e.target.value})}
+            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
             style={{ width: '100%', padding: '12px', marginBottom: '15px', background: theme.panelAltBg, border: `1px solid ${theme.border}`, borderRadius: '6px', color: 'white' }}
           />
         )}
         {isLogin ? (
           <>
-            <input 
-              type="password" 
-              placeholder="Password" 
+            <input
+              type="password"
+              placeholder="Password"
               value={formData.password}
-              onChange={(e) => setFormData({...formData, password: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               onKeyPress={(e) => e.key === 'Enter' && handleAuth()}
               style={{ width: '100%', padding: '12px', marginBottom: '10px', background: theme.panelAltBg, border: `1px solid ${theme.border}`, borderRadius: '6px', color: 'white' }}
             />
@@ -688,11 +681,11 @@ export default function Home() {
           </>
         ) : (
           <>
-            <input 
-              type="password" 
+            <input
+              type="password"
               placeholder={sendPasswordEmail ? "Password will be emailed" : "Password"}
               value={formData.password}
-              onChange={(e) => setFormData({...formData, password: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               onKeyPress={(e) => e.key === 'Enter' && handleAuth()}
               disabled={sendPasswordEmail}
               style={{
@@ -726,7 +719,7 @@ export default function Home() {
             {message}
           </p>
         )}
-        <button 
+        <button
           onClick={handleAuth}
           disabled={loading}
           style={{ width: '100%', padding: '12px', background: loading ? theme.softText : theme.accent, border: 'none', borderRadius: '6px', color: 'white', fontSize: '1rem', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: '600', marginBottom: '15px' }}

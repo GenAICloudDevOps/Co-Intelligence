@@ -154,7 +154,33 @@ async def run_migrations():
         WHERE t.id = d.id
         """,
         # 3) Prevent future duplicates
-        "CREATE UNIQUE INDEX IF NOT EXISTS tutor_topics_name_uniq ON tutor_topics (name)"
+        "CREATE UNIQUE INDEX IF NOT EXISTS tutor_topics_name_uniq ON tutor_topics (name)",
+        # Per-app notification preferences
+        """
+        CREATE TABLE IF NOT EXISTS user_app_notification_prefs (
+            id SERIAL PRIMARY KEY,
+            user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            app_id VARCHAR(50) NOT NULL,
+            email_enabled BOOLEAN DEFAULT FALSE,
+            in_app_enabled BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            UNIQUE(user_id, app_id)
+        )
+        """,
+        # In-app notifications
+        """
+        CREATE TABLE IF NOT EXISTS in_app_notifications (
+            id SERIAL PRIMARY KEY,
+            user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            app_id VARCHAR(50) NOT NULL,
+            title VARCHAR(255) NOT NULL,
+            message TEXT,
+            link VARCHAR(255),
+            is_read BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS in_app_notifications_user_idx ON in_app_notifications(user_id, is_read, created_at DESC)"
     ]
     
     for sql in migrations:

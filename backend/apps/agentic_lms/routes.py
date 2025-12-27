@@ -75,13 +75,29 @@ async def enroll_course(course_id: int, background_tasks: BackgroundTasks, curre
         raise HTTPException(status_code=400, detail="Already enrolled")
     
     enrollment = await LMSEnrollment.create(user_id=current_user.id, course=course)
-    if current_user.email_notifications_enabled:
+
+    # Per-app notification handling
+    from services.notification_prefs import notification_prefs
+    from services.in_app_notifications import in_app_notifications
+    app_id = "agentic-lms"
+
+    if await notification_prefs.should_send_email(current_user.id, app_id):
         background_tasks.add_task(
             email_notifications.send_text_email_safe,
             current_user.email,
             "Course enrollment confirmed",
             f"Hi {current_user.username},\n\nYou're enrolled in: {course.title}\nCategory: {course.category}\nDifficulty: {course.difficulty}\n\nThanks,\nCo-Intelligence",
         )
+
+    if await notification_prefs.should_send_in_app(current_user.id, app_id):
+        await in_app_notifications.create_notification(
+            user_id=current_user.id,
+            app_id=app_id,
+            title=f"Enrolled in {course.title}",
+            message=f"You're now enrolled in {course.title} ({course.difficulty})",
+            link=f"/apps/agentic-lms?course={course.id}",
+        )
+
     return {
         "id": enrollment.id,
         "user_id": enrollment.user_id,
@@ -117,13 +133,29 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
                 if course.title.lower() in message_lower and course.id not in enrolled_ids:
                     # Enroll the user
                     await LMSEnrollment.create(user_id=current_user.id, course=course)
-                    if current_user.email_notifications_enabled:
+
+                    # Per-app notification handling
+                    from services.notification_prefs import notification_prefs
+                    from services.in_app_notifications import in_app_notifications
+                    app_id = "agentic-lms"
+
+                    if await notification_prefs.should_send_email(current_user.id, app_id):
                         background_tasks.add_task(
                             email_notifications.send_text_email_safe,
                             current_user.email,
                             "Course enrollment confirmed",
                             f"Hi {current_user.username},\n\nYou're enrolled in: {course.title}\nCategory: {course.category}\nDifficulty: {course.difficulty}\n\nThanks,\nCo-Intelligence",
                         )
+
+                    if await notification_prefs.should_send_in_app(current_user.id, app_id):
+                        await in_app_notifications.create_notification(
+                            user_id=current_user.id,
+                            app_id=app_id,
+                            title=f"Enrolled in {course.title}",
+                            message=f"You're now enrolled in {course.title} ({course.difficulty})",
+                            link=f"/apps/agentic-lms?course={course.id}",
+                        )
+
                     enrolled_course = course.title
                     break
         

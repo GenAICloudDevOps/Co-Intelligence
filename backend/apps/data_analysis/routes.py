@@ -547,19 +547,39 @@ async def get_run(run_id: int, background_tasks: BackgroundTasks, current_user: 
                     run.dataset.last_error = exec_info.get("cause") or exec_info.get("error") or run.dataset.last_error
                 await run.save()
                 await run.dataset.save()
-                if should_notify and current_user.email_notifications_enabled and current_user.email:
+
+                if should_notify:
+                    # Import per-app notification services
+                    from services.notification_prefs import notification_prefs
+                    from services.in_app_notifications import in_app_notifications
+
+                    app_id = "data-analysis"
                     status_label = "succeeded" if run.status == "succeeded" else "failed"
-                    subject = f"Data analysis pipeline {status_label}"
-                    body = (
-                        f"Hi {current_user.username},\n\n"
-                        f"Your data analysis pipeline has {status_label}.\n"
-                        f"Dataset: {run.dataset.name}\n"
-                        f"Run ID: {run.id}\n"
-                        f"Status: {status_label}\n"
-                        f"Execution: {exec_status}\n\n"
-                        "Thanks,\nCo-Intelligence"
-                    )
-                    background_tasks.add_task(email_notifications.send_text_email_safe, current_user.email, subject, body)
+
+                    # Check per-app email preference
+                    if await notification_prefs.should_send_email(current_user.id, app_id):
+                        subject = f"Data analysis pipeline {status_label}"
+                        body = (
+                            f"Hi {current_user.username},\n\n"
+                            f"Your data analysis pipeline has {status_label}.\n"
+                            f"Dataset: {run.dataset.name}\n"
+                            f"Run ID: {run.id}\n"
+                            f"Status: {status_label}\n"
+                            f"Execution: {exec_status}\n\n"
+                            "Thanks,\nCo-Intelligence"
+                        )
+                        background_tasks.add_task(email_notifications.send_text_email_safe, current_user.email, subject, body)
+
+                    # Check per-app in-app notification preference
+                    if await notification_prefs.should_send_in_app(current_user.id, app_id):
+                        await in_app_notifications.create_notification(
+                            user_id=current_user.id,
+                            app_id=app_id,
+                            title=f"Pipeline {status_label}: {run.dataset.name}",
+                            message=f"Your data analysis pipeline has {status_label}.",
+                            link=f"/apps/data-analysis?dataset={run.dataset_id}",
+                        )
+
                     run.notification_sent = True
                     await run.save(update_fields=["notification_sent"])
         except Exception:

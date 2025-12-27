@@ -178,30 +178,50 @@ class JobRunner:
         if not run.user_id:
             return
         user = await User.get_or_none(id=run.user_id)
-        if not user or not user.email_notifications_enabled or not user.email:
+        if not user or not user.email:
             return
+
+        # Import per-app notification services
+        from services.notification_prefs import notification_prefs
+        from services.in_app_notifications import in_app_notifications
+
+        app_id = "llms-fine-tuning"
         workflow_key = run.job_key.split("-", 1)[0]
         workflow_label = self.workflow_labels.get(workflow_key, workflow_key)
         model_name = run.runtime_env.get("MODEL_NAME") or "n/a"
         dataset_path = run.runtime_env.get("DATASET_PATH") or run.runtime_env.get("DATA_FILE") or "n/a"
         status_label = "succeeded" if run.status == "success" else "failed"
         end_time = run.end_time.isoformat() + "Z" if run.end_time else datetime.utcnow().isoformat() + "Z"
-        subject = f"LLM fine-tuning training {status_label}"
-        body = (
-            f"Hi {user.username},\n\n"
-            f"Your fine-tuning training job has {status_label}.\n"
-            f"Workflow: {workflow_label}\n"
-            f"Step: Train\n"
-            f"Job: {run.job_key}\n"
-            f"Run ID: {run.run_id}\n"
-            f"Status: {status_label}\n"
-            f"Model: {model_name}\n"
-            f"Dataset: {dataset_path}\n"
-            f"Exit code: {run.exit_code if run.exit_code is not None else 'n/a'}\n"
-            f"Finished at: {end_time}\n\n"
-            "Thanks,\nCo-Intelligence"
-        )
-        await asyncio.to_thread(email_notifications.send_text_email_safe, user.email, subject, body)
+
+        # Check per-app email preference
+        if await notification_prefs.should_send_email(run.user_id, app_id):
+            subject = f"LLM fine-tuning training {status_label}"
+            body = (
+                f"Hi {user.username},\n\n"
+                f"Your fine-tuning training job has {status_label}.\n"
+                f"Workflow: {workflow_label}\n"
+                f"Step: Train\n"
+                f"Job: {run.job_key}\n"
+                f"Run ID: {run.run_id}\n"
+                f"Status: {status_label}\n"
+                f"Model: {model_name}\n"
+                f"Dataset: {dataset_path}\n"
+                f"Exit code: {run.exit_code if run.exit_code is not None else 'n/a'}\n"
+                f"Finished at: {end_time}\n\n"
+                "Thanks,\nCo-Intelligence"
+            )
+            await asyncio.to_thread(email_notifications.send_text_email_safe, user.email, subject, body)
+
+        # Check per-app in-app notification preference
+        if await notification_prefs.should_send_in_app(run.user_id, app_id):
+            await in_app_notifications.create_notification(
+                user_id=run.user_id,
+                app_id=app_id,
+                title=f"Training {status_label}: {workflow_label}",
+                message=f"Your fine-tuning job ({model_name}) has {status_label}.",
+                link=f"/apps/llms-fine-tuning?run={run.run_id}",
+            )
+
         run.notification_sent = True
 
     async def enqueue_run(self, job_key: str, runtime_env: Optional[Dict[str, str]] = None, user_id: Optional[int] = None) -> JobRunState:
