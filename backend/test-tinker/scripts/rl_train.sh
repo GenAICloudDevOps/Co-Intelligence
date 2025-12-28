@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="${TINKER_BASE_PATH:-/app}"
+ROOT="${TINKER_BASE_PATH:-}"
+if [[ -z "$ROOT" || ! -d "$ROOT/test-tinker" ]]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
 cd "$ROOT/test-tinker"
 
 # Load local env vars only as a fallback (do not override container/cluster env)
