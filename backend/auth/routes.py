@@ -98,6 +98,10 @@ class PreferencesUpdate(BaseModel):
     email_notifications_enabled: Optional[bool] = None
     slack_notifications_enabled: Optional[bool] = None
 
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str
+
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 
@@ -320,6 +324,18 @@ async def update_preferences(payload: PreferencesUpdate, current_user: User = De
         "email_notifications_enabled": current_user.email_notifications_enabled,
         "slack_notifications_enabled": current_user.slack_notifications_enabled,
     }
+
+@router.put("/me/password")
+async def change_password(payload: PasswordChangeRequest, current_user: User = Depends(get_current_user)):
+    if not verify_password(payload.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    if payload.current_password == payload.new_password:
+        raise HTTPException(status_code=400, detail="New password must be different")
+    if len(payload.new_password) < 6 or len(payload.new_password) > 100:
+        raise HTTPException(status_code=400, detail="Password must be between 6 and 100 characters")
+    current_user.hashed_password = get_password_hash(payload.new_password)
+    await current_user.save(update_fields=["hashed_password"])
+    return {"success": True}
 
 
 # ─────────────────────────────────────────────────────────────────────────────

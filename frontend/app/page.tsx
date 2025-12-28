@@ -138,6 +138,9 @@ export default function Home() {
   const [isLogin, setIsLogin] = useState(true)
   const [formData, setFormData] = useState({ email: '', username: '', password: '' })
   const [sendPasswordEmail, setSendPasswordEmail] = useState(false)
+  const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' })
+  const [passwordStatus, setPasswordStatus] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [changingPassword, setChangingPassword] = useState(false)
   const [currentTime, setCurrentTime] = useState('')
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [updatingEmailPrefs, setUpdatingEmailPrefs] = useState(false)
@@ -171,6 +174,34 @@ export default function Home() {
       await refresh()
     } catch (e: any) {
       setMessage(e?.message || 'Failed to update Slack notifications')
+    }
+  }
+
+  const handleChangePassword = async () => {
+    if (!passwordForm.current || !passwordForm.next || !passwordForm.confirm) {
+      setPasswordStatus({ type: 'error', text: 'Enter current and new password' })
+      return
+    }
+    if (passwordForm.next.length < 6) {
+      setPasswordStatus({ type: 'error', text: 'New password must be at least 6 characters' })
+      return
+    }
+    if (passwordForm.next !== passwordForm.confirm) {
+      setPasswordStatus({ type: 'error', text: 'New passwords do not match' })
+      return
+    }
+    setChangingPassword(true)
+    try {
+      await api.put('/api/auth/me/password', {
+        current_password: passwordForm.current,
+        new_password: passwordForm.next,
+      })
+      setPasswordStatus({ type: 'success', text: 'Password updated' })
+      setPasswordForm({ current: '', next: '', confirm: '' })
+    } catch (e: any) {
+      setPasswordStatus({ type: 'error', text: e?.message || 'Failed to update password' })
+    } finally {
+      setChangingPassword(false)
     }
   }
 
@@ -334,6 +365,75 @@ export default function Home() {
                         const role = (user?.global_role || 'user').toLowerCase()
                         return role === 'user' ? 'User' : role.charAt(0).toUpperCase() + role.slice(1)
                       })()}
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: theme.mutedText, paddingTop: '8px', borderTop: `1px solid ${theme.border}` }}>
+                      <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '8px' }}>Change Password</div>
+                      <input
+                        type="password"
+                        placeholder="Current password"
+                        value={passwordForm.current}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })}
+                        style={{
+                          width: '100%',
+                          padding: '8px',
+                          marginBottom: '8px',
+                          background: theme.panelAltBg,
+                          border: `1px solid ${theme.border}`,
+                          borderRadius: '6px',
+                          color: 'white',
+                        }}
+                      />
+                      <input
+                        type="password"
+                        placeholder="New password"
+                        value={passwordForm.next}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, next: e.target.value })}
+                        style={{
+                          width: '100%',
+                          padding: '8px',
+                          marginBottom: '8px',
+                          background: theme.panelAltBg,
+                          border: `1px solid ${theme.border}`,
+                          borderRadius: '6px',
+                          color: 'white',
+                        }}
+                      />
+                      <input
+                        type="password"
+                        placeholder="Confirm new password"
+                        value={passwordForm.confirm}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })}
+                        style={{
+                          width: '100%',
+                          padding: '8px',
+                          marginBottom: '8px',
+                          background: theme.panelAltBg,
+                          border: `1px solid ${theme.border}`,
+                          borderRadius: '6px',
+                          color: 'white',
+                        }}
+                      />
+                      {passwordStatus && (
+                        <div style={{ fontSize: '0.75rem', marginBottom: '8px', color: passwordStatus.type === 'success' ? theme.success : theme.dangerButtonBg }}>
+                          {passwordStatus.text}
+                        </div>
+                      )}
+                      <button
+                        onClick={handleChangePassword}
+                        disabled={changingPassword}
+                        style={{
+                          width: '100%',
+                          padding: '8px',
+                          background: changingPassword ? theme.softText : theme.accent,
+                          border: 'none',
+                          borderRadius: '6px',
+                          color: 'white',
+                          cursor: changingPassword ? 'not-allowed' : 'pointer',
+                          fontWeight: '600',
+                        }}
+                      >
+                        {changingPassword ? 'Updating...' : 'Update Password'}
+                      </button>
                     </div>
                     <NotificationPreferences
                       theme={theme}
