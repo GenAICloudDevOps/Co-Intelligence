@@ -33,7 +33,8 @@ load_from_dotenv \
   GEMINI_API_KEY GROQ_API_KEY TAVILY_API_KEY TINKER_API_KEY \
   AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION \
   DB_USERNAME TINKER_BASE_PATH CORS_ALLOW_ORIGINS AUTO_GENERATE_SCHEMAS FRONTEND_URL ENABLE_OBSERVABILITY \
-  GMAIL_SMTP_USER GMAIL_SMTP_APP_PASSWORD GMAIL_SMTP_FROM_NAME
+  GMAIL_SMTP_USER GMAIL_SMTP_APP_PASSWORD GMAIL_SMTP_FROM_NAME \
+  SLACK_WEBHOOK_URL
 
 if [ -z "${GMAIL_SMTP_USER:-}" ] || [ -z "${GMAIL_SMTP_APP_PASSWORD:-}" ]; then
   echo "⚠ Gmail SMTP env vars not set (GMAIL_SMTP_USER / GMAIL_SMTP_APP_PASSWORD). Email notifications will NOT send."
@@ -136,6 +137,9 @@ GMAIL_SMTP_USER=${GMAIL_SMTP_USER:-}
 GMAIL_SMTP_APP_PASSWORD=${GMAIL_SMTP_APP_PASSWORD:-}
 GMAIL_SMTP_FROM_NAME=${GMAIL_SMTP_FROM_NAME:-Co-Intelligence}
 
+# Slack notifications (Webhook)
+SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+
 # AWS Credentials
 AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
 AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
@@ -185,6 +189,7 @@ kubectl create secret generic app-secrets \
     --from-literal=GMAIL_SMTP_USER="${GMAIL_SMTP_USER:-}" \
     --from-literal=GMAIL_SMTP_APP_PASSWORD="${GMAIL_SMTP_APP_PASSWORD:-}" \
     --from-literal=GMAIL_SMTP_FROM_NAME="${GMAIL_SMTP_FROM_NAME:-Co-Intelligence}" \
+    --from-literal=SLACK_WEBHOOK_URL="${SLACK_WEBHOOK_URL:-}" \
     --from-literal=AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-}" \
     --from-literal=AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-}" \
     --from-literal=AWS_REGION="$AWS_REGION" \
@@ -340,6 +345,7 @@ if [ -n "$FRONTEND_LB_HOST" ]; then
             --from-literal=GMAIL_SMTP_USER="${GMAIL_SMTP_USER:-}" \
             --from-literal=GMAIL_SMTP_APP_PASSWORD="${GMAIL_SMTP_APP_PASSWORD:-}" \
             --from-literal=GMAIL_SMTP_FROM_NAME="${GMAIL_SMTP_FROM_NAME:-Co-Intelligence}" \
+            --from-literal=SLACK_WEBHOOK_URL="${SLACK_WEBHOOK_URL:-}" \
             --from-literal=AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-}" \
             --from-literal=AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-}" \
             --from-literal=AWS_REGION="$AWS_REGION" \
