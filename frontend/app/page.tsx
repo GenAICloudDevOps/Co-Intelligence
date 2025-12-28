@@ -143,6 +143,7 @@ export default function Home() {
   const [changingPassword, setChangingPassword] = useState(false)
   const [currentTime, setCurrentTime] = useState('')
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showChangePassword, setShowChangePassword] = useState(false)
   const [updatingEmailPrefs, setUpdatingEmailPrefs] = useState(false)
   const [evalSummary, setEvalSummary] = useState<EvalSummary | null>(null)
   const [evalError, setEvalError] = useState<string | null>(null)
@@ -350,98 +351,204 @@ export default function Home() {
                   👤 {user?.username || 'User'}
                 </button>
                 {showUserMenu && (
-                  <div style={{ position: 'absolute', top: '45px', right: '0', background: theme.panelBg, border: `1px solid ${theme.border}`, borderRadius: '8px', padding: '12px', minWidth: '200px', zIndex: 100 }}>
-                    <div style={{ fontSize: '0.85rem', color: theme.mutedText, marginBottom: '8px' }}>
-                      <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Username</div>
-                      {user?.username || '—'}
-                    </div>
-                    <div style={{ fontSize: '0.85rem', color: theme.mutedText, paddingTop: '8px', borderTop: `1px solid ${theme.border}` }}>
-                      <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Email</div>
-                      {user?.email || '—'}
-                    </div>
-                    <div style={{ fontSize: '0.85rem', color: theme.mutedText, paddingTop: '8px', borderTop: `1px solid ${theme.border}` }}>
-                      <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Role</div>
-                      {(() => {
-                        const role = (user?.global_role || 'user').toLowerCase()
-                        return role === 'user' ? 'User' : role.charAt(0).toUpperCase() + role.slice(1)
-                      })()}
-                    </div>
-                    <div style={{ fontSize: '0.85rem', color: theme.mutedText, paddingTop: '8px', borderTop: `1px solid ${theme.border}` }}>
-                      <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '8px' }}>Change Password</div>
-                      <input
-                        type="password"
-                        placeholder="Current password"
-                        value={passwordForm.current}
-                        onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })}
-                        style={{
-                          width: '100%',
-                          padding: '8px',
-                          marginBottom: '8px',
-                          background: theme.panelAltBg,
-                          border: `1px solid ${theme.border}`,
-                          borderRadius: '6px',
-                          color: 'white',
-                        }}
-                      />
-                      <input
-                        type="password"
-                        placeholder="New password"
-                        value={passwordForm.next}
-                        onChange={(e) => setPasswordForm({ ...passwordForm, next: e.target.value })}
-                        style={{
-                          width: '100%',
-                          padding: '8px',
-                          marginBottom: '8px',
-                          background: theme.panelAltBg,
-                          border: `1px solid ${theme.border}`,
-                          borderRadius: '6px',
-                          color: 'white',
-                        }}
-                      />
-                      <input
-                        type="password"
-                        placeholder="Confirm new password"
-                        value={passwordForm.confirm}
-                        onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })}
-                        style={{
-                          width: '100%',
-                          padding: '8px',
-                          marginBottom: '8px',
-                          background: theme.panelAltBg,
-                          border: `1px solid ${theme.border}`,
-                          borderRadius: '6px',
-                          color: 'white',
-                        }}
-                      />
-                      {passwordStatus && (
-                        <div style={{ fontSize: '0.75rem', marginBottom: '8px', color: passwordStatus.type === 'success' ? theme.success : theme.dangerButtonBg }}>
-                          {passwordStatus.text}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '45px',
+                      right: '0',
+                      background: theme.panelBg,
+                      border: `1px solid ${theme.border}`,
+                      borderRadius: '8px',
+                      padding: '12px',
+                      width: 'min(640px, 92vw)',
+                      zIndex: 100,
+                    }}
+                  >
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                      <div style={{ flex: '0 1 340px', minWidth: '280px' }}>
+                        <div style={{ fontSize: '0.85rem', color: theme.mutedText, marginBottom: '8px' }}>
+                          <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Username</div>
+                          {user?.username || '—'}
                         </div>
-                      )}
-                      <button
-                        onClick={handleChangePassword}
-                        disabled={changingPassword}
-                        style={{
-                          width: '100%',
-                          padding: '8px',
-                          background: changingPassword ? theme.softText : theme.accent,
-                          border: 'none',
-                          borderRadius: '6px',
-                          color: 'white',
-                          cursor: changingPassword ? 'not-allowed' : 'pointer',
-                          fontWeight: '600',
-                        }}
-                      >
-                        {changingPassword ? 'Updating...' : 'Update Password'}
-                      </button>
+                        <div style={{ fontSize: '0.85rem', color: theme.mutedText, paddingTop: '8px', borderTop: `1px solid ${theme.border}` }}>
+                          <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Email</div>
+                          {user?.email || '—'}
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: theme.mutedText, paddingTop: '8px', borderTop: `1px solid ${theme.border}` }}>
+                          <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Role</div>
+                          {(() => {
+                            const role = (user?.global_role || 'user').toLowerCase()
+                            return role === 'user' ? 'User' : role.charAt(0).toUpperCase() + role.slice(1)
+                          })()}
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: theme.mutedText, paddingTop: '8px', borderTop: `1px solid ${theme.border}` }}>
+                          <button
+                            type="button"
+                            onClick={() => setShowChangePassword((prev) => !prev)}
+                            aria-expanded={showChangePassword}
+                            aria-controls="change-password-panel"
+                            style={{
+                              width: '100%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'flex-start',
+                              gap: '8px',
+                              background: 'transparent',
+                              border: 'none',
+                              padding: '0 0 8px 0',
+                              color: 'white',
+                              cursor: 'pointer',
+                              fontWeight: 'bold',
+                              textAlign: 'left',
+                            }}
+                          >
+                            <span style={{ color: theme.softText, fontSize: '0.9rem', width: '14px' }}>{showChangePassword ? '▾' : '▸'}</span>
+                            <span>Change Password</span>
+                          </button>
+                          <div
+                            id="change-password-panel"
+                            aria-hidden={!showChangePassword}
+                            style={{
+                              marginTop: showChangePassword ? '8px' : '0',
+                              maxHeight: showChangePassword ? '360px' : '0',
+                              opacity: showChangePassword ? 1 : 0,
+                              overflow: 'hidden',
+                              pointerEvents: showChangePassword ? 'auto' : 'none',
+                              transition: 'max-height 200ms ease, opacity 200ms ease, margin-top 200ms ease',
+                            }}
+                          >
+                            <input
+                              type="password"
+                              placeholder="Current password"
+                              value={passwordForm.current}
+                              onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })}
+                              disabled={!showChangePassword}
+                              style={{
+                                width: '100%',
+                                padding: '8px',
+                                marginBottom: '8px',
+                                background: theme.panelAltBg,
+                                border: `1px solid ${theme.border}`,
+                                borderRadius: '6px',
+                                color: 'white',
+                              }}
+                            />
+                            <input
+                              type="password"
+                              placeholder="New password"
+                              value={passwordForm.next}
+                              onChange={(e) => setPasswordForm({ ...passwordForm, next: e.target.value })}
+                              disabled={!showChangePassword}
+                              style={{
+                                width: '100%',
+                                padding: '8px',
+                                marginBottom: '8px',
+                                background: theme.panelAltBg,
+                                border: `1px solid ${theme.border}`,
+                                borderRadius: '6px',
+                                color: 'white',
+                              }}
+                            />
+                            <input
+                              type="password"
+                              placeholder="Confirm new password"
+                              value={passwordForm.confirm}
+                              onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })}
+                              disabled={!showChangePassword}
+                              style={{
+                                width: '100%',
+                                padding: '8px',
+                                marginBottom: '8px',
+                                background: theme.panelAltBg,
+                                border: `1px solid ${theme.border}`,
+                                borderRadius: '6px',
+                                color: 'white',
+                              }}
+                            />
+                            {passwordStatus && (
+                              <div style={{ fontSize: '0.75rem', marginBottom: '8px', color: passwordStatus.type === 'success' ? theme.success : theme.dangerButtonBg }}>
+                                {passwordStatus.text}
+                              </div>
+                            )}
+                            <button
+                              onClick={handleChangePassword}
+                              disabled={changingPassword || !showChangePassword}
+                              style={{
+                                width: '100%',
+                                padding: '8px',
+                                background: changingPassword ? theme.softText : theme.accent,
+                                border: 'none',
+                                borderRadius: '6px',
+                                color: 'white',
+                                cursor: changingPassword ? 'not-allowed' : 'pointer',
+                                fontWeight: '600',
+                              }}
+                            >
+                              {changingPassword ? 'Updating...' : 'Update Password'}
+                            </button>
+                          </div>
+                        </div>
+                        <NotificationPreferences
+                          theme={theme}
+                          globalEmailEnabled={!!user?.email_notifications_enabled}
+                          globalSlackEnabled={!!user?.slack_notifications_enabled}
+                        />
+                      </div>
+
+                      <div style={{ flex: '0 1 260px', minWidth: '220px', display: 'grid', gap: '12px' }}>
+                        <div style={{
+                          padding: '16px',
+                          background: theme.panelAltBg,
+                          borderRadius: '8px',
+                          border: `1px solid ${theme.border}`
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <div style={{ fontWeight: 'bold', color: 'white' }}>Email Notifications</div>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                              <input
+                                type="checkbox"
+                                checked={!!user?.email_notifications_enabled}
+                                onChange={handleToggleEmailNotifications}
+                              />
+                              <span style={{ color: 'white' }}>{user?.email_notifications_enabled ? 'On' : 'Off'}</span>
+                            </label>
+                          </div>
+
+                          <div style={{ fontSize: '0.75rem', color: theme.softText, lineHeight: '1.4' }}>
+                            <div>Master switch controls email delivery across all apps.</div>
+                            <div style={{ marginTop: '12px', fontStyle: 'italic', opacity: 0.8 }}>
+                              Note: In-app alerts have their own toggle.
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{
+                          padding: '16px',
+                          background: theme.panelAltBg,
+                          borderRadius: '8px',
+                          border: `1px solid ${theme.border}`
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <div style={{ fontWeight: 'bold', color: 'white' }}>Slack Notifications</div>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                              <input
+                                type="checkbox"
+                                checked={!!user?.slack_notifications_enabled}
+                                onChange={handleToggleSlackNotifications}
+                              />
+                              <span style={{ color: 'white' }}>{user?.slack_notifications_enabled ? 'On' : 'Off'}</span>
+                            </label>
+                          </div>
+
+                          <div style={{ fontSize: '0.75rem', color: theme.softText, lineHeight: '1.4' }}>
+                            <div>Master switch controls Slack delivery across all apps.</div>
+                            <div style={{ marginTop: '12px', fontStyle: 'italic', opacity: 0.8 }}>
+                              Per-app Slack toggles default to off.
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <NotificationPreferences
-                      theme={theme}
-                      globalEmailEnabled={!!user?.email_notifications_enabled}
-                      onGlobalEmailToggle={handleToggleEmailNotifications}
-                      globalSlackEnabled={!!user?.slack_notifications_enabled}
-                      onGlobalSlackToggle={handleToggleSlackNotifications}
-                    />
                   </div>
                 )}
               </div>
