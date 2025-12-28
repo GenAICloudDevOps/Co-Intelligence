@@ -18,6 +18,10 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 COPY . .
 
+RUN if [ -d /app/test-tinker/scripts ]; then \
+    find /app/test-tinker/scripts -type f -name "*.sh" -exec sed -i 's/\r$//' {} +; \
+  fi
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     TINKER_BASE_PATH=/app
