@@ -552,6 +552,7 @@ async def get_run(run_id: int, background_tasks: BackgroundTasks, current_user: 
                     # Import per-app notification services
                     from services.notification_prefs import notification_prefs
                     from services.in_app_notifications import in_app_notifications
+                    from services.slack_notifications import slack_notifications
 
                     app_id = "data-analysis"
                     status_label = "succeeded" if run.status == "succeeded" else "failed"
@@ -578,6 +579,16 @@ async def get_run(run_id: int, background_tasks: BackgroundTasks, current_user: 
                             title=f"Pipeline {status_label}: {run.dataset.name}",
                             message=f"Your data analysis pipeline has {status_label}.",
                             link=f"/apps/data-analysis?dataset={run.dataset_id}",
+                        )
+
+                    # Check per-app Slack notification preference
+                    if await notification_prefs.should_send_slack(current_user.id, app_id):
+                        slack_status = "completed" if status_label == "succeeded" else "failed"
+                        background_tasks.add_task(
+                            slack_notifications.send_data_analysis_complete_notification,
+                            str(run.id),
+                            run.dataset.source_type,
+                            slack_status,
                         )
 
                     run.notification_sent = True

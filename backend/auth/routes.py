@@ -3,6 +3,7 @@ import secrets
 from fastapi import APIRouter, HTTPException, status, Depends, Body, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, EmailStr, validator
+from typing import Optional
 from auth.models import User, RefreshToken, PasswordResetToken
 from auth.utils import (
     get_password_hash,
@@ -94,7 +95,8 @@ class TokenResponse(BaseModel):
     token_type: str
 
 class PreferencesUpdate(BaseModel):
-    email_notifications_enabled: bool
+    email_notifications_enabled: Optional[bool] = None
+    slack_notifications_enabled: Optional[bool] = None
 
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
@@ -300,13 +302,24 @@ async def get_me(current_user: User = Depends(get_current_user)):
         "username": current_user.username,
         "global_role": current_user.global_role,
         "email_notifications_enabled": current_user.email_notifications_enabled,
+        "slack_notifications_enabled": current_user.slack_notifications_enabled,
     }
 
 @router.put("/me/preferences")
 async def update_preferences(payload: PreferencesUpdate, current_user: User = Depends(get_current_user)):
-    current_user.email_notifications_enabled = payload.email_notifications_enabled
-    await current_user.save(update_fields=["email_notifications_enabled"])
-    return {"email_notifications_enabled": current_user.email_notifications_enabled}
+    update_fields: list[str] = []
+    if payload.email_notifications_enabled is not None:
+        current_user.email_notifications_enabled = payload.email_notifications_enabled
+        update_fields.append("email_notifications_enabled")
+    if payload.slack_notifications_enabled is not None:
+        current_user.slack_notifications_enabled = payload.slack_notifications_enabled
+        update_fields.append("slack_notifications_enabled")
+    if update_fields:
+        await current_user.save(update_fields=update_fields)
+    return {
+        "email_notifications_enabled": current_user.email_notifications_enabled,
+        "slack_notifications_enabled": current_user.slack_notifications_enabled,
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -315,14 +328,14 @@ async def update_preferences(payload: PreferencesUpdate, current_user: User = De
 from services.in_app_notifications import in_app_notifications
 from services.notification_prefs import notification_prefs, NOTIFIABLE_APPS
 from pydantic import Field
-from typing import Optional, List
+from typing import List
 
 
 class NotificationPrefItem(BaseModel):
     app_id: str
     email_enabled: bool
     in_app_enabled: bool
-    slack_enabled: bool = False
+    slack_enabled: Optional[bool] = None
 
 
 class NotificationPrefsUpdatePayload(BaseModel):
@@ -376,6 +389,7 @@ async def get_notification_preferences(current_user: User = Depends(get_current_
     prefs = await notification_prefs.get_user_prefs(current_user.id)
     return {
         "global_email_enabled": current_user.email_notifications_enabled,
+        "global_slack_enabled": current_user.slack_notifications_enabled,
         "apps": NOTIFIABLE_APPS,
         "preferences": prefs,
     }
@@ -387,20 +401,25 @@ async def update_notification_preferences(
     current_user: User = Depends(get_current_user),
 ):
     """Update per-app notification preferences."""
+    current_prefs = await notification_prefs.get_user_prefs(current_user.id)
     for pref in payload.preferences:
         if pref.app_id in NOTIFIABLE_APPS:
+            existing_pref = current_prefs.get(pref.app_id, {})
+            slack_enabled = pref.slack_enabled
+            if slack_enabled is None:
+                slack_enabled = existing_pref.get("slack_enabled", False)
             await notification_prefs.update_user_pref(
                 user_id=current_user.id,
                 app_id=pref.app_id,
                 email_enabled=pref.email_enabled,
                 in_app_enabled=pref.in_app_enabled,
-                slack_enabled=pref.slack_enabled,
+                slack_enabled=slack_enabled,
             )
     # Return updated preferences
     prefs = await notification_prefs.get_user_prefs(current_user.id)
     return {
         "global_email_enabled": current_user.email_notifications_enabled,
+        "global_slack_enabled": current_user.slack_notifications_enabled,
         "apps": NOTIFIABLE_APPS,
         "preferences": prefs,
     }
-

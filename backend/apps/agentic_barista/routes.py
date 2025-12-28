@@ -87,6 +87,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
                 # Import notification services
                 from services.notification_prefs import notification_prefs
                 from services.in_app_notifications import in_app_notifications
+                from services.slack_notifications import slack_notifications
 
                 items_summary = ""
                 for item in (order.items or []):
@@ -121,6 +122,16 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
                         title=f"Order #{order.id} confirmed",
                         message=f"Your coffee order (${float(order.total):.2f}) is confirmed!",
                         link=f"/apps/agentic-barista?order={order.id}",
+                    )
+
+                # Check per-app Slack notification preference
+                if await notification_prefs.should_send_slack(current_user.id, app_id):
+                    background_tasks.add_task(
+                        slack_notifications.send_barista_order_notification,
+                        order.id,
+                        current_user.username,
+                        float(order.total),
+                        len(order.items or []),
                     )
 
         return {

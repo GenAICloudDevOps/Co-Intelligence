@@ -184,6 +184,7 @@ class JobRunner:
         # Import per-app notification services
         from services.notification_prefs import notification_prefs
         from services.in_app_notifications import in_app_notifications
+        from services.slack_notifications import slack_notifications
 
         app_id = "llms-fine-tuning"
         workflow_key = run.job_key.split("-", 1)[0]
@@ -220,6 +221,15 @@ class JobRunner:
                 title=f"Training {status_label}: {workflow_label}",
                 message=f"Your fine-tuning job ({model_name}) has {status_label}.",
                 link=f"/apps/llms-fine-tuning?run={run.run_id}",
+            )
+
+        # Check per-app Slack notification preference
+        if await notification_prefs.should_send_slack(run.user_id, app_id):
+            slack_status = "completed" if run.status == "success" else "failed"
+            await slack_notifications.send_fine_tuning_complete_notification(
+                run_id=run.run_id,
+                model_name=model_name,
+                status=slack_status,
             )
 
         run.notification_sent = True

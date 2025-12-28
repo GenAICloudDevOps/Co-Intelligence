@@ -8,6 +8,7 @@ type AuthState = {
   email: string
   global_role?: string
   email_notifications_enabled?: boolean
+  slack_notifications_enabled?: boolean
 }
 
 export function useAuth(requireAuth = false) {
@@ -27,6 +28,7 @@ export function useAuth(requireAuth = false) {
         email: data.email,
         global_role: data.global_role,
         email_notifications_enabled: !!data.email_notifications_enabled,
+        slack_notifications_enabled: !!data.slack_notifications_enabled,
       })
       return data
     } catch (err) {

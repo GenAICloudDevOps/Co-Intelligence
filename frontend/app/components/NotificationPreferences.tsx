@@ -5,6 +5,7 @@ import { api } from '../services/api'
 
 interface NotificationPreferences {
     global_email_enabled: boolean
+    global_slack_enabled?: boolean
     apps: string[]
     preferences: Record<string, { email_enabled: boolean; in_app_enabled: boolean; slack_enabled: boolean }>
 }
@@ -22,6 +23,8 @@ interface NotificationPreferencesProps {
     }
     onGlobalEmailToggle: () => void
     globalEmailEnabled: boolean
+    onGlobalSlackToggle: () => void
+    globalSlackEnabled: boolean
 }
 
 const APP_LABELS: Record<string, { icon: string; name: string }> = {
@@ -32,7 +35,7 @@ const APP_LABELS: Record<string, { icon: string; name: string }> = {
     'data-analysis': { icon: '📊', name: 'Data Analysis' },
 }
 
-export default function NotificationPreferences({ theme, onGlobalEmailToggle, globalEmailEnabled }: NotificationPreferencesProps) {
+export default function NotificationPreferences({ theme, onGlobalEmailToggle, globalEmailEnabled, onGlobalSlackToggle, globalSlackEnabled }: NotificationPreferencesProps) {
     const [prefs, setPrefs] = useState<NotificationPreferences | null>(null)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
@@ -169,8 +172,9 @@ export default function NotificationPreferences({ theme, onGlobalEmailToggle, gl
                                         type="checkbox"
                                         checked={appPrefs.slack_enabled}
                                         onChange={(e) => updatePref(appId, 'slack_enabled', e.target.checked)}
-                                        disabled={saving}
-                                        style={{ cursor: saving ? 'not-allowed' : 'pointer' }}
+                                        disabled={saving || !globalSlackEnabled}
+                                        title={!globalSlackEnabled ? 'Enable master Slack toggle first' : undefined}
+                                        style={{ cursor: saving || !globalSlackEnabled ? 'not-allowed' : 'pointer' }}
                                     />
                                 </div>
                             </div>
@@ -178,29 +182,57 @@ export default function NotificationPreferences({ theme, onGlobalEmailToggle, gl
                     })}
                 </div>
 
-                {/* Right Column: Global Email Switch */}
-                <div style={{
-                    padding: '16px',
-                    background: theme.panelAltBg,
-                    borderRadius: '8px',
-                    border: `1px solid ${theme.border}`
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <div style={{ fontWeight: 'bold', color: 'white' }}>Email Notifications</div>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                            <input
-                                type="checkbox"
-                                checked={globalEmailEnabled}
-                                onChange={onGlobalEmailToggle}
-                            />
-                            <span style={{ color: 'white' }}>{globalEmailEnabled ? 'On' : 'Off'}</span>
-                        </label>
+                {/* Right Column: Global Switches */}
+                <div style={{ display: 'grid', gap: '12px' }}>
+                    <div style={{
+                        padding: '16px',
+                        background: theme.panelAltBg,
+                        borderRadius: '8px',
+                        border: `1px solid ${theme.border}`
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <div style={{ fontWeight: 'bold', color: 'white' }}>Email Notifications</div>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={globalEmailEnabled}
+                                    onChange={onGlobalEmailToggle}
+                                />
+                                <span style={{ color: 'white' }}>{globalEmailEnabled ? 'On' : 'Off'}</span>
+                            </label>
+                        </div>
+
+                        <div style={{ fontSize: '0.75rem', color: theme.softText, lineHeight: '1.4' }}>
+                            <div>Master switch controls email delivery across all apps.</div>
+                            <div style={{ marginTop: '12px', fontStyle: 'italic', opacity: 0.8 }}>
+                                Note: In-app alerts have their own toggle.
+                            </div>
+                        </div>
                     </div>
 
-                    <div style={{ fontSize: '0.75rem', color: theme.softText, lineHeight: '1.4' }}>
-                        <div>Master switch controls email delivery across all apps.</div>
-                        <div style={{ marginTop: '12px', fontStyle: 'italic', opacity: 0.8 }}>
-                            Note: Slack and In-App notifications work independently of this switch.
+                    <div style={{
+                        padding: '16px',
+                        background: theme.panelAltBg,
+                        borderRadius: '8px',
+                        border: `1px solid ${theme.border}`
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <div style={{ fontWeight: 'bold', color: 'white' }}>Slack Notifications</div>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={globalSlackEnabled}
+                                    onChange={onGlobalSlackToggle}
+                                />
+                                <span style={{ color: 'white' }}>{globalSlackEnabled ? 'On' : 'Off'}</span>
+                            </label>
+                        </div>
+
+                        <div style={{ fontSize: '0.75rem', color: theme.softText, lineHeight: '1.4' }}>
+                            <div>Master switch controls Slack delivery across all apps.</div>
+                            <div style={{ marginTop: '12px', fontStyle: 'italic', opacity: 0.8 }}>
+                                Per-app Slack toggles default to off.
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -110,9 +110,14 @@ class NotificationPrefsService:
     async def should_send_slack(self, user_id: int, app_id: str) -> bool:
         """
         Check if Slack notification should be sent.
-        Returns True only if user's per-app slack_enabled is True.
-        (Slack notifications are independent of global email toggle)
+        Returns True only if:
+        1. User's global slack_notifications_enabled is True (master switch)
+        2. User's per-app slack_enabled is True
         """
+        user = await User.get_or_none(id=user_id)
+        if not user or not user.slack_notifications_enabled:
+            return False
+
         conn = Tortoise.get_connection("default")
         result = await conn.execute_query(
             """

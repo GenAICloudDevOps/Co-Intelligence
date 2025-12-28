@@ -79,6 +79,7 @@ async def enroll_course(course_id: int, background_tasks: BackgroundTasks, curre
     # Per-app notification handling
     from services.notification_prefs import notification_prefs
     from services.in_app_notifications import in_app_notifications
+    from services.slack_notifications import slack_notifications
     app_id = "agentic-lms"
 
     if await notification_prefs.should_send_email(current_user.id, app_id):
@@ -96,6 +97,13 @@ async def enroll_course(course_id: int, background_tasks: BackgroundTasks, curre
             title=f"Enrolled in {course.title}",
             message=f"You're now enrolled in {course.title} ({course.difficulty})",
             link=f"/apps/agentic-lms?course={course.id}",
+        )
+
+    if await notification_prefs.should_send_slack(current_user.id, app_id):
+        background_tasks.add_task(
+            slack_notifications.send_lms_enrollment_notification,
+            course.title,
+            current_user.username,
         )
 
     return {
@@ -137,6 +145,7 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
                     # Per-app notification handling
                     from services.notification_prefs import notification_prefs
                     from services.in_app_notifications import in_app_notifications
+                    from services.slack_notifications import slack_notifications
                     app_id = "agentic-lms"
 
                     if await notification_prefs.should_send_email(current_user.id, app_id):
@@ -154,6 +163,13 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
                             title=f"Enrolled in {course.title}",
                             message=f"You're now enrolled in {course.title} ({course.difficulty})",
                             link=f"/apps/agentic-lms?course={course.id}",
+                        )
+
+                    if await notification_prefs.should_send_slack(current_user.id, app_id):
+                        background_tasks.add_task(
+                            slack_notifications.send_lms_enrollment_notification,
+                            course.title,
+                            current_user.username,
                         )
 
                     enrolled_course = course.title

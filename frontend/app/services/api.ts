@@ -148,9 +148,14 @@ export const authApi = {
   },
 
   async me() {
-    return api.get<{ id: number; username: string; email: string; global_role?: string; email_notifications_enabled?: boolean }>(
-      '/api/auth/me'
-    )
+    return api.get<{
+      id: number
+      username: string
+      email: string
+      global_role?: string
+      email_notifications_enabled?: boolean
+      slack_notifications_enabled?: boolean
+    }>('/api/auth/me')
   },
 
   async logout() {

@@ -46,6 +46,15 @@ async def migrate():
         print("✓ Added email_notifications_enabled to users")
     except Exception as e:
         print(f"⚠ users email_notifications_enabled: {e}")
+
+    # Add Slack notifications preference to users if not exists
+    try:
+        await conn.execute_query(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS slack_notifications_enabled BOOLEAN DEFAULT FALSE"
+        )
+        print("✓ Added slack_notifications_enabled to users")
+    except Exception as e:
+        print(f"⚠ users slack_notifications_enabled: {e}")
     
     await Tortoise.close_connections()
     print("✅ Migration complete")

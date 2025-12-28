@@ -162,6 +162,18 @@ export default function Home() {
     }
   }
 
+  const handleToggleSlackNotifications = async () => {
+    if (!user) return
+    try {
+      await api.put('/api/auth/me/preferences', {
+        slack_notifications_enabled: !user.slack_notifications_enabled,
+      })
+      await refresh()
+    } catch (e: any) {
+      setMessage(e?.message || 'Failed to update Slack notifications')
+    }
+  }
+
   useEffect(() => {
     const updateTime = () => {
       const now = new Date()
@@ -327,6 +339,8 @@ export default function Home() {
                       theme={theme}
                       globalEmailEnabled={!!user?.email_notifications_enabled}
                       onGlobalEmailToggle={handleToggleEmailNotifications}
+                      globalSlackEnabled={!!user?.slack_notifications_enabled}
+                      onGlobalSlackToggle={handleToggleSlackNotifications}
                     />
                   </div>
                 )}

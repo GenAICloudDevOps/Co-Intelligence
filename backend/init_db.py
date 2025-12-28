@@ -58,6 +58,15 @@ async def migrate():
     except Exception as e:
         print(f"email_notifications_enabled column: {e}")
 
+    # Add Slack notifications preference to users table
+    try:
+        await conn.execute_query(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS slack_notifications_enabled BOOLEAN DEFAULT FALSE"
+        )
+        print("✅ Added users.slack_notifications_enabled")
+    except Exception as e:
+        print(f"slack_notifications_enabled column: {e}")
+
     print("✅ Database migrations completed")
 
 async def seed_test_roles():
