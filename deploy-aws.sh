@@ -263,6 +263,10 @@ echo "Deploying fine-tuning worker..."
 sed -e "s|<ACCOUNT_ID>|$ACCOUNT_ID|g" -e "s|<IMAGE_TAG>|$IMAGE_TAG|g" k8s/fine-tuning-worker-deployment.yaml | kubectl apply -f -
 echo "✓ Fine-tuning worker applied"
 
+echo "Deploying notification worker..."
+sed -e "s|<ACCOUNT_ID>|$ACCOUNT_ID|g" -e "s|<IMAGE_TAG>|$IMAGE_TAG|g" k8s/notification-worker-deployment.yaml | kubectl apply -f -
+echo "✓ Notification worker applied"
+
 # Wait for backend LoadBalancer hostname (for frontend API URL)
 echo "Waiting for backend LoadBalancer..."
 BACKEND_LB=""

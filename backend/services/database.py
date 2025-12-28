@@ -184,7 +184,30 @@ async def run_migrations():
             created_at TIMESTAMPTZ DEFAULT NOW()
         )
         """,
-        "CREATE INDEX IF NOT EXISTS in_app_notifications_user_idx ON in_app_notifications(user_id, is_read, created_at DESC)"
+        "CREATE INDEX IF NOT EXISTS in_app_notifications_user_idx ON in_app_notifications(user_id, is_read, created_at DESC)",
+        # Notification delivery outbox (email/slack)
+        """
+        CREATE TABLE IF NOT EXISTS notification_deliveries (
+            id SERIAL PRIMARY KEY,
+            user_id INT REFERENCES users(id) ON DELETE SET NULL,
+            channel VARCHAR(20) NOT NULL,
+            event_type VARCHAR(100) NOT NULL,
+            app_id VARCHAR(50),
+            idempotency_key VARCHAR(255) UNIQUE NOT NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'pending',
+            attempts INTEGER NOT NULL DEFAULT 0,
+            max_attempts INTEGER NOT NULL DEFAULT 5,
+            next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+            last_error TEXT,
+            provider_response TEXT,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            updated_at TIMESTAMPTZ DEFAULT NOW(),
+            sent_at TIMESTAMPTZ
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS notification_deliveries_status_idx ON notification_deliveries(status, next_attempt_at)",
+        "CREATE INDEX IF NOT EXISTS notification_deliveries_user_idx ON notification_deliveries(user_id, created_at DESC)"
     ]
     
     for sql in migrations:

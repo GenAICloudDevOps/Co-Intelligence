@@ -67,6 +67,40 @@ async def migrate():
     except Exception as e:
         print(f"slack_notifications_enabled column: {e}")
 
+    # Notification delivery outbox
+    try:
+        await conn.execute_query(
+            """
+            CREATE TABLE IF NOT EXISTS notification_deliveries (
+                id SERIAL PRIMARY KEY,
+                user_id INT REFERENCES users(id) ON DELETE SET NULL,
+                channel VARCHAR(20) NOT NULL,
+                event_type VARCHAR(100) NOT NULL,
+                app_id VARCHAR(50),
+                idempotency_key VARCHAR(255) UNIQUE NOT NULL,
+                status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                attempts INTEGER NOT NULL DEFAULT 0,
+                max_attempts INTEGER NOT NULL DEFAULT 5,
+                next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+                last_error TEXT,
+                provider_response TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                sent_at TIMESTAMPTZ
+            )
+            """
+        )
+        await conn.execute_query(
+            "CREATE INDEX IF NOT EXISTS notification_deliveries_status_idx ON notification_deliveries(status, next_attempt_at)"
+        )
+        await conn.execute_query(
+            "CREATE INDEX IF NOT EXISTS notification_deliveries_user_idx ON notification_deliveries(user_id, created_at DESC)"
+        )
+        print("✅ Added notification_deliveries")
+    except Exception as e:
+        print(f"notification_deliveries table: {e}")
+
     print("✅ Database migrations completed")
 
 async def seed_test_roles():

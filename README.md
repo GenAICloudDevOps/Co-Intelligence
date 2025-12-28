@@ -238,6 +238,9 @@ See **[rds_login.md](rds_login.md)** for RDS login steps from EKS.
 # Start local environment
 docker-compose up
 
+# Notification delivery runs in a separate worker service.
+# Backend has NOTIFICATION_WORKER_ENABLED=false; worker has it true.
+
 # Backend: http://localhost:8000
 # Frontend: http://localhost:3000
 # API Docs: http://localhost:8000/docs

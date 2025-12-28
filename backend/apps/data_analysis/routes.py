@@ -14,7 +14,7 @@ from auth.models import User
 from auth.utils import get_current_user
 from config import settings
 from services.file_service import validate_file
-from services.email_notifications import email_notifications
+from services.notification_delivery import notification_delivery, build_idempotency_key
 from services.streaming import create_sse_response, sse_event
 from apps.data_analysis.cloud_clients import get_cloud_client, DataAnalysisNotConfigured
 from apps.data_analysis.graph import create_data_analysis_graph
@@ -552,24 +552,40 @@ async def get_run(run_id: int, background_tasks: BackgroundTasks, current_user: 
                     # Import per-app notification services
                     from services.notification_prefs import notification_prefs
                     from services.in_app_notifications import in_app_notifications
-                    from services.slack_notifications import slack_notifications
 
                     app_id = "data-analysis"
                     status_label = "succeeded" if run.status == "succeeded" else "failed"
 
                     # Check per-app email preference
                     if await notification_prefs.should_send_email(current_user.id, app_id):
-                        subject = f"Data analysis pipeline {status_label}"
-                        body = (
-                            f"Hi {current_user.username},\n\n"
-                            f"Your data analysis pipeline has {status_label}.\n"
-                            f"Dataset: {run.dataset.name}\n"
-                            f"Run ID: {run.id}\n"
-                            f"Status: {status_label}\n"
-                            f"Execution: {exec_status}\n\n"
-                            "Thanks,\nCo-Intelligence"
+                        link = ""
+                        if settings.FRONTEND_URL:
+                            link = f"{settings.FRONTEND_URL.rstrip('/')}/apps/data-analysis?dataset={run.dataset_id}"
+                        link_line = f"\nView: {link}" if link else ""
+                        template_data = {
+                            "username": current_user.username,
+                            "dataset_name": run.dataset.name,
+                            "run_id": run.id,
+                            "status_label": status_label,
+                            "execution_status": exec_status,
+                            "source_type": run.dataset.source_type,
+                            "status_color": "#10B981" if status_label == "succeeded" else "#EF4444",
+                            "link_line": link_line,
+                        }
+                        await notification_delivery.enqueue_email(
+                            event_type="data_analysis_run_completed",
+                            app_id=app_id,
+                            user_id=current_user.id,
+                            to_email=current_user.email,
+                            template_data=template_data,
+                            idempotency_key=build_idempotency_key(
+                                "email",
+                                "data_analysis_run_completed",
+                                current_user.id,
+                                run.id,
+                                status_label,
+                            ),
                         )
-                        background_tasks.add_task(email_notifications.send_text_email_safe, current_user.email, subject, body)
 
                     # Check per-app in-app notification preference
                     if await notification_prefs.should_send_in_app(current_user.id, app_id):
@@ -583,12 +599,25 @@ async def get_run(run_id: int, background_tasks: BackgroundTasks, current_user: 
 
                     # Check per-app Slack notification preference
                     if await notification_prefs.should_send_slack(current_user.id, app_id):
-                        slack_status = "completed" if status_label == "succeeded" else "failed"
-                        background_tasks.add_task(
-                            slack_notifications.send_data_analysis_complete_notification,
-                            str(run.id),
-                            run.dataset.source_type,
-                            slack_status,
+                        template_data = {
+                            "dataset_name": run.dataset.name,
+                            "run_id": run.id,
+                            "status_label": status_label,
+                            "source_type": run.dataset.source_type,
+                            "status_color": "#10B981" if status_label == "succeeded" else "#EF4444",
+                        }
+                        await notification_delivery.enqueue_slack(
+                            event_type="data_analysis_run_completed",
+                            app_id=app_id,
+                            user_id=current_user.id,
+                            template_data=template_data,
+                            idempotency_key=build_idempotency_key(
+                                "slack",
+                                "data_analysis_run_completed",
+                                current_user.id,
+                                run.id,
+                                status_label,
+                            ),
                         )
 
                     run.notification_sent = True

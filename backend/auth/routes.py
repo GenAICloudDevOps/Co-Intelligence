@@ -4,6 +4,9 @@ from fastapi import APIRouter, HTTPException, status, Depends, Body, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, EmailStr, validator
 from typing import Optional
+import asyncio
+import json
+import time
 from auth.models import User, RefreshToken, PasswordResetToken
 from auth.utils import (
     get_password_hash,
@@ -342,6 +345,8 @@ async def change_password(payload: PasswordChangeRequest, current_user: User = D
 # Notification Center & Per-App Preferences
 # ─────────────────────────────────────────────────────────────────────────────
 from services.in_app_notifications import in_app_notifications
+from services.notification_events import notification_events
+from services.streaming import create_sse_response, sse_event
 from services.notification_prefs import notification_prefs, NOTIFIABLE_APPS
 from pydantic import Field
 from typing import List
@@ -389,6 +394,14 @@ async def mark_notification_read(
     success = await in_app_notifications.mark_as_read(notification_id, current_user.id)
     if not success:
         raise HTTPException(status_code=404, detail="Notification not found")
+    try:
+        count = await in_app_notifications.get_unread_count(current_user.id)
+        await notification_events.publish(
+            current_user.id,
+            {"event": "unread_count", "unread_count": count},
+        )
+    except Exception:
+        pass
     return {"success": True}
 
 
@@ -396,6 +409,14 @@ async def mark_notification_read(
 async def mark_all_notifications_read(current_user: User = Depends(get_current_user)):
     """Mark all notifications as read."""
     count = await in_app_notifications.mark_all_as_read(current_user.id)
+    try:
+        updated = await in_app_notifications.get_unread_count(current_user.id)
+        await notification_events.publish(
+            current_user.id,
+            {"event": "unread_count", "unread_count": updated},
+        )
+    except Exception:
+        pass
     return {"success": True, "count": count}
 
 
@@ -439,3 +460,98 @@ async def update_notification_preferences(
         "apps": NOTIFIABLE_APPS,
         "preferences": prefs,
     }
+
+
+@router.get("/notifications/stream")
+async def stream_notifications(
+    request: Request,
+    since_id: int = 0,
+    poll_seconds: float = 2.0,
+    current_user: User = Depends(get_current_user),
+):
+    """Stream in-app notifications in real time via SSE."""
+    async def _gen():
+        last_id = max(int(since_id or 0), 0)
+        try:
+            latest = await in_app_notifications.get_user_notifications(current_user.id, limit=1)
+            if latest:
+                last_id = max(last_id, int(latest[0]["id"]))
+        except Exception:
+            pass
+
+        try:
+            unread_count = await in_app_notifications.get_unread_count(current_user.id)
+        except Exception:
+            unread_count = 0
+
+        yield sse_event({"last_id": last_id, "unread_count": unread_count}, event="init")
+
+        pubsub = await notification_events.subscribe_redis(current_user.id)
+        queue = None
+        if pubsub is None:
+            queue = await notification_events.subscribe(current_user.id)
+        try:
+            while True:
+                if await request.is_disconnected():
+                    return
+
+                event_payload = None
+                if pubsub is not None:
+                    try:
+                        message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=poll_seconds)
+                        if message and message.get("type") == "message":
+                            event_payload = json.loads(message.get("data") or "{}")
+                    except Exception:
+                        event_payload = None
+
+                if event_payload is None and queue is not None:
+                    try:
+                        event_payload = await asyncio.wait_for(queue.get(), timeout=poll_seconds)
+                    except asyncio.TimeoutError:
+                        event_payload = None
+
+                if event_payload:
+                    event_type = event_payload.get("event") or "message"
+                    if event_type == "notification":
+                        notification = event_payload.get("notification") or {}
+                        if notification.get("id") is not None:
+                            try:
+                                incoming_id = int(notification["id"])
+                                if incoming_id <= last_id:
+                                    continue
+                                last_id = max(last_id, incoming_id)
+                            except Exception:
+                                pass
+                        yield sse_event({"notification": notification}, event="notification")
+                        continue
+                    if event_type == "unread_count":
+                        yield sse_event({"unread_count": event_payload.get("unread_count", 0)}, event="unread_count")
+                        continue
+                    yield sse_event(event_payload, event=event_type)
+                    continue
+
+                try:
+                    new_items = await in_app_notifications.get_notifications_since(current_user.id, last_id, limit=20)
+                except Exception:
+                    new_items = []
+
+                if new_items:
+                    for item in new_items:
+                        try:
+                            last_id = max(last_id, int(item["id"]))
+                        except Exception:
+                            pass
+                        yield sse_event({"notification": item}, event="notification")
+                else:
+                    yield sse_event({"ts": int(time.time())}, event="heartbeat")
+        finally:
+            if queue is not None:
+                await notification_events.unsubscribe(current_user.id, queue)
+            if pubsub is not None:
+                try:
+                    await pubsub.unsubscribe()
+                    await pubsub.close()
+                except Exception:
+                    pass
+
+    return create_sse_response(_gen())

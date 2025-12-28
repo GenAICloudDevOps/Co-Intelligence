@@ -106,11 +106,81 @@ export default function NotificationBell({ theme }: NotificationBellProps) {
         return date.toLocaleDateString()
     }
 
-    // Fetch unread count on mount and periodically
+    // Fetch unread count on mount
     useEffect(() => {
         fetchUnreadCount()
-        const interval = setInterval(fetchUnreadCount, 30000) // Every 30 seconds
-        return () => clearInterval(interval)
+    }, [])
+
+    useEffect(() => {
+        let eventSource: EventSource | null = null
+        let retryTimer: ReturnType<typeof setTimeout> | null = null
+        let stopped = false
+
+        const connect = () => {
+            if (stopped) return
+            if (eventSource) {
+                eventSource.close()
+            }
+
+            const streamUrl = api.getStreamUrl('/api/auth/notifications/stream')
+            eventSource = new EventSource(streamUrl, { withCredentials: true })
+
+            eventSource.addEventListener('init', (event) => {
+                try {
+                    const data = JSON.parse((event as MessageEvent).data || '{}')
+                    if (typeof data.unread_count === 'number') {
+                        setUnreadCount(data.unread_count)
+                    }
+                } catch {
+                    // ignore
+                }
+            })
+
+            eventSource.addEventListener('notification', (event) => {
+                try {
+                    const data = JSON.parse((event as MessageEvent).data || '{}')
+                    const notification: Notification | undefined = data.notification
+                    if (!notification || !notification.id) return
+                    setNotifications(prev => {
+                        if (prev.some(n => n.id === notification.id)) return prev
+                        const next = [notification, ...prev]
+                        return next.slice(0, 20)
+                    })
+                    if (!notification.is_read) {
+                        setUnreadCount(prev => prev + 1)
+                    }
+                } catch {
+                    // ignore
+                }
+            })
+
+            eventSource.addEventListener('unread_count', (event) => {
+                try {
+                    const data = JSON.parse((event as MessageEvent).data || '{}')
+                    if (typeof data.unread_count === 'number') {
+                        setUnreadCount(data.unread_count)
+                    }
+                } catch {
+                    // ignore
+                }
+            })
+
+            eventSource.onerror = () => {
+                eventSource?.close()
+                eventSource = null
+                fetchUnreadCount()
+                if (stopped) return
+                retryTimer = setTimeout(connect, 5000)
+            }
+        }
+
+        connect()
+
+        return () => {
+            stopped = true
+            if (retryTimer) clearTimeout(retryTimer)
+            if (eventSource) eventSource.close()
+        }
     }, [])
 
     // Fetch full list when dropdown opens

@@ -23,6 +23,9 @@ spec:
         envFrom:
         - secretRef:
             name: app-secrets
+        env:
+        - name: NOTIFICATION_WORKER_ENABLED
+          value: "false"
         resources:
           requests:
             memory: "512Mi"

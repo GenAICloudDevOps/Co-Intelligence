@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-worker
+  template:
+    metadata:
+      labels:
+        app: notification-worker
+    spec:
+      imagePullSecrets:
+      - name: ecr-pull
+      containers:
+      - name: notification-worker
+        image: <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/co-intelligence-backend:<IMAGE_TAG>
+        command: ["python3", "notification_worker.py"]
+        envFrom:
+        - secretRef:
+            name: app-secrets
+        env:
+        - name: NOTIFICATION_WORKER_ENABLED
+          value: "true"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"

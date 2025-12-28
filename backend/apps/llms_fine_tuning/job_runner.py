@@ -9,7 +9,8 @@ from typing import Dict, List, Optional
 
 from apps.llms_fine_tuning.models import FineTuningRun
 from auth.models import User
-from services.email_notifications import email_notifications
+from services.notification_delivery import notification_delivery, build_idempotency_key
+from config import settings
 
 
 @dataclass
@@ -184,7 +185,6 @@ class JobRunner:
         # Import per-app notification services
         from services.notification_prefs import notification_prefs
         from services.in_app_notifications import in_app_notifications
-        from services.slack_notifications import slack_notifications
 
         app_id = "llms-fine-tuning"
         workflow_key = run.job_key.split("-", 1)[0]
@@ -192,26 +192,42 @@ class JobRunner:
         model_name = run.runtime_env.get("MODEL_NAME") or "n/a"
         dataset_path = run.runtime_env.get("DATASET_PATH") or run.runtime_env.get("DATA_FILE") or "n/a"
         status_label = "succeeded" if run.status == "success" else "failed"
+        status_color = "#10B981" if run.status == "success" else "#EF4444"
         end_time = run.end_time.isoformat() + "Z" if run.end_time else datetime.utcnow().isoformat() + "Z"
 
         # Check per-app email preference
         if await notification_prefs.should_send_email(run.user_id, app_id):
-            subject = f"LLM fine-tuning training {status_label}"
-            body = (
-                f"Hi {user.username},\n\n"
-                f"Your fine-tuning training job has {status_label}.\n"
-                f"Workflow: {workflow_label}\n"
-                f"Step: Train\n"
-                f"Job: {run.job_key}\n"
-                f"Run ID: {run.run_id}\n"
-                f"Status: {status_label}\n"
-                f"Model: {model_name}\n"
-                f"Dataset: {dataset_path}\n"
-                f"Exit code: {run.exit_code if run.exit_code is not None else 'n/a'}\n"
-                f"Finished at: {end_time}\n\n"
-                "Thanks,\nCo-Intelligence"
+            link = ""
+            if settings.FRONTEND_URL:
+                link = f"{settings.FRONTEND_URL.rstrip('/')}/apps/llms-fine-tuning?run={run.run_id}"
+            link_line = f"\nView: {link}" if link else ""
+            template_data = {
+                "username": user.username,
+                "workflow_label": workflow_label,
+                "job_key": run.job_key,
+                "run_id": run.run_id,
+                "status_label": status_label,
+                "model_name": model_name,
+                "dataset_path": dataset_path,
+                "exit_code": run.exit_code if run.exit_code is not None else "n/a",
+                "finished_at": end_time,
+                "status_color": status_color,
+                "link_line": link_line,
+            }
+            await notification_delivery.enqueue_email(
+                event_type="fine_tuning_train_completed",
+                app_id=app_id,
+                user_id=run.user_id,
+                to_email=user.email,
+                template_data=template_data,
+                idempotency_key=build_idempotency_key(
+                    "email",
+                    "fine_tuning_train_completed",
+                    run.user_id,
+                    run.run_id,
+                    status_label,
+                ),
             )
-            await asyncio.to_thread(email_notifications.send_text_email_safe, user.email, subject, body)
 
         # Check per-app in-app notification preference
         if await notification_prefs.should_send_in_app(run.user_id, app_id):
@@ -225,11 +241,25 @@ class JobRunner:
 
         # Check per-app Slack notification preference
         if await notification_prefs.should_send_slack(run.user_id, app_id):
-            slack_status = "completed" if run.status == "success" else "failed"
-            await slack_notifications.send_fine_tuning_complete_notification(
-                run_id=run.run_id,
-                model_name=model_name,
-                status=slack_status,
+            template_data = {
+                "workflow_label": workflow_label,
+                "run_id": run.run_id,
+                "status_label": status_label,
+                "model_name": model_name,
+                "status_color": status_color,
+            }
+            await notification_delivery.enqueue_slack(
+                event_type="fine_tuning_train_completed",
+                app_id=app_id,
+                user_id=run.user_id,
+                template_data=template_data,
+                idempotency_key=build_idempotency_key(
+                    "slack",
+                    "fine_tuning_train_completed",
+                    run.user_id,
+                    run.run_id,
+                    status_label,
+                ),
             )
 
         run.notification_sent = True

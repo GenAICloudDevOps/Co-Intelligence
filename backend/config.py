@@ -77,6 +77,9 @@ class Settings(BaseSettings):
     # Slack Notifications (optional)
     SLACK_WEBHOOK_URL: str = ""
 
+    # Notification worker
+    NOTIFICATION_WORKER_ENABLED: bool = True
+
     # Data Analysis (App 8) - AWS pipeline resources
     DATA_ANALYSIS_STATE_MACHINE_ARN: str = ""
     DATA_ANALYSIS_GLUE_DATABASE: str = "co_intelligence_data_analysis"

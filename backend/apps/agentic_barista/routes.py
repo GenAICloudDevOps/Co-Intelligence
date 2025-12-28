@@ -7,7 +7,8 @@ from apps.agentic_barista.models import MenuItem, Order
 from auth.models import User
 from auth.utils import get_current_user_optional
 from services.state_store import state_store
-from services.email_notifications import email_notifications
+from services.notification_delivery import notification_delivery, build_idempotency_key
+from config import settings
 
 router = APIRouter()
 
@@ -87,7 +88,6 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
                 # Import notification services
                 from services.notification_prefs import notification_prefs
                 from services.in_app_notifications import in_app_notifications
-                from services.slack_notifications import slack_notifications
 
                 items_summary = ""
                 for item in (order.items or []):
@@ -102,16 +102,36 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
                             except Exception:
                                 pass
                         items_summary += "\n"
+                items_summary = items_summary.strip()
 
                 app_id = "agentic-barista"
 
                 # Check per-app email preference
                 if await notification_prefs.should_send_email(current_user.id, app_id):
-                    background_tasks.add_task(
-                        email_notifications.send_text_email_safe,
-                        current_user.email,
-                        "Barista order confirmed",
-                        f"Hi {current_user.username},\n\nYour coffee order is confirmed (Order #{order.id}).\n\nItems:\n{items_summary}\nTotal: ${float(order.total):.2f}\n\nThanks,\nCo-Intelligence",
+                    link = ""
+                    if settings.FRONTEND_URL:
+                        link = f"{settings.FRONTEND_URL.rstrip('/')}/apps/agentic-barista?order={order.id}"
+                    link_line = f"\nView: {link}" if link else ""
+                    template_data = {
+                        "username": current_user.username,
+                        "order_id": order.id,
+                        "items_summary": items_summary or "No items",
+                        "total": float(order.total),
+                        "items_count": len(order.items or []),
+                        "link_line": link_line,
+                    }
+                    await notification_delivery.enqueue_email(
+                        event_type="barista_order_confirmed",
+                        app_id=app_id,
+                        user_id=current_user.id,
+                        to_email=current_user.email,
+                        template_data=template_data,
+                        idempotency_key=build_idempotency_key(
+                            "email",
+                            "barista_order_confirmed",
+                            current_user.id,
+                            order.id,
+                        ),
                     )
 
                 # Check per-app in-app notification preference
@@ -126,12 +146,23 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
 
                 # Check per-app Slack notification preference
                 if await notification_prefs.should_send_slack(current_user.id, app_id):
-                    background_tasks.add_task(
-                        slack_notifications.send_barista_order_notification,
-                        order.id,
-                        current_user.username,
-                        float(order.total),
-                        len(order.items or []),
+                    template_data = {
+                        "username": current_user.username,
+                        "order_id": order.id,
+                        "total": float(order.total),
+                        "items_count": len(order.items or []),
+                    }
+                    await notification_delivery.enqueue_slack(
+                        event_type="barista_order_confirmed",
+                        app_id=app_id,
+                        user_id=current_user.id,
+                        template_data=template_data,
+                        idempotency_key=build_idempotency_key(
+                            "slack",
+                            "barista_order_confirmed",
+                            current_user.id,
+                            order.id,
+                        ),
                     )
 
         return {

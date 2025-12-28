@@ -18,6 +18,8 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    environment:
+      - NOTIFICATION_WORKER_ENABLED=false
     depends_on:
       - postgres
     volumes:
@@ -35,6 +37,18 @@ services:
       - ./frontend:/app
       - /app/node_modules
       - /app/.next
+
+  notification-worker:
+    build: ./backend
+    command: ["python", "notification_worker.py"]
+    env_file:
+      - .env
+    environment:
+      - NOTIFICATION_WORKER_ENABLED=true
+    depends_on:
+      - postgres
+    volumes:
+      - ./backend:/app
 
 volumes:
   postgres_data:

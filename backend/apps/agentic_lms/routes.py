@@ -4,7 +4,8 @@ from auth.utils import get_current_user
 from auth.models import User
 from .models import LMSCourse, LMSEnrollment, LMSChatHistory, CourseResponse, EnrollmentResponse, ChatRequest, ChatResponse
 from services.ai_service import ai_service, AIServiceError
-from services.email_notifications import email_notifications
+from services.notification_delivery import notification_delivery, build_idempotency_key
+from config import settings
 import json
 
 router = APIRouter()
@@ -79,15 +80,32 @@ async def enroll_course(course_id: int, background_tasks: BackgroundTasks, curre
     # Per-app notification handling
     from services.notification_prefs import notification_prefs
     from services.in_app_notifications import in_app_notifications
-    from services.slack_notifications import slack_notifications
     app_id = "agentic-lms"
 
     if await notification_prefs.should_send_email(current_user.id, app_id):
-        background_tasks.add_task(
-            email_notifications.send_text_email_safe,
-            current_user.email,
-            "Course enrollment confirmed",
-            f"Hi {current_user.username},\n\nYou're enrolled in: {course.title}\nCategory: {course.category}\nDifficulty: {course.difficulty}\n\nThanks,\nCo-Intelligence",
+        link = ""
+        if settings.FRONTEND_URL:
+            link = f"{settings.FRONTEND_URL.rstrip('/')}/apps/agentic-lms?course={course.id}"
+        link_line = f"\nView: {link}" if link else ""
+        template_data = {
+            "username": current_user.username,
+            "course_title": course.title,
+            "category": course.category,
+            "difficulty": course.difficulty,
+            "link_line": link_line,
+        }
+        await notification_delivery.enqueue_email(
+            event_type="lms_enrollment_confirmed",
+            app_id=app_id,
+            user_id=current_user.id,
+            to_email=current_user.email,
+            template_data=template_data,
+            idempotency_key=build_idempotency_key(
+                "email",
+                "lms_enrollment_confirmed",
+                current_user.id,
+                course.id,
+            ),
         )
 
     if await notification_prefs.should_send_in_app(current_user.id, app_id):
@@ -100,10 +118,22 @@ async def enroll_course(course_id: int, background_tasks: BackgroundTasks, curre
         )
 
     if await notification_prefs.should_send_slack(current_user.id, app_id):
-        background_tasks.add_task(
-            slack_notifications.send_lms_enrollment_notification,
-            course.title,
-            current_user.username,
+        template_data = {
+            "username": current_user.username,
+            "course_title": course.title,
+            "difficulty": course.difficulty,
+        }
+        await notification_delivery.enqueue_slack(
+            event_type="lms_enrollment_confirmed",
+            app_id=app_id,
+            user_id=current_user.id,
+            template_data=template_data,
+            idempotency_key=build_idempotency_key(
+                "slack",
+                "lms_enrollment_confirmed",
+                current_user.id,
+                course.id,
+            ),
         )
 
     return {
@@ -145,15 +175,32 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
                     # Per-app notification handling
                     from services.notification_prefs import notification_prefs
                     from services.in_app_notifications import in_app_notifications
-                    from services.slack_notifications import slack_notifications
                     app_id = "agentic-lms"
 
                     if await notification_prefs.should_send_email(current_user.id, app_id):
-                        background_tasks.add_task(
-                            email_notifications.send_text_email_safe,
-                            current_user.email,
-                            "Course enrollment confirmed",
-                            f"Hi {current_user.username},\n\nYou're enrolled in: {course.title}\nCategory: {course.category}\nDifficulty: {course.difficulty}\n\nThanks,\nCo-Intelligence",
+                        link = ""
+                        if settings.FRONTEND_URL:
+                            link = f"{settings.FRONTEND_URL.rstrip('/')}/apps/agentic-lms?course={course.id}"
+                        link_line = f"\nView: {link}" if link else ""
+                        template_data = {
+                            "username": current_user.username,
+                            "course_title": course.title,
+                            "category": course.category,
+                            "difficulty": course.difficulty,
+                            "link_line": link_line,
+                        }
+                        await notification_delivery.enqueue_email(
+                            event_type="lms_enrollment_confirmed",
+                            app_id=app_id,
+                            user_id=current_user.id,
+                            to_email=current_user.email,
+                            template_data=template_data,
+                            idempotency_key=build_idempotency_key(
+                                "email",
+                                "lms_enrollment_confirmed",
+                                current_user.id,
+                                course.id,
+                            ),
                         )
 
                     if await notification_prefs.should_send_in_app(current_user.id, app_id):
@@ -166,10 +213,22 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, current_
                         )
 
                     if await notification_prefs.should_send_slack(current_user.id, app_id):
-                        background_tasks.add_task(
-                            slack_notifications.send_lms_enrollment_notification,
-                            course.title,
-                            current_user.username,
+                        template_data = {
+                            "username": current_user.username,
+                            "course_title": course.title,
+                            "difficulty": course.difficulty,
+                        }
+                        await notification_delivery.enqueue_slack(
+                            event_type="lms_enrollment_confirmed",
+                            app_id=app_id,
+                            user_id=current_user.id,
+                            template_data=template_data,
+                            idempotency_key=build_idempotency_key(
+                                "slack",
+                                "lms_enrollment_confirmed",
+                                current_user.id,
+                                course.id,
+                            ),
                         )
 
                     enrolled_course = course.title

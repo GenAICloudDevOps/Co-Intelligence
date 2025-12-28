@@ -2,7 +2,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
+import asyncio
 from config import settings
 from core.logging import configure_logging
 from core.logging import REQUEST_ID_HEADER
@@ -11,6 +12,7 @@ from middleware.request_context import get_request_id
 # Import centralized services
 from services.database import init_db, run_migrations, close_db
 from services.ai_service import AIServiceError
+from services.notification_delivery import notification_delivery_worker
 
 # Import middleware
 from middleware.logging import RequestLoggingMiddleware
@@ -29,6 +31,7 @@ load_apps()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("=== LIFESPAN START ===")
+    delivery_task: asyncio.Task | None = None
     try:
 
         # Initialize database using centralized service
@@ -45,6 +48,10 @@ async def lifespan(app: FastAPI):
         print("Initializing apps...")
         await registry.initialize_apps()
         print("✓ Apps initialized")
+
+        # Start notification delivery worker (email/slack outbox)
+        if settings.NOTIFICATION_WORKER_ENABLED:
+            delivery_task = asyncio.create_task(notification_delivery_worker.run())
         print("=== LIFESPAN READY ===")
     except Exception as e:
         print(f"ERROR during lifespan startup: {e}")
@@ -56,6 +63,11 @@ async def lifespan(app: FastAPI):
     
     print("=== LIFESPAN SHUTDOWN ===")
     try:
+        if delivery_task:
+            notification_delivery_worker.stop()
+            delivery_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await delivery_task
         await close_db()
         print("✓ Connections closed")
     except Exception as e:

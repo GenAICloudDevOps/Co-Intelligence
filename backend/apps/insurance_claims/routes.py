@@ -11,7 +11,8 @@ from .schemas import (
 )
 from .workflow import can_transition_status
 from services.ai_service import ai_service
-from services.email_notifications import email_notifications
+from services.notification_delivery import notification_delivery, build_idempotency_key
+from config import settings
 import uuid
 import os
 
@@ -51,15 +52,34 @@ async def create_policy(
     # Per-app notification handling
     from services.notification_prefs import notification_prefs
     from services.in_app_notifications import in_app_notifications
-    from services.slack_notifications import slack_notifications
     app_id = "insurance-claims"
 
     if await notification_prefs.should_send_email(current_user.id, app_id):
-        background_tasks.add_task(
-            email_notifications.send_text_email_safe,
-            current_user.email,
-            "Insurance policy created",
-            f"Hi {current_user.username},\n\nYour policy has been created:\nPolicy Number: {policy_number}\nVehicle: {policy.vehicle_year} {policy.vehicle_make} {policy.vehicle_model}\nCoverage: ${policy.coverage_amount:,.0f}\n\nThanks,\nCo-Intelligence",
+        link = ""
+        if settings.FRONTEND_URL:
+            link = f"{settings.FRONTEND_URL.rstrip('/')}/apps/insurance-claims?tab=policies"
+        link_line = f"\nView: {link}" if link else ""
+        template_data = {
+            "username": current_user.username,
+            "policy_number": policy_number,
+            "vehicle_year": policy.vehicle_year,
+            "vehicle_make": policy.vehicle_make,
+            "vehicle_model": policy.vehicle_model,
+            "coverage_amount": float(policy.coverage_amount),
+            "link_line": link_line,
+        }
+        await notification_delivery.enqueue_email(
+            event_type="insurance_policy_created",
+            app_id=app_id,
+            user_id=current_user.id,
+            to_email=current_user.email,
+            template_data=template_data,
+            idempotency_key=build_idempotency_key(
+                "email",
+                "insurance_policy_created",
+                current_user.id,
+                new_policy.id,
+            ),
         )
 
     if await notification_prefs.should_send_in_app(current_user.id, app_id):
@@ -72,19 +92,25 @@ async def create_policy(
         )
 
     if await notification_prefs.should_send_slack(current_user.id, app_id):
-        coverage_amount = float(policy.coverage_amount)
-        slack_message = (
-            "🛡️ New policy created!\n\n"
-            f"*Policy:* {policy_number}\n"
-            f"*Customer:* {current_user.username}\n"
-            f"*Vehicle:* {policy.vehicle_year} {policy.vehicle_make} {policy.vehicle_model}\n"
-            f"*Coverage:* ${coverage_amount:,.0f}"
-        )
-        background_tasks.add_task(
-            slack_notifications.send_notification,
-            slack_message,
-            "Insurance Claims - Policy Created",
-            "#10B981",
+        template_data = {
+            "username": current_user.username,
+            "policy_number": policy_number,
+            "vehicle_year": policy.vehicle_year,
+            "vehicle_make": policy.vehicle_make,
+            "vehicle_model": policy.vehicle_model,
+            "coverage_amount": float(policy.coverage_amount),
+        }
+        await notification_delivery.enqueue_slack(
+            event_type="insurance_policy_created",
+            app_id=app_id,
+            user_id=current_user.id,
+            template_data=template_data,
+            idempotency_key=build_idempotency_key(
+                "slack",
+                "insurance_policy_created",
+                current_user.id,
+                new_policy.id,
+            ),
         )
 
     return PolicyResponse(**new_policy.__dict__)
@@ -123,17 +149,35 @@ async def create_claim(
     # Per-app notification handling for the policy owner
     from services.notification_prefs import notification_prefs
     from services.in_app_notifications import in_app_notifications
-    from services.slack_notifications import slack_notifications
     app_id = "insurance-claims"
     recipient = current_user if policy.customer_id == current_user.id else await User.get_or_none(id=policy.customer_id)
 
     if recipient:
         if await notification_prefs.should_send_email(recipient.id, app_id):
-            background_tasks.add_task(
-                email_notifications.send_text_email_safe,
-                recipient.email,
-                "Insurance claim filed",
-                f"Hi {recipient.username},\n\nYour claim has been filed:\nClaim Number: {claim_number}\nPolicy ID: {claim.policy_id}\nLocation: {claim.incident_location}\n\nThanks,\nCo-Intelligence",
+            link = ""
+            if settings.FRONTEND_URL:
+                link = f"{settings.FRONTEND_URL.rstrip('/')}/apps/insurance-claims?tab=claims"
+            link_line = f"\nView: {link}" if link else ""
+            template_data = {
+                "username": recipient.username,
+                "claim_number": claim_number,
+                "policy_number": policy.policy_number,
+                "incident_location": claim.incident_location,
+                "incident_description": claim.incident_description,
+                "link_line": link_line,
+            }
+            await notification_delivery.enqueue_email(
+                event_type="insurance_claim_filed",
+                app_id=app_id,
+                user_id=recipient.id,
+                to_email=recipient.email,
+                template_data=template_data,
+                idempotency_key=build_idempotency_key(
+                    "email",
+                    "insurance_claim_filed",
+                    recipient.id,
+                    new_claim.id,
+                ),
             )
 
         if await notification_prefs.should_send_in_app(recipient.id, app_id):
@@ -146,19 +190,23 @@ async def create_claim(
             )
 
         if await notification_prefs.should_send_slack(recipient.id, app_id):
-            slack_message = (
-                "🚗 New claim filed!\n\n"
-                f"*Claim:* {claim_number}\n"
-                f"*Policy:* {policy.policy_number}\n"
-                f"*Customer:* {recipient.username}\n"
-                f"*Location:* {claim.incident_location}\n"
-                f"*Incident:* {claim.incident_description}"
-            )
-            background_tasks.add_task(
-                slack_notifications.send_notification,
-                slack_message,
-                "Insurance Claims - Claim Filed",
-                "#EF4444",
+            template_data = {
+                "username": recipient.username,
+                "claim_number": claim_number,
+                "policy_number": policy.policy_number,
+                "incident_location": claim.incident_location,
+            }
+            await notification_delivery.enqueue_slack(
+                event_type="insurance_claim_filed",
+                app_id=app_id,
+                user_id=recipient.id,
+                template_data=template_data,
+                idempotency_key=build_idempotency_key(
+                    "slack",
+                    "insurance_claim_filed",
+                    recipient.id,
+                    new_claim.id,
+                ),
             )
 
     return ClaimResponse(**new_claim.__dict__)
