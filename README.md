@@ -114,6 +114,7 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 
 - 🔐 **Secure Authentication** - Cookie-based (httpOnly access/refresh), rotation, and RBAC
 - ✉️ **Email Notifications (Opt-in)** - Toggle in landing page user menu; uses Gmail app password (`GMAIL_SMTP_USER`, `GMAIL_SMTP_APP_PASSWORD`)
+- 💬 **Slack Notifications (Opt-in)** - Set `SLACK_WEBHOOK_URL` and enable the master + per-app toggles in the user menu
 - 🎙️ **Voice Input (STT)** - Optional mic input in supported apps (browser speech-to-text)
 - 👤 **User Profile Header** - Reusable AppHeader component with logout functionality
 - 📊 **Evaluation Dashboard** - Auth-gated eval summary with metrics, issues, safety and model usage
