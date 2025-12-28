@@ -6,7 +6,7 @@ import { api } from '../services/api'
 interface NotificationPreferences {
     global_email_enabled: boolean
     apps: string[]
-    preferences: Record<string, { email_enabled: boolean; in_app_enabled: boolean }>
+    preferences: Record<string, { email_enabled: boolean; in_app_enabled: boolean; slack_enabled: boolean }>
 }
 
 interface NotificationPreferencesProps {
@@ -36,7 +36,6 @@ export default function NotificationPreferences({ theme, onGlobalEmailToggle, gl
     const [prefs, setPrefs] = useState<NotificationPreferences | null>(null)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
-    const [expanded, setExpanded] = useState(false)
 
     const fetchPrefs = async () => {
         try {
@@ -49,10 +48,10 @@ export default function NotificationPreferences({ theme, onGlobalEmailToggle, gl
         }
     }
 
-    const updatePref = async (appId: string, field: 'email_enabled' | 'in_app_enabled', value: boolean) => {
+    const updatePref = async (appId: string, field: 'email_enabled' | 'in_app_enabled' | 'slack_enabled', value: boolean) => {
         if (!prefs) return
 
-        const currentPref = prefs.preferences[appId] || { email_enabled: false, in_app_enabled: false }
+        const currentPref = prefs.preferences[appId] || { email_enabled: false, in_app_enabled: false, slack_enabled: false }
         const updatedPref = { ...currentPref, [field]: value }
 
         // Optimistic update
@@ -95,48 +94,24 @@ export default function NotificationPreferences({ theme, onGlobalEmailToggle, gl
 
     return (
         <div style={{ fontSize: '0.85rem', color: theme.mutedText }}>
-            {/* Global Email Toggle (Master Switch) */}
-            <div style={{ paddingTop: '8px', borderTop: `1px solid ${theme.border}`, marginBottom: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-                    <div>
-                        <div style={{ fontWeight: 'bold', color: 'white', marginBottom: '4px' }}>Email Notifications</div>
-                        <div style={{ fontSize: '0.75rem', color: theme.softText }}>Master switch</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(400px, 1fr) 280px', gap: '24px', alignItems: 'start' }}>
+                {/* Left Column: Per-App Settings */}
+                <div>
+                    <div style={{
+                        fontWeight: 'bold',
+                        color: 'white',
+                        marginBottom: '12px',
+                        paddingBottom: '8px',
+                        borderBottom: `1px solid ${theme.border}`
+                    }}>
+                        Per-App Settings
                     </div>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                        <input
-                            type="checkbox"
-                            checked={globalEmailEnabled}
-                            onChange={onGlobalEmailToggle}
-                        />
-                        <span style={{ color: 'white' }}>{globalEmailEnabled ? 'On' : 'Off'}</span>
-                    </label>
-                </div>
-            </div>
 
-            {/* Per-App Section Header */}
-            <div
-                onClick={() => setExpanded(!expanded)}
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px 0',
-                    cursor: 'pointer',
-                    borderTop: `1px solid ${theme.border}`,
-                }}
-            >
-                <div style={{ fontWeight: 'bold', color: 'white' }}>Per-App Settings</div>
-                <span style={{ color: theme.softText }}>{expanded ? '▼' : '▶'}</span>
-            </div>
-
-            {/* Per-App Toggles */}
-            {expanded && (
-                <div style={{ paddingTop: '4px' }}>
                     {/* Header Row */}
                     <div
                         style={{
                             display: 'grid',
-                            gridTemplateColumns: '1fr 50px 50px',
+                            gridTemplateColumns: '1fr 60px 60px 60px',
                             gap: '8px',
                             marginBottom: '8px',
                             fontSize: '0.75rem',
@@ -146,28 +121,29 @@ export default function NotificationPreferences({ theme, onGlobalEmailToggle, gl
                         <div>App</div>
                         <div style={{ textAlign: 'center' }}>Email</div>
                         <div style={{ textAlign: 'center' }}>In-App</div>
+                        <div style={{ textAlign: 'center' }}>Slack</div>
                     </div>
 
                     {/* App Rows */}
                     {prefs.apps.map((appId) => {
                         const appInfo = APP_LABELS[appId] || { icon: '📬', name: appId }
-                        const appPrefs = prefs.preferences[appId] || { email_enabled: false, in_app_enabled: false }
+                        const appPrefs = prefs.preferences[appId] || { email_enabled: false, in_app_enabled: false, slack_enabled: false }
 
                         return (
                             <div
                                 key={appId}
                                 style={{
                                     display: 'grid',
-                                    gridTemplateColumns: '1fr 50px 50px',
+                                    gridTemplateColumns: '1fr 60px 60px 60px',
                                     gap: '8px',
                                     alignItems: 'center',
-                                    padding: '6px 0',
+                                    padding: '8px 0',
                                     borderTop: `1px solid ${theme.border}`,
                                 }}
                             >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'white' }}>
-                                    <span>{appInfo.icon}</span>
-                                    <span style={{ fontSize: '0.8rem' }}>{appInfo.name}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'white' }}>
+                                    <span style={{ fontSize: '1.2em' }}>{appInfo.icon}</span>
+                                    <span style={{ fontSize: '0.85rem' }}>{appInfo.name}</span>
                                 </div>
                                 <div style={{ textAlign: 'center' }}>
                                     <input
@@ -188,16 +164,47 @@ export default function NotificationPreferences({ theme, onGlobalEmailToggle, gl
                                         style={{ cursor: saving ? 'not-allowed' : 'pointer' }}
                                     />
                                 </div>
+                                <div style={{ textAlign: 'center' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={appPrefs.slack_enabled}
+                                        onChange={(e) => updatePref(appId, 'slack_enabled', e.target.checked)}
+                                        disabled={saving}
+                                        style={{ cursor: saving ? 'not-allowed' : 'pointer' }}
+                                    />
+                                </div>
                             </div>
                         )
                     })}
+                </div>
 
-                    {/* Helper text */}
-                    <div style={{ marginTop: '8px', fontSize: '0.7rem', color: theme.softText, fontStyle: 'italic' }}>
-                        Email requires master toggle. In-app works independently.
+                {/* Right Column: Global Email Switch */}
+                <div style={{
+                    padding: '16px',
+                    background: theme.panelAltBg,
+                    borderRadius: '8px',
+                    border: `1px solid ${theme.border}`
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <div style={{ fontWeight: 'bold', color: 'white' }}>Email Notifications</div>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                            <input
+                                type="checkbox"
+                                checked={globalEmailEnabled}
+                                onChange={onGlobalEmailToggle}
+                            />
+                            <span style={{ color: 'white' }}>{globalEmailEnabled ? 'On' : 'Off'}</span>
+                        </label>
+                    </div>
+
+                    <div style={{ fontSize: '0.75rem', color: theme.softText, lineHeight: '1.4' }}>
+                        <div>Master switch controls email delivery across all apps.</div>
+                        <div style={{ marginTop: '12px', fontStyle: 'italic', opacity: 0.8 }}>
+                            Note: Slack and In-App notifications work independently of this switch.
+                        </div>
                     </div>
                 </div>
-            )}
+            </div>
         </div>
     )
 }

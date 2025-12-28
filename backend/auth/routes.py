@@ -322,6 +322,7 @@ class NotificationPrefItem(BaseModel):
     app_id: str
     email_enabled: bool
     in_app_enabled: bool
+    slack_enabled: bool = False
 
 
 class NotificationPrefsUpdatePayload(BaseModel):
@@ -393,6 +394,7 @@ async def update_notification_preferences(
                 app_id=pref.app_id,
                 email_enabled=pref.email_enabled,
                 in_app_enabled=pref.in_app_enabled,
+                slack_enabled=pref.slack_enabled,
             )
     # Return updated preferences
     prefs = await notification_prefs.get_user_prefs(current_user.id)

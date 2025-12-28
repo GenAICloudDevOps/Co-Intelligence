@@ -19,13 +19,13 @@ class NotificationPrefsService:
     async def get_user_prefs(self, user_id: int) -> dict[str, dict]:
         """
         Get all notification preferences for a user.
-        Returns dict: {app_id: {email_enabled: bool, in_app_enabled: bool}}
+        Returns dict: {app_id: {email_enabled: bool, in_app_enabled: bool, slack_enabled: bool}}
         Apps without preferences default to False (explicit opt-in required).
         """
         conn = Tortoise.get_connection("default")
         result = await conn.execute_query(
             """
-            SELECT app_id, email_enabled, in_app_enabled
+            SELECT app_id, email_enabled, in_app_enabled, slack_enabled
             FROM user_app_notification_prefs
             WHERE user_id = $1
             """,
@@ -36,11 +36,12 @@ class NotificationPrefsService:
             prefs[row["app_id"]] = {
                 "email_enabled": row["email_enabled"],
                 "in_app_enabled": row["in_app_enabled"],
+                "slack_enabled": row.get("slack_enabled", False),
             }
         # Fill in defaults for apps without preferences
         for app_id in NOTIFIABLE_APPS:
             if app_id not in prefs:
-                prefs[app_id] = {"email_enabled": False, "in_app_enabled": False}
+                prefs[app_id] = {"email_enabled": False, "in_app_enabled": False, "slack_enabled": False}
         return prefs
 
     async def update_user_pref(
@@ -49,17 +50,18 @@ class NotificationPrefsService:
         app_id: str,
         email_enabled: bool,
         in_app_enabled: bool,
+        slack_enabled: bool = False,
     ) -> None:
         """Update or create a preference for a specific app."""
         conn = Tortoise.get_connection("default")
         await conn.execute_query(
             """
-            INSERT INTO user_app_notification_prefs (user_id, app_id, email_enabled, in_app_enabled, created_at)
-            VALUES ($1, $2, $3, $4, NOW())
+            INSERT INTO user_app_notification_prefs (user_id, app_id, email_enabled, in_app_enabled, slack_enabled, created_at)
+            VALUES ($1, $2, $3, $4, $5, NOW())
             ON CONFLICT (user_id, app_id)
-            DO UPDATE SET email_enabled = $3, in_app_enabled = $4
+            DO UPDATE SET email_enabled = $3, in_app_enabled = $4, slack_enabled = $5
             """,
-            [user_id, app_id, email_enabled, in_app_enabled],
+            [user_id, app_id, email_enabled, in_app_enabled, slack_enabled],
         )
 
     async def should_send_email(self, user_id: int, app_id: str) -> bool:
@@ -104,6 +106,24 @@ class NotificationPrefsService:
         if not result[1]:
             return False  # No preference means not opted in
         return result[1][0]["in_app_enabled"]
+
+    async def should_send_slack(self, user_id: int, app_id: str) -> bool:
+        """
+        Check if Slack notification should be sent.
+        Returns True only if user's per-app slack_enabled is True.
+        (Slack notifications are independent of global email toggle)
+        """
+        conn = Tortoise.get_connection("default")
+        result = await conn.execute_query(
+            """
+            SELECT slack_enabled FROM user_app_notification_prefs
+            WHERE user_id = $1 AND app_id = $2
+            """,
+            [user_id, app_id],
+        )
+        if not result[1]:
+            return False  # No preference means not opted in
+        return result[1][0].get("slack_enabled", False)
 
 
 notification_prefs = NotificationPrefsService()

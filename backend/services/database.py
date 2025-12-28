@@ -163,10 +163,13 @@ async def run_migrations():
             app_id VARCHAR(50) NOT NULL,
             email_enabled BOOLEAN DEFAULT FALSE,
             in_app_enabled BOOLEAN DEFAULT FALSE,
+            slack_enabled BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMPTZ DEFAULT NOW(),
             UNIQUE(user_id, app_id)
         )
         """,
+        # Add slack_enabled to existing user_app_notification_prefs tables
+        "ALTER TABLE user_app_notification_prefs ADD COLUMN IF NOT EXISTS slack_enabled BOOLEAN DEFAULT FALSE",
         # In-app notifications
         """
         CREATE TABLE IF NOT EXISTS in_app_notifications (

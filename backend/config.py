@@ -74,6 +74,9 @@ class Settings(BaseSettings):
     GMAIL_SMTP_APP_PASSWORD: str = ""
     GMAIL_SMTP_FROM_NAME: str = "Co-Intelligence"
 
+    # Slack Notifications (optional)
+    SLACK_WEBHOOK_URL: str = ""
+
     # Data Analysis (App 8) - AWS pipeline resources
     DATA_ANALYSIS_STATE_MACHINE_ARN: str = ""
     DATA_ANALYSIS_GLUE_DATABASE: str = "co_intelligence_data_analysis"
