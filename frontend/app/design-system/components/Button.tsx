@@ -5,6 +5,8 @@ interface ButtonProps {
   variant?: 'primary' | 'secondary' | 'danger'
   size?: 'sm' | 'md' | 'lg'
   fullWidth?: boolean
+  type?: 'button' | 'submit' | 'reset'
+  style?: React.CSSProperties
 }
 
 export default function Button({
@@ -13,7 +15,9 @@ export default function Button({
   disabled = false,
   variant = 'primary',
   size = 'md',
-  fullWidth = false
+  fullWidth = false,
+  type = 'button',
+  style: customStyle
 }: ButtonProps) {
   const variants = {
     primary: {
@@ -47,6 +51,7 @@ export default function Button({
   
   return (
     <button
+      type={type}
       onClick={onClick}
       disabled={disabled}
       style={{
@@ -69,7 +74,8 @@ export default function Button({
         textTransform: 'uppercase',
         letterSpacing: '0.5px',
         position: 'relative',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        ...customStyle
       }}
       onMouseEnter={(e) => {
         if (!disabled) {
