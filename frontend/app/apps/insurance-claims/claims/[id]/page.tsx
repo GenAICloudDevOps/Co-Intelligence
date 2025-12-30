@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import AppHeader from '../../../../design-system/components/AppHeader'
+import Card from '../../../../design-system/components/Card'
+import Button from '../../../../design-system/components/Button'
 import { api } from '../../../../services/api'
 import { useAuth } from '../../../../hooks/useAuth'
 
@@ -92,7 +95,7 @@ export default function ClaimDetail() {
 
   if (initializing || loading) {
     return (
-      <div style={{ minHeight: '100vh', background: '#0f172a', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0a0f1e 0%, #1a1042 100%)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div>Loading...</div>
       </div>
     )
@@ -100,7 +103,7 @@ export default function ClaimDetail() {
 
   if (!claim) {
     return (
-      <div style={{ minHeight: '100vh', background: '#0f172a', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0a0f1e 0%, #1a1042 100%)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div>Claim not found</div>
       </div>
     )
@@ -109,27 +112,23 @@ export default function ClaimDetail() {
   const availableStatuses = getAvailableStatuses()
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0f172a', color: 'white' }}>
-      <header style={{ padding: '20px 40px', borderBottom: '1px solid #334155', background: '#1e293b' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ fontSize: '1.8rem' }}>Claim Details</h1>
-          <button
-            onClick={() => router.push('/apps/insurance-claims')}
-            style={{ padding: '10px 20px', background: '#334155', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer' }}
-          >
-            ← Back
-          </button>
-        </div>
-      </header>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0a0f1e 0%, #1a1042 100%)', color: 'white' }}>
+      <AppHeader appName="Claim Details" />
 
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px' }}>
+        <div style={{ marginBottom: '24px' }}>
+          <Button variant="secondary" size="sm" onClick={() => router.push('/apps/insurance-claims')}>
+            ← Back to Dashboard
+          </Button>
+        </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
           {/* Main Info */}
-          <div style={{ background: '#1e293b', borderRadius: '12px', padding: '32px', border: '1px solid #334155' }}>
+          <Card padding="lg">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '24px' }}>
               <div>
-                <h2 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>{claim.claim_number}</h2>
-                <div style={{ fontSize: '0.9rem', color: '#94a3b8' }}>
+                <h2 style={{ fontSize: '1.5rem', marginBottom: '8px', color: 'white' }}>{claim.claim_number}</h2>
+                <div style={{ fontSize: '0.9rem', color: '#c7d2fe' }}>
                   Filed: {new Date(claim.created_at).toLocaleDateString()}
                 </div>
               </div>
@@ -139,7 +138,8 @@ export default function ClaimDetail() {
                   background: getStatusColor(claim.status),
                   borderRadius: '12px',
                   fontSize: '0.85rem',
-                  fontWeight: '600'
+                  fontWeight: '600',
+                  color: 'white'
                 }}
               >
                 {claim.status.replace('_', ' ').toUpperCase()}
@@ -147,47 +147,47 @@ export default function ClaimDetail() {
             </div>
 
             <div style={{ marginBottom: '24px' }}>
-              <h3 style={{ fontSize: '1.1rem', marginBottom: '12px', color: '#94a3b8' }}>Incident Details</h3>
-              <div style={{ marginBottom: '12px' }}>
+              <h3 style={{ fontSize: '1.1rem', marginBottom: '12px', color: '#c7d2fe' }}>Incident Details</h3>
+              <div style={{ marginBottom: '12px', color: 'white' }}>
                 <strong>Date:</strong> {new Date(claim.incident_date).toLocaleString()}
               </div>
-              <div style={{ marginBottom: '12px' }}>
+              <div style={{ marginBottom: '12px', color: 'white' }}>
                 <strong>Location:</strong> {claim.incident_location}
               </div>
-              <div>
+              <div style={{ color: 'white' }}>
                 <strong>Description:</strong>
-                <p style={{ marginTop: '8px', color: '#94a3b8', lineHeight: '1.6' }}>
+                <p style={{ marginTop: '8px', color: '#c7d2fe', lineHeight: '1.6' }}>
                   {claim.incident_description}
                 </p>
               </div>
             </div>
 
             {claim.estimated_damage && (
-              <div style={{ marginBottom: '12px', padding: '12px', background: '#0f172a', borderRadius: '6px' }}>
+              <div style={{ marginBottom: '12px', padding: '12px', background: 'rgba(15, 23, 42, 0.8)', borderRadius: '10px', color: 'white' }}>
                 <strong>Estimated Damage:</strong> ${claim.estimated_damage.toLocaleString()}
               </div>
             )}
 
             {claim.approved_amount && (
-              <div style={{ padding: '12px', background: '#10b98120', border: '1px solid #10b981', borderRadius: '6px', color: '#10b981' }}>
+              <div style={{ padding: '12px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid #10b981', borderRadius: '10px', color: '#10b981' }}>
                 <strong>Approved Amount:</strong> ${claim.approved_amount.toLocaleString()}
               </div>
             )}
-          </div>
+          </Card>
 
           {/* Actions Panel */}
-          <div style={{ background: '#1e293b', borderRadius: '12px', padding: '32px', border: '1px solid #334155' }}>
-            <h3 style={{ fontSize: '1.2rem', marginBottom: '20px' }}>Actions</h3>
+          <Card padding="lg">
+            <h3 style={{ fontSize: '1.2rem', marginBottom: '20px', color: 'white' }}>Actions</h3>
 
             {availableStatuses.length > 0 && (
               <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#94a3b8' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#c7d2fe' }}>
                   Update Status
                 </label>
                 <select
                   value={newStatus}
                   onChange={(e) => setNewStatus(e.target.value)}
-                  style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', marginBottom: '12px' }}
+                  style={{ width: '100%', padding: '10px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '10px', color: 'white', marginBottom: '12px', outline: 'none' }}
                 >
                   <option value={claim.status}>{claim.status.replace('_', ' ')}</option>
                   {availableStatuses.map((status: string) => (
@@ -201,7 +201,7 @@ export default function ClaimDetail() {
                   <select
                     value={assignedAdjusterId}
                     onChange={(e) => setAssignedAdjusterId(e.target.value)}
-                    style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', marginBottom: '12px' }}
+                    style={{ width: '100%', padding: '10px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '10px', color: 'white', marginBottom: '12px', outline: 'none' }}
                   >
                     <option value="">Select Adjuster</option>
                     {adjusters.map((adj) => (
@@ -216,26 +216,27 @@ export default function ClaimDetail() {
                     placeholder="Approved Amount"
                     value={approvedAmount}
                     onChange={(e) => setApprovedAmount(e.target.value)}
-                    style={{ width: '100%', padding: '10px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', marginBottom: '12px' }}
+                    style={{ width: '100%', padding: '10px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '10px', color: 'white', marginBottom: '12px', outline: 'none' }}
                   />
                 )}
 
-                <button
+                <Button
+                  variant="primary"
                   onClick={handleUpdateStatus}
                   disabled={updating || newStatus === claim.status}
-                  style={{ width: '100%', padding: '12px', background: updating || newStatus === claim.status ? '#475569' : '#6366f1', border: 'none', borderRadius: '6px', color: 'white', cursor: updating || newStatus === claim.status ? 'not-allowed' : 'pointer', fontWeight: '600' }}
+                  style={{ width: '100%' }}
                 >
                   {updating ? 'Updating...' : 'Update Status'}
-                </button>
+                </Button>
               </div>
             )}
 
             {availableStatuses.length === 0 && (
-              <div style={{ padding: '16px', background: '#0f172a', borderRadius: '6px', color: '#94a3b8', textAlign: 'center' }}>
+              <div style={{ padding: '16px', background: 'rgba(15, 23, 42, 0.8)', borderRadius: '10px', color: '#c7d2fe', textAlign: 'center' }}>
                 No actions available
               </div>
             )}
-          </div>
+          </Card>
         </div>
       </div>
     </div>

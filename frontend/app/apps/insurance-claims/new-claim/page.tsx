@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import AppHeader from '../../../design-system/components/AppHeader'
+import Card from '../../../design-system/components/Card'
+import Button from '../../../design-system/components/Button'
+import Modal from '../../../design-system/components/Modal'
 import { api } from '../../../services/api'
 import { useAuth } from '../../../hooks/useAuth'
 import { useModel } from '../../../components/ModelProvider'
@@ -104,7 +108,7 @@ export default function NewClaim() {
 
   if (initializing || checkingPolicies) {
     return (
-      <div style={{ minHeight: '100vh', background: '#0f172a', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0a0f1e 0%, #1a1042 100%)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div>Loading...</div>
       </div>
     )
@@ -112,56 +116,48 @@ export default function NewClaim() {
 
   if (policies.length === 0) {
     return (
-      <div style={{ minHeight: '100vh', background: '#0f172a', color: 'white' }}>
-        <header style={{ padding: '20px 40px', borderBottom: '1px solid #334155', background: '#1e293b' }}>
-          <h1 style={{ fontSize: '1.8rem' }}>📝 File New Claim</h1>
-        </header>
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0a0f1e 0%, #1a1042 100%)', color: 'white' }}>
+        <AppHeader appName="File New Claim" />
 
         <div style={{ maxWidth: '800px', margin: '0 auto', padding: '40px' }}>
-          <div style={{ textAlign: 'center', padding: '60px', background: '#1e293b', borderRadius: '12px', border: '1px solid #334155' }}>
-            <div style={{ fontSize: '4rem', marginBottom: '20px' }}>🚗</div>
-            <h2 style={{ fontSize: '1.5rem', marginBottom: '16px' }}>No Insurance Policy Found</h2>
-            <p style={{ color: '#94a3b8', fontSize: '1.1rem', marginBottom: '30px', lineHeight: '1.6' }}>
-              You need to purchase an insurance policy before filing a claim.
-            </p>
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-              <button
-                onClick={() => router.push('/apps/insurance-claims/buy-policy')}
-                style={{ padding: '14px 28px', background: '#06b6d4', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600', fontSize: '1rem' }}
-              >
-                🛒 Buy Policy
-              </button>
-              <button
-                onClick={() => router.push('/apps/insurance-claims')}
-                style={{ padding: '14px 28px', background: '#334155', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontSize: '1rem' }}
-              >
-                ← Back to Dashboard
-              </button>
+          <Card padding="lg">
+            <div style={{ textAlign: 'center', padding: '40px' }}>
+              <div style={{ fontSize: '4rem', marginBottom: '20px' }}>🚗</div>
+              <h2 style={{ fontSize: '1.5rem', marginBottom: '16px', color: 'white' }}>No Insurance Policy Found</h2>
+              <p style={{ color: '#c7d2fe', fontSize: '1.1rem', marginBottom: '30px', lineHeight: '1.6' }}>
+                You need to purchase an insurance policy before filing a claim.
+              </p>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                <Button variant="primary" onClick={() => router.push('/apps/insurance-claims/buy-policy')}>
+                  🛒 Buy Policy
+                </Button>
+                <Button variant="secondary" onClick={() => router.push('/apps/insurance-claims')}>
+                  ← Back to Dashboard
+                </Button>
+              </div>
             </div>
-          </div>
+          </Card>
         </div>
       </div>
     )
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0f172a', color: 'white' }}>
-      <header style={{ padding: '20px 40px', borderBottom: '1px solid #334155', background: '#1e293b' }}>
-        <h1 style={{ fontSize: '1.8rem' }}>📝 File New Claim</h1>
-      </header>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0a0f1e 0%, #1a1042 100%)', color: 'white' }}>
+      <AppHeader appName="File New Claim" />
 
       <div style={{ maxWidth: '800px', margin: '0 auto', padding: '40px' }}>
-        <div style={{ background: '#1e293b', borderRadius: '12px', padding: '40px', border: '1px solid #334155' }}>
+        <Card padding="lg">
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#94a3b8' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#c7d2fe' }}>
                 Select Policy *
               </label>
               <select
                 value={formData.policy_id}
                 onChange={(e) => setFormData({ ...formData, policy_id: e.target.value })}
                 required
-                style={{ width: '100%', padding: '12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white' }}
+                style={{ width: '100%', padding: '12px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '10px', color: 'white', outline: 'none' }}
               >
                 {policies.map((policy) => (
                   <option key={policy.id} value={policy.id}>
@@ -172,7 +168,7 @@ export default function NewClaim() {
             </div>
 
             <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#94a3b8' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#c7d2fe' }}>
                 Incident Date *
               </label>
               <input
@@ -180,12 +176,12 @@ export default function NewClaim() {
                 value={formData.incident_date}
                 onChange={(e) => setFormData({ ...formData, incident_date: e.target.value })}
                 required
-                style={{ width: '100%', padding: '12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white' }}
+                style={{ width: '100%', padding: '12px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '10px', color: 'white', outline: 'none' }}
               />
             </div>
 
             <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#94a3b8' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#c7d2fe' }}>
                 Incident Location *
               </label>
               <input
@@ -194,12 +190,12 @@ export default function NewClaim() {
                 onChange={(e) => setFormData({ ...formData, incident_location: e.target.value })}
                 placeholder="e.g., Main St & 5th Ave, Seattle, WA"
                 required
-                style={{ width: '100%', padding: '12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white' }}
+                style={{ width: '100%', padding: '12px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '10px', color: 'white', outline: 'none' }}
               />
             </div>
 
             <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#94a3b8' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#c7d2fe' }}>
                 Incident Description *
               </label>
               <textarea
@@ -208,87 +204,82 @@ export default function NewClaim() {
                 placeholder="Describe what happened..."
                 required
                 rows={6}
-                style={{ width: '100%', padding: '12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', resize: 'vertical' }}
+                style={{ width: '100%', padding: '12px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '10px', color: 'white', outline: 'none', resize: 'vertical' }}
               />
-              <button
+              <Button
                 type="button"
+                variant="primary"
+                size="sm"
                 onClick={() => handleRewrite('incident_description')}
-                style={{ marginTop: '8px', padding: '10px 16px', background: '#8b5cf6', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}
+                style={{ marginTop: '8px' }}
               >
                 ✨ Rewrite with AI
-              </button>
+              </Button>
             </div>
 
             {message && (
-              <div style={{ marginBottom: '20px', padding: '12px', background: message.includes('success') ? '#10b98120' : '#ef444420', border: `1px solid ${message.includes('success') ? '#10b981' : '#ef4444'}`, borderRadius: '6px', color: message.includes('success') ? '#10b981' : '#ef4444' }}>
+              <div style={{ marginBottom: '20px', padding: '12px', background: message.includes('success') ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', border: `1px solid ${message.includes('success') ? '#10b981' : '#ef4444'}`, borderRadius: '10px', color: message.includes('success') ? '#10b981' : '#ef4444' }}>
                 {message}
               </div>
             )}
 
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button
+              <Button
                 type="submit"
+                variant="primary"
                 disabled={loading}
-                style={{ flex: 1, padding: '14px', background: loading ? '#475569' : '#10b981', border: 'none', borderRadius: '6px', color: 'white', fontSize: '1rem', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: '600' }}
+                style={{ flex: 1 }}
               >
                 {loading ? 'Submitting...' : 'Submit Claim'}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={() => router.push('/apps/insurance-claims')}
-                style={{ padding: '14px 24px', background: '#334155', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer' }}
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </form>
-        </div>
+        </Card>
       </div>
 
-      {rewriteModal.show && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#1e293b', padding: '24px', borderRadius: '12px', maxWidth: '600px', width: '90%', maxHeight: '80vh', overflow: 'auto' }}>
-            <h3 style={{ marginBottom: '16px', color: 'white' }}>✨ AI Rewrite Suggestion</h3>
-            
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#94a3b8' }}>Original:</label>
-              <div style={{ padding: '12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#94a3b8' }}>
-                {rewriteModal.original}
+      <Modal
+        isOpen={rewriteModal.show}
+        onClose={rejectRewrite}
+        title="✨ AI Rewrite Suggestion"
+      >
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#c7d2fe' }}>Original:</label>
+          <div style={{ padding: '12px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(139, 92, 246, 0.2)', borderRadius: '10px', color: '#94a3b8' }}>
+            {rewriteModal.original}
+          </div>
+        </div>
+
+        {rewriteModal.loading ? (
+          <div style={{ padding: '24px', textAlign: 'center', color: '#c7d2fe' }}>
+            <div style={{ marginBottom: '12px' }}>🤖 AI is rewriting...</div>
+          </div>
+        ) : (
+          <>
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#c7d2fe' }}>AI Suggestion:</label>
+              <div style={{ padding: '12px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(139, 92, 246, 0.5)', borderRadius: '10px', color: 'white' }}>
+                {rewriteModal.rewritten}
               </div>
             </div>
 
-            {rewriteModal.loading ? (
-              <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8' }}>
-                <div style={{ marginBottom: '12px' }}>🤖 AI is rewriting...</div>
-              </div>
-            ) : (
-              <>
-                <div style={{ marginBottom: '24px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#94a3b8' }}>AI Suggestion:</label>
-                  <div style={{ padding: '12px', background: '#0f172a', border: '1px solid #8b5cf6', borderRadius: '6px', color: 'white' }}>
-                    {rewriteModal.rewritten}
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                  <button
-                    onClick={rejectRewrite}
-                    style={{ padding: '10px 20px', background: '#475569', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}
-                  >
-                    ❌ Reject
-                  </button>
-                  <button
-                    onClick={acceptRewrite}
-                    style={{ padding: '10px 20px', background: '#10b981', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}
-                  >
-                    ✅ Accept
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <Button variant="secondary" onClick={rejectRewrite}>
+                ❌ Reject
+              </Button>
+              <Button variant="primary" onClick={acceptRewrite}>
+                ✅ Accept
+              </Button>
+            </div>
+          </>
+        )}
+      </Modal>
     </div>
   )
 }

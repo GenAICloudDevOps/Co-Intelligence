@@ -11,7 +11,7 @@ import { api } from '@/app/services/api'
 import { consumeNdjson } from '@/app/services/stream'
 
 export default function MLPredictor() {
-  const { user, loading } = useAuth(true)
+  const { user, initializing } = useAuth(true)
   const { selectedModel, setSelectedModel } = useModel()
   const [datasets, setDatasets] = useState<Dataset[]>([])
   const [selectedDataset, setSelectedDataset] = useState<Dataset | null>(null)
@@ -348,9 +348,9 @@ function SinglePrediction({ projectId, featureNames, problemType }: { projectId:
     )
   }
 
-  if (loading) {
+  if (initializing || !user) {
     return (
-      <div style={{ minHeight: '100vh', background: '#0f172a', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0a0f1e 0%, #1a1042 100%)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         Loading...
       </div>
     )

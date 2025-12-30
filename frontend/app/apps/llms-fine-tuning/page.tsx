@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Card from '@/app/design-system/components/Card'
+import AppHeader from '@/app/design-system/components/AppHeader'
 import { useAuth } from '@/app/hooks/useAuth'
 import { DatasetDefinition, fineTuningApi, JobRunView, JobStatus } from './api'
 
@@ -339,35 +340,8 @@ export default function FineTuningApp() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'radial-gradient(circle at 20% 20%, rgba(34,197,94,0.06), transparent 25%), radial-gradient(circle at 80% 0%, rgba(124,58,237,0.08), transparent 30%), #0b1220', color: 'white', paddingBottom: '64px' }}>
-      <div style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '20px 32px', background: '#0f172a' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: 44, height: 44, borderRadius: 10, background: 'linear-gradient(135deg, #22c55e, #38bdf8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🧪</div>
-            <div>
-              <div style={{ fontSize: '22px', fontWeight: 800 }}>LLMs Fine-Tuning with Tinker API</div>
-              <div style={{ fontSize: '14px', color: '#cbd5e1' }}>Run Tinker fine-tuning jobs with live logs.</div>
-            </div>
-          </div>
-          <div
-            style={{
-              textAlign: 'right',
-              color: '#94a3b8',
-              fontSize: 12,
-              lineHeight: 1.2,
-              background: '#0b1220',
-              border: '1px solid #1f2937',
-              borderRadius: 10,
-              padding: '8px 10px',
-              whiteSpace: 'pre-line'
-            }}
-          >
-            Powered by Tinker API
-            {'\n'}
-            from Thinking Machines Lab
-          </div>
-        </div>
-      </div>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0a0f1e 0%, #1a1042 100%)', color: 'white', paddingBottom: '64px' }}>
+      <AppHeader appName="LLMs Fine-Tuning" />
 
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <Card padding="lg">

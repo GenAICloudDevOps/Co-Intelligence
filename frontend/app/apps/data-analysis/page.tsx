@@ -43,7 +43,7 @@ const STATUS_STYLE: Record<StepStatus, { label: string; color: string; border: s
 }
 
 export default function DataAnalysisApp() {
-  const { user, loading } = useAuth(true)
+  const { user, initializing } = useAuth(true)
   const { selectedModel, setSelectedModel } = useModel()
 
   const [datasets, setDatasets] = useState<DatasetListItem[]>([])
@@ -428,7 +428,7 @@ export default function DataAnalysisApp() {
     }
   }
 
-  if (loading) return <div>Loading...</div>
+  if (initializing || !user) return <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0a0f1e 0%, #1a1042 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>Loading...</div>
 
   return (
     <div style={{ minHeight: '100vh', background: '#0f172a', color: 'white' }}>

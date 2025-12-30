@@ -28,7 +28,7 @@ interface Progress {
 }
 
 export default function AgenticTutor() {
-  const { user, loading } = useAuth(true)
+  const { user, initializing } = useAuth(true)
   const { selectedModel, setSelectedModel } = useModel()
   const [topics, setTopics] = useState<Topic[]>([])
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null)
@@ -138,7 +138,7 @@ export default function AgenticTutor() {
   const filteredTopics = selectedCategory === 'All' ? topics : topics.filter(t => t.category === selectedCategory)
   const topicProgress = selectedTopic ? progress.find(p => p.topic === selectedTopic.name) : null
 
-  if (loading) return <div style={{ minHeight: '100vh', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>Loading...</div>
+  if (initializing || !user) return <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0a0f1e 0%, #1a1042 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>Loading...</div>
 
   return (
     <div style={{ minHeight: '100vh', background: '#0f172a' }}>

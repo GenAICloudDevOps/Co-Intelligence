@@ -2,6 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import AppHeader from '../../../design-system/components/AppHeader'
+import Card from '../../../design-system/components/Card'
+import Button from '../../../design-system/components/Button'
 import { api } from '../../../services/api'
 import { useAuth } from '../../../hooks/useAuth'
 
@@ -39,23 +42,21 @@ export default function BuyPolicy() {
 
   if (initializing || !user) {
     return (
-      <div style={{ minHeight: '100vh', background: '#0f172a', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0a0f1e 0%, #1a1042 100%)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div>Loading...</div>
       </div>
     )
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0f172a', color: 'white' }}>
-      <header style={{ padding: '20px 40px', borderBottom: '1px solid #334155', background: '#1e293b' }}>
-        <h1 style={{ fontSize: '1.8rem' }}>🚗 Buy Insurance Policy</h1>
-      </header>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0a0f1e 0%, #1a1042 100%)', color: 'white' }}>
+      <AppHeader appName="Buy Insurance Policy" />
 
       <div style={{ maxWidth: '800px', margin: '0 auto', padding: '40px' }}>
-        <div style={{ background: '#1e293b', borderRadius: '12px', padding: '40px', border: '1px solid #334155' }}>
+        <Card padding="lg">
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#94a3b8' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#c7d2fe' }}>
                 Vehicle Make *
               </label>
               <input
@@ -64,12 +65,12 @@ export default function BuyPolicy() {
                 onChange={(e) => setFormData({ ...formData, vehicle_make: e.target.value })}
                 placeholder="e.g., Toyota, Honda, Ford"
                 required
-                style={{ width: '100%', padding: '12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white' }}
+                style={{ width: '100%', padding: '12px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '10px', color: 'white', outline: 'none' }}
               />
             </div>
 
             <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#94a3b8' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#c7d2fe' }}>
                 Vehicle Model *
               </label>
               <input
@@ -78,12 +79,12 @@ export default function BuyPolicy() {
                 onChange={(e) => setFormData({ ...formData, vehicle_model: e.target.value })}
                 placeholder="e.g., Camry, Accord, F-150"
                 required
-                style={{ width: '100%', padding: '12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white' }}
+                style={{ width: '100%', padding: '12px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '10px', color: 'white', outline: 'none' }}
               />
             </div>
 
             <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#94a3b8' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#c7d2fe' }}>
                 Vehicle Year *
               </label>
               <input
@@ -93,12 +94,12 @@ export default function BuyPolicy() {
                 min="1990"
                 max={new Date().getFullYear() + 1}
                 required
-                style={{ width: '100%', padding: '12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white' }}
+                style={{ width: '100%', padding: '12px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '10px', color: 'white', outline: 'none' }}
               />
             </div>
 
             <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#94a3b8' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#c7d2fe' }}>
                 License Plate *
               </label>
               <input
@@ -107,19 +108,19 @@ export default function BuyPolicy() {
                 onChange={(e) => setFormData({ ...formData, license_plate: e.target.value.toUpperCase() })}
                 placeholder="e.g., ABC1234"
                 required
-                style={{ width: '100%', padding: '12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white', textTransform: 'uppercase' }}
+                style={{ width: '100%', padding: '12px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '10px', color: 'white', outline: 'none', textTransform: 'uppercase' }}
               />
             </div>
 
             <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#94a3b8' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#c7d2fe' }}>
                 Coverage Amount *
               </label>
               <select
                 value={formData.coverage_amount}
                 onChange={(e) => setFormData({ ...formData, coverage_amount: parseFloat(e.target.value) })}
                 required
-                style={{ width: '100%', padding: '12px', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: 'white' }}
+                style={{ width: '100%', padding: '12px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: '10px', color: 'white', outline: 'none' }}
               >
                 <option value="25000">$25,000</option>
                 <option value="50000">$50,000</option>
@@ -129,29 +130,30 @@ export default function BuyPolicy() {
             </div>
 
             {message && (
-              <div style={{ marginBottom: '20px', padding: '12px', background: message.includes('success') ? '#10b98120' : '#ef444420', border: `1px solid ${message.includes('success') ? '#10b981' : '#ef4444'}`, borderRadius: '6px', color: message.includes('success') ? '#10b981' : '#ef4444' }}>
+              <div style={{ marginBottom: '20px', padding: '12px', background: message.includes('success') ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', border: `1px solid ${message.includes('success') ? '#10b981' : '#ef4444'}`, borderRadius: '10px', color: message.includes('success') ? '#10b981' : '#ef4444' }}>
                 {message}
               </div>
             )}
 
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button
+              <Button
                 type="submit"
+                variant="primary"
                 disabled={loading}
-                style={{ flex: 1, padding: '14px', background: loading ? '#475569' : '#06b6d4', border: 'none', borderRadius: '6px', color: 'white', fontSize: '1rem', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: '600' }}
+                style={{ flex: 1 }}
               >
                 {loading ? 'Creating Policy...' : 'Buy Policy'}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={() => router.push('/apps/insurance-claims')}
-                style={{ padding: '14px 24px', background: '#334155', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer' }}
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </form>
-        </div>
+        </Card>
       </div>
     </div>
   )

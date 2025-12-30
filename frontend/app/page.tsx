@@ -576,10 +576,10 @@ export default function Home() {
               AI Intelligence
             </span>
           </h1>
-          <p style={{ fontSize: '1.1rem', color: theme.mutedText, maxWidth: '900px', margin: '0 auto', lineHeight: '1.8' }}>
+          <div style={{ fontSize: '1.1rem', color: theme.mutedText, maxWidth: '900px', margin: '0 auto', lineHeight: '1.8' }}>
             <div style={{ textAlign: 'center' }}>Build once. Deploy to AWS, GCP, or Azure.</div>
             <div style={{ textAlign: 'center' }}>Agentic workflows • Serverless • Managed databases • Full-stack • Evals &amp; Guardrails</div>
-          </p>
+          </div>
         </section>
 
         {/* AI Applications Section */}
