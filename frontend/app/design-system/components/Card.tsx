@@ -3,9 +3,10 @@ interface CardProps {
   className?: string
   padding?: 'sm' | 'md' | 'lg'
   hover?: boolean
+  onClick?: () => void
 }
 
-export default function Card({ children, className = '', padding = 'md', hover = false }: CardProps) {
+export default function Card({ children, className = '', padding = 'md', hover = false, onClick }: CardProps) {
   const paddings = {
     sm: '16px',
     md: '24px',
@@ -14,6 +15,7 @@ export default function Card({ children, className = '', padding = 'md', hover =
   
   return (
     <div
+      onClick={onClick}
       style={{
         background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%)',
         backdropFilter: 'blur(10px)',
@@ -23,7 +25,8 @@ export default function Card({ children, className = '', padding = 'md', hover =
         boxShadow: '0 4px 20px rgba(139, 92, 246, 0.2), 0 0 40px rgba(99, 102, 241, 0.1)',
         transition: hover ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
         position: 'relative',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        cursor: onClick ? 'pointer' : 'default'
       }}
       className={className}
       onMouseEnter={(e) => {
