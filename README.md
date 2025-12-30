@@ -4,6 +4,12 @@
 
 Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that scale effortlessly.
 
+## What's New in V4.0.1
+- **Design System**: Centralized UI component library with glassmorphism effects, vibrant gradients, and smooth animations
+- **Enhanced UI/UX**: Modern dark theme with indigo-purple-pink color palette across all applications
+- **AppHeader Component**: Consistent navigation header with home button across all internal apps
+- **Code Quality Fixes**: Resolved auth gating bugs, invalid HTML, and duplicate component issues
+
 ## What's New in V4.0 Beta
 - **Agentic Data Analysis**: Multi-source ingestion (CSV/S3/Postgres), automated ETL pipeline (Glue), agentic Q&A with self-healing queries, chart visualizations
 - **LLMs Fine-Tuning (Tinker API)**: Run fine-tuning workflows with live logs (generate data → train → sample/predictions)
@@ -28,7 +34,7 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 ## Architecture
 
 - **Backend**: FastAPI + Tortoise ORM + LangGraph 1.0.1 + App Registry System
-- **Frontend**: Next.js 14 (App Router) + Reusable Components
+- **Frontend**: Next.js 14 (App Router) + Centralized Design System + Inter Font
 - **Database**: PostgreSQL (AWS RDS, GCP Cloud SQL, Azure Flexible Server)
 - **AI Models**: Gemini 2.5 Flash (Lite/Flash/Pro), Groq Compound + Llama 4 Scout, AWS Bedrock Nova (Lite/Pro)
 - **Code Execution**: AWS Lambda, GCP Cloud Functions, Azure Functions
@@ -121,7 +127,7 @@ Build once, deploy anywhere. Multi-cloud AI platform with agentic workflows that
 - ☁️ **Cloud Native** - Deployed on AWS EKS with auto-scaling
 - 🧩 **Modular Architecture** - Add new apps in 10 minutes
 - 🔄 **App Registry System** - Auto-discovery and registration of apps
-- 🎨 **Component Library** - Reusable UI components (Card, Modal, Button)
+- 🎨 **Design System** - Centralized UI components with glassmorphism styling, vibrant gradients, and modern animations (Card, Modal, Button, AppCard, AppHeader)
 - 🪝 **Custom Hooks** - useAuth hook for centralized authentication
 - 📦 **Shared Base Models** - Timestamp and soft delete mixins
 
@@ -333,7 +339,7 @@ See `docs/NEW_APP_TEMPLATE.md` for detailed guide.
 - ✅ Database models with timestamps
 - ✅ Frontend page with auth
 - ✅ Appears on homepage automatically
-- ✅ Reusable components available
+- ✅ Design System components available (Card, Button, Modal, AppHeader)
 
 ## License
 
