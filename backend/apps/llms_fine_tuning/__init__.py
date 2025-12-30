@@ -11,7 +11,7 @@ registry.register(
         description="Run Tinker fine-tuning recipes and scripts",
         description_lines=[
             "Tinker API",
-            "LoRA fine-tuning on Llama/Qwen",
+            "LoRA fine-tuning",
             "Scripted job runner",
             "Live logs + checkpoint sampling",
         ],
