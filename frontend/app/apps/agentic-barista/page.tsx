@@ -5,8 +5,8 @@ import { Send, MessageCircle, Brain, Zap, X, Mic } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import AppHeader from '../../design-system/components/AppHeader';
 import Card from '../../design-system/components/Card';
-import { useModel } from '../../components/ModelProvider';
 import { api } from '../../services/api';
+import { useModel } from '../../components/ModelProvider';
 import { useSpeechToText } from '../../hooks/useSpeechToText';
 
 interface Message {

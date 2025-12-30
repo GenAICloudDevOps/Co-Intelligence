@@ -11,6 +11,8 @@ import { api } from '../../services/api'
 import { useAuth } from '../../hooks/useAuth'
 import { useSpeechToText } from '../../hooks/useSpeechToText'
 
+
+
 export default function InsuranceClaimsDashboard() {
   const router = useRouter()
   const { user, initializing } = useAuth(true)
