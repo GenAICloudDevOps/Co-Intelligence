@@ -105,7 +105,7 @@ export const apps: AppConfig[] = [
     name: 'LLMs Fine-Tuning',
     description: [
       'Tinker API',
-      'LoRA fine-tuning on Llama/Qwen',
+      'LoRA fine-tuning',
       'Scripted job runner',
       'Live logs + checkpoint sampling'
     ],
