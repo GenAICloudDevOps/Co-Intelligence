@@ -1,5 +1,5 @@
 import Card from './Card'
-import type { AppConfig } from '../config/apps'
+import type { AppConfig } from '../../config/apps'
 
 interface AppCardProps {
   app: AppConfig
