@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Send, MessageCircle, Brain, Zap, X, Mic } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import AppHeader from '../../components/AppHeader';
+import AppHeader from '../../design-system/components/AppHeader';
 import { useModel } from '../../components/ModelProvider';
 import { api } from '../../services/api';
 import { useSpeechToText } from '../../hooks/useSpeechToText';
@@ -104,7 +104,7 @@ export default function AgenticBarista() {
   const cartItemCount = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #faf5f0 0%, #fff8f0 50%, #fff4e6 100%)' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0a0f1e 0%, #1a1042 100%)', color: 'white' }}>
       <AppHeader 
         appName="Coffee and AI" 
         requireAuth={false}
@@ -117,10 +117,10 @@ export default function AgenticBarista() {
 
       {/* Hero Section */}
       <section style={{ textAlign: 'center', padding: '64px 24px' }}>
-        <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: '#292524', marginBottom: '24px', lineHeight: '1.2' }}>
+        <h1 style={{ fontSize: '48px', fontWeight: '900', background: 'linear-gradient(135deg, #ffffff 0%, #c7d2fe 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', marginBottom: '24px', lineHeight: '1.2' }}>
           Where Intelligence Meets Espresso
         </h1>
-        <p style={{ fontSize: '20px', color: '#57534e', maxWidth: '768px', margin: '0 auto', lineHeight: '1.6' }}>
+        <p style={{ fontSize: '20px', color: '#cbd5e1', maxWidth: '768px', margin: '0 auto', lineHeight: '1.6' }}>
           Experience the future of coffee ordering with our AI-powered barista assistant. 
           Get personalized recommendations, smart ordering, and perfect coffee every time.
         </p>
@@ -128,43 +128,43 @@ export default function AgenticBarista() {
 
       {/* Features Section */}
       <section style={{ maxWidth: '1152px', margin: '0 auto', padding: '48px 24px' }}>
-        <h2 style={{ fontSize: '32px', fontWeight: 'bold', textAlign: 'center', color: '#292524', marginBottom: '48px' }}>
+        <h2 style={{ fontSize: '32px', fontWeight: '800', textAlign: 'center', color: 'white', marginBottom: '48px' }}>
           AI-Powered Coffee Experience
         </h2>
         
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '32px' }}>
           {/* Smart Recommendations */}
-          <div style={{ background: 'white', borderRadius: '16px', padding: '32px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e7e5e4', textAlign: 'center' }}>
+          <Card padding="lg" hover className="text-center">
             <div style={{ width: '64px', height: '64px', background: '#dbeafe', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <Brain style={{ width: '32px', height: '32px', color: '#2563eb' }} />
             </div>
-            <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: '#292524', marginBottom: '12px' }}>Smart Recommendations</h3>
-            <p style={{ color: '#57534e', lineHeight: '1.6' }}>
+            <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'white', marginBottom: '12px' }}>Smart Recommendations</h3>
+            <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
               Our AI learns your preferences and suggests the perfect coffee for your mood and taste.
             </p>
-          </div>
+          </Card>
 
           {/* Natural Conversations */}
-          <div style={{ background: 'white', borderRadius: '16px', padding: '32px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e7e5e4', textAlign: 'center' }}>
+          <Card padding="lg" hover className="text-center">
             <div style={{ width: '64px', height: '64px', background: '#dcfce7', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <MessageCircle style={{ width: '32px', height: '32px', color: '#16a34a' }} />
             </div>
-            <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: '#292524', marginBottom: '12px' }}>Natural Conversations</h3>
-            <p style={{ color: '#57534e', lineHeight: '1.6' }}>
-              Chat naturally with our AI barista using LangChain and LangGraph technology.
+<h3 style={{ fontSize: '20px', fontWeight: '800', color: 'white', marginBottom: '12px' }}>Natural Conversations</h3>
+            <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
+              Chat with our barista just like you would in person. No complex menus needed.
             </p>
-          </div>
+          </Card>
 
           {/* Instant Ordering */}
-          <div style={{ background: 'white', borderRadius: '16px', padding: '32px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e7e5e4', textAlign: 'center' }}>
+          <Card padding="lg" hover className="text-center">
             <div style={{ width: '64px', height: '64px', background: '#fef3c7', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <Zap style={{ width: '32px', height: '32px', color: '#d97706' }} />
             </div>
-            <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: '#292524', marginBottom: '12px' }}>Instant Ordering</h3>
-            <p style={{ color: '#57534e', lineHeight: '1.6' }}>
-              Place orders quickly with intelligent cart management and seamless checkout.
+<h3 style={{ fontSize: '20px', fontWeight: '800', color: 'white', marginBottom: '12px' }}>Instant Ordering</h3>
+            <p style={{ color: '#cbd5e1', lineHeight: '1.6' }}>
+              Quick, efficient, and accurate. Your order is processed instantly by our AI agents.
             </p>
-          </div>
+          </Card>
         </div>
       </section>
 
@@ -211,16 +211,18 @@ export default function AgenticBarista() {
           right: '24px',
           width: '400px',
           height: '600px',
-          background: 'white',
-          borderRadius: '16px',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+          background: 'rgba(15, 23, 42, 0.9)',
+          backdropFilter: 'blur(16px)',
+          borderRadius: '20px',
+          border: '1px solid rgba(139, 92, 246, 0.3)',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
           display: 'flex',
           flexDirection: 'column',
           zIndex: 1000,
           overflow: 'hidden'
         }}>
           {/* Modal Header */}
-          <div style={{ background: 'linear-gradient(90deg, #d97706 0%, #ea580c 100%)', color: 'white', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ background: 'linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%)', color: 'white', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
               <MessageCircle style={{ width: '20px', height: '20px' }} />
               Chat with AI Barista
@@ -234,7 +236,7 @@ export default function AgenticBarista() {
           </div>
 
           {/* Messages */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '16px', background: '#fafaf9' }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px', background: 'transparent' }}>
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -245,10 +247,10 @@ export default function AgenticBarista() {
                     maxWidth: '80%',
                     borderRadius: '12px',
                     padding: '10px 14px',
-                    background: message.isUser ? '#d97706' : 'white',
-                    color: message.isUser ? 'white' : '#292524',
-                    boxShadow: message.isUser ? 'none' : '0 2px 4px rgba(0,0,0,0.1)',
-                    border: message.isUser ? 'none' : '1px solid #e7e5e4',
+                    background: message.isUser ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' : 'rgba(30, 41, 59, 0.8)',
+                    color: 'white',
+                    border: message.isUser ? 'none' : '1px solid rgba(139, 92, 246, 0.2)',
+                    boxShadow: message.isUser ? 'none' : '0 4px 12px rgba(0,0,0,0.2)',
                     fontSize: '14px'
                   }}
                 >

@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import AppHeader from '../../components/AppHeader'
+import AppHeader from '../../design-system/components/AppHeader'
+import Card from '../../design-system/components/Card'
+import Button from '../../design-system/components/Button'
 import { ModelSelector } from '../../config/models'
 import { useModel } from '../../components/ModelProvider'
 import { api } from '../../services/api'
@@ -125,14 +127,14 @@ export default function AgenticLMS() {
   const featuredCourses = courses.slice(0, 4)
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0f172a', color: 'white' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0a0f1e 0%, #1a1042 100%)', color: 'white' }}>
       <AppHeader appName="Agentic LMS" />
 
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '40px' }}>
-        <div style={{ display: 'flex', gap: '20px', marginBottom: '40px', borderBottom: '1px solid #334155', paddingBottom: '20px', alignItems: 'center' }}>
-          <button onClick={() => setView('home')} style={{ padding: '10px 20px', background: view === 'home' ? '#6366f1' : 'transparent', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>🏠 Home</button>
-          <button onClick={() => setView('catalog')} style={{ padding: '10px 20px', background: view === 'catalog' ? '#6366f1' : 'transparent', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>📚 Course Catalog</button>
-          <button onClick={() => setView('enrollments')} style={{ padding: '10px 20px', background: view === 'enrollments' ? '#6366f1' : 'transparent', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>📖 My Enrollments</button>
+        <div style={{ display: 'flex', gap: '20px', marginBottom: '40px', borderBottom: '1px solid rgba(139, 92, 246, 0.3)', paddingBottom: '20px', alignItems: 'center' }}>
+          <Button variant={view === 'home' ? 'primary' : 'secondary'} size="sm" onClick={() => setView('home')}>🏠 Home</Button>
+          <Button variant={view === 'catalog' ? 'primary' : 'secondary'} size="sm" onClick={() => setView('catalog')}>📚 Course Catalog</Button>
+          <Button variant={view === 'enrollments' ? 'primary' : 'secondary'} size="sm" onClick={() => setView('enrollments')}>📖 My Enrollments</Button>
           <div style={{ marginLeft: 'auto' }}>
             <ModelSelector value={selectedModel} onChange={setSelectedModel} models={models} defaultModel={defaultModel} />
           </div>
@@ -147,22 +149,22 @@ export default function AgenticLMS() {
             <h2 style={{ fontSize: '1.8rem', marginBottom: '30px', fontWeight: 'bold' }}>Featured Courses</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
               {featuredCourses.map(course => (
-                <div key={course.id} style={{ background: '#1e293b', borderRadius: '12px', padding: '24px', border: '1px solid #334155' }}>
+                <Card key={course.id} padding="lg" hover>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                    <span style={{ padding: '4px 12px', background: '#6366f1', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '600' }}>{course.category}</span>
+                    <span style={{ padding: '4px 12px', background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '700' }}>{course.category}</span>
                     <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>{course.difficulty}</span>
                   </div>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '12px' }}>{course.title}</h3>
-                  <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '16px' }}>{course.description}</p>
+                  <h3 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '12px', background: 'linear-gradient(135deg, #ffffff 0%, #c7d2fe 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>{course.title}</h3>
+                  <p style={{ color: '#cbd5e1', fontSize: '0.95rem', marginBottom: '20px', lineHeight: '1.6' }}>{course.description}</p>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.85rem', color: '#64748b' }}>⏱️ {course.duration_hours}h</span>
+                    <span style={{ fontSize: '0.9rem', color: '#a5b4fc', fontWeight: '600' }}>⏱️ {course.duration_hours}h</span>
                     {isEnrolled(course.id) ? (
-                      <span style={{ padding: '8px 16px', background: '#334155', borderRadius: '6px', color: '#10b981', fontWeight: '600' }}>✓ Enrolled</span>
+                      <span style={{ padding: '8px 16px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid #10b981', borderRadius: '8px', color: '#10b981', fontWeight: '700' }}>✓ Enrolled</span>
                     ) : (
-                      <button onClick={() => handleEnroll(course.id)} style={{ padding: '8px 16px', background: '#10b981', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>Enroll Now</button>
+                      <Button variant="primary" size="sm" onClick={() => handleEnroll(course.id)}>Enroll Now</Button>
                     )}
                   </div>
-                </div>
+                </Card>
               ))}
             </div>
           </div>
@@ -173,22 +175,22 @@ export default function AgenticLMS() {
             <h2 style={{ fontSize: '2rem', marginBottom: '30px', fontWeight: 'bold' }}>All Courses</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
               {courses.map(course => (
-                <div key={course.id} style={{ background: '#1e293b', borderRadius: '12px', padding: '24px', border: '1px solid #334155' }}>
+                <Card key={course.id} padding="lg" hover>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                    <span style={{ padding: '4px 12px', background: '#6366f1', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '600' }}>{course.category}</span>
+                    <span style={{ padding: '4px 12px', background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '700' }}>{course.category}</span>
                     <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>{course.difficulty}</span>
                   </div>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '12px' }}>{course.title}</h3>
-                  <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '16px' }}>{course.description}</p>
+                  <h3 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '12px', background: 'linear-gradient(135deg, #ffffff 0%, #c7d2fe 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>{course.title}</h3>
+                  <p style={{ color: '#cbd5e1', fontSize: '0.95rem', marginBottom: '20px', lineHeight: '1.6' }}>{course.description}</p>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.85rem', color: '#64748b' }}>⏱️ {course.duration_hours}h</span>
+                    <span style={{ fontSize: '0.9rem', color: '#a5b4fc', fontWeight: '600' }}>⏱️ {course.duration_hours}h</span>
                     {isEnrolled(course.id) ? (
-                      <span style={{ padding: '8px 16px', background: '#334155', borderRadius: '6px', color: '#10b981', fontWeight: '600' }}>✓ Enrolled</span>
+                      <span style={{ padding: '8px 16px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid #10b981', borderRadius: '8px', color: '#10b981', fontWeight: '700' }}>✓ Enrolled</span>
                     ) : (
-                      <button onClick={() => handleEnroll(course.id)} style={{ padding: '8px 16px', background: '#10b981', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>Enroll Now</button>
+                      <Button variant="primary" size="sm" onClick={() => handleEnroll(course.id)}>Enroll Now</Button>
                     )}
                   </div>
-                </div>
+                </Card>
               ))}
             </div>
           </div>

@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import AppCard from './components/AppCard'
-import Modal from './components/Modal'
+import AppCard from './design-system/components/AppCard'
+import Modal from './design-system/components/Modal'
 import ArchitectureDiagram from './components/ArchitectureDiagram'
 import NotificationBell from './components/NotificationBell'
 import NotificationPreferences from './components/NotificationPreferences'

@@ -4,6 +4,9 @@ import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { ModelSelector } from '../../config/models'
 import { useModel } from '../../components/ModelProvider'
+import AppHeader from '../../design-system/components/AppHeader'
+import Card from '../../design-system/components/Card'
+import Button from '../../design-system/components/Button'
 import { api } from '../../services/api'
 import { useAuth } from '../../hooks/useAuth'
 import { useSpeechToText } from '../../hooks/useSpeechToText'
@@ -107,36 +110,21 @@ export default function InsuranceClaimsDashboard() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0f172a', color: 'white' }}>
-      <header style={{ padding: '20px 40px', borderBottom: '1px solid #334155', background: '#1e293b' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h1 style={{ fontSize: '1.8rem', marginBottom: '8px' }}>🚗 Insurance Claims</h1>
-            <div style={{ fontSize: '0.9rem', color: '#94a3b8' }}>
-              Roles: {roles.map(r => r.charAt(0).toUpperCase() + r.slice(1)).join(', ')}
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <ModelSelector value={selectedModel} onChange={setSelectedModel} models={models} defaultModel={defaultModel} />
-            {roles.includes('customer') && (
-              <>
-                <button onClick={() => router.push('/apps/insurance-claims/buy-policy')}
-                  style={{ padding: '10px 20px', background: '#06b6d4', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>
-                  🛒 Buy Policy
-                </button>
-                <button onClick={() => router.push('/apps/insurance-claims/new-claim')}
-                  style={{ padding: '10px 20px', background: '#10b981', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: '600' }}>
-                  + File Claim
-                </button>
-              </>
-            )}
-            <button onClick={() => router.push('/')}
-              style={{ padding: '10px 20px', background: '#334155', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer' }}>
-              ← Back
-            </button>
-          </div>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0a0f1e 0%, #1a1042 100%)', color: 'white' }}>
+      <AppHeader appName="Insurance Claims" showModelSelector />
+      <div style={{ padding: '20px 40px', borderBottom: '1px solid rgba(139, 92, 246, 0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontSize: '0.9rem', color: '#cbd5e1', fontWeight: '600' }}>
+          Roles: {roles.map(r => r.charAt(0).toUpperCase() + r.slice(1)).join(', ')}
         </div>
-      </header>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          {roles.includes('customer') && (
+            <>
+              <Button variant="primary" size="sm" onClick={() => router.push('/apps/insurance-claims/buy-policy')}>🛒 Buy Policy</Button>
+              <Button variant="primary" size="sm" onClick={() => router.push('/apps/insurance-claims/new-claim')}>+ File Claim</Button>
+            </>
+          )}
+        </div>
+      </div>
 
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '40px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: roles.includes('customer') ? '1fr 1fr' : '1fr', gap: '30px' }}>
@@ -156,7 +144,7 @@ export default function InsuranceClaimsDashboard() {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {policies.map((policy: any) => (
-                    <div key={policy.id} style={{ background: '#1e293b', borderRadius: '12px', padding: '24px', border: '1px solid #334155' }}>
+                    <Card key={policy.id} padding="lg" hover>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
                         <div>
                           <div style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '4px' }}>📋 {policy.policy_number}</div>
@@ -168,7 +156,7 @@ export default function InsuranceClaimsDashboard() {
                       </div>
                       <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '8px' }}>License: {policy.license_plate}</div>
                       <div style={{ fontSize: '0.9rem', color: '#10b981', fontWeight: '600' }}>Coverage: ${policy.coverage_amount.toLocaleString()}</div>
-                    </div>
+                    </Card>
                   ))}
                 </div>
               )}
@@ -192,10 +180,7 @@ export default function InsuranceClaimsDashboard() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {claims.slice(0, 5).map((claim: any) => (
-                  <div key={claim.id} onClick={() => router.push(`/apps/insurance-claims/claims/${claim.id}`)}
-                    style={{ background: '#1e293b', borderRadius: '12px', padding: '20px', border: '1px solid #334155', cursor: 'pointer', transition: 'all 0.2s' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#6366f1'; e.currentTarget.style.transform = 'translateY(-2px)' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#334155'; e.currentTarget.style.transform = 'translateY(0)' }}>
+                  <Card key={claim.id} padding="md" hover className="cursor-pointer" onClick={() => router.push(`/apps/insurance-claims/claims/${claim.id}`)}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
                       <div>
                         <div style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '4px' }}>{claim.claim_number}</div>
@@ -209,11 +194,11 @@ export default function InsuranceClaimsDashboard() {
                       {claim.incident_description.substring(0, 80)}...
                     </p>
                     {claim.approved_amount && (
-                      <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #334155', fontSize: '0.9rem', color: '#10b981', fontWeight: '600' }}>
+                      <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(139, 92, 246, 0.2)', fontSize: '0.9rem', color: '#10b981', fontWeight: '600' }}>
                         Approved: ${claim.approved_amount.toLocaleString()}
                       </div>
                     )}
-                  </div>
+                  </Card>
                 ))}
               </div>
             )}

@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import AppHeader from '@/app/components/AppHeader'
-import Card from '@/app/components/Card'
-import Button from '@/app/components/Button'
+import AppHeader from '@/app/design-system/components/AppHeader'
+import Card from '@/app/design-system/components/Card'
+import Button from '@/app/design-system/components/Button'
 import { useAuth } from '@/app/hooks/useAuth'
 import { useModel } from '@/app/components/ModelProvider'
 import { daApi, type DatasetDetails, type DatasetListItem, type RunStatus, type ChatResponse, type AgentStep, type PreviewResponse, type ChartData, type SuggestionsResponse } from './api'

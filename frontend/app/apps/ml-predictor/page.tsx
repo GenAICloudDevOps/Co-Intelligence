@@ -1,8 +1,8 @@
 'use client'
 
 import { useAuth } from '@/app/hooks/useAuth'
-import AppHeader from '@/app/components/AppHeader'
-import Card from '@/app/components/Card'
+import AppHeader from '@/app/design-system/components/AppHeader'
+import Card from '@/app/design-system/components/Card'
 import { useState, useEffect, useRef } from 'react'
 import { useModel } from '@/app/components/ModelProvider'
 import { mlApi } from './api'

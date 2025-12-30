@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import Card from '@/app/components/Card'
+import Card from '@/app/design-system/components/Card'
 import { useAuth } from '@/app/hooks/useAuth'
 import { DatasetDefinition, fineTuningApi, JobRunView, JobStatus } from './api'
 

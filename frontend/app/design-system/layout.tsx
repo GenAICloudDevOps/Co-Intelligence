@@ -22,8 +22,7 @@ export default function RootLayout({
         margin: 0, 
         fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
         background: 'linear-gradient(135deg, #0a0f1e 0%, #1a1042 100%)',
-        minHeight: '100vh',
-        color: 'white'
+        minHeight: '100vh'
       }}>
         <Providers>{children}</Providers>
       </body>
