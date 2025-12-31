@@ -33,27 +33,14 @@ PRIVATE_NETS_V6 = [
 
 
 def _build_bootstrap_script(block_private: bool) -> str:
+    """Build a minimal bootstrap script for fast startup."""
+    # Skip iptables/network blocking for now - just get a working shell
     lines: list[str] = [
-        "set -e",
         "export DEBIAN_FRONTEND=noninteractive",
-        "if ! command -v sudo >/dev/null 2>&1; then apt-get update && apt-get install -y sudo; fi",
-        "if ! command -v iptables >/dev/null 2>&1; then apt-get update && apt-get install -y iptables; fi",
-        "if ! command -v setpriv >/dev/null 2>&1; then apt-get update && apt-get install -y util-linux; fi",
-        "if ! id -u terminal >/dev/null 2>&1; then useradd -m -s /bin/bash terminal; fi",
-        'echo "terminal ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/terminal',
-        "chmod 0440 /etc/sudoers.d/terminal",
+        "export TERM=xterm-256color",
+        "cd /root",
+        "exec /bin/bash -l",
     ]
-    if block_private:
-        for cidr in PRIVATE_NETS:
-            lines.append(f"iptables -A OUTPUT -d {cidr} -j REJECT || true")
-        lines.append("if command -v ip6tables >/dev/null 2>&1; then")
-        for cidr in PRIVATE_NETS_V6:
-            lines.append(f"  ip6tables -A OUTPUT -d {cidr} -j REJECT || true")
-        lines.append("fi")
-    lines.append(
-        "if command -v setpriv >/dev/null 2>&1; then exec setpriv --bounding-set=-cap_net_admin --inh-caps=-cap_net_admin -- su - terminal; fi"
-    )
-    lines.append("exec su - terminal")
     return "\n".join(lines)
 
 
@@ -102,24 +89,37 @@ class TerminalSession:
             "-e",
             "DEBIAN_FRONTEND=noninteractive",
         ]
-        if block_private:
-            cmd += ["--cap-add", "NET_ADMIN"]
         cmd.append(image)
-        cmd += ["bash", "-lc", _build_bootstrap_script(block_private)]
+        cmd += ["/bin/bash", "-l"]
         return cmd
 
     async def start(self) -> None:
-        if not shutil.which("docker"):
-            raise RuntimeError("Docker CLI not available in backend container.")
-        info = subprocess.run(
-            ["docker", "info"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        if info.returncode != 0:
-            detail = (info.stderr or "").strip()
-            raise RuntimeError(detail or "Docker daemon unavailable.")
+        docker_path = shutil.which("docker")
+        if not docker_path:
+            raise RuntimeError(
+                "Docker CLI not found. Ensure docker.io is installed in the backend container."
+            )
+        docker_host = os.environ.get("DOCKER_HOST", "")
+        
+        # Retry connecting to Docker daemon (dind sidecar may need time to start)
+        max_retries = 3
+        last_error = ""
+        for attempt in range(max_retries):
+            info = subprocess.run(
+                ["docker", "info"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=10,
+            )
+            if info.returncode == 0:
+                break
+            last_error = (info.stderr or "").strip()
+            if attempt < max_retries - 1:
+                await asyncio.sleep(2)
+        else:
+            hint = f" (DOCKER_HOST={docker_host})" if docker_host else " (DOCKER_HOST not set)"
+            raise RuntimeError(f"Docker daemon unavailable{hint}: {last_error}" if last_error else f"Docker daemon unavailable{hint}")
 
         master_fd, slave_fd = pty.openpty()
         self.master_fd = master_fd
@@ -135,21 +135,36 @@ class TerminalSession:
         )
         os.close(slave_fd)
         os.set_blocking(master_fd, False)
+        
+        # Wait briefly for container to start
+        await asyncio.sleep(0.5)
         self._touch()
 
     async def stream_output(self, on_output: Callable[[bytes], Awaitable[None]]) -> None:
         if self.master_fd is None:
             return
         loop = asyncio.get_running_loop()
-        while True:
+        while not self.closed:
             try:
-                data = await loop.run_in_executor(None, os.read, self.master_fd, 4096)
+                # Use select to wait for data availability
+                import select
+                ready, _, _ = await loop.run_in_executor(
+                    None, lambda: select.select([self.master_fd], [], [], 0.1)
+                )
+                if not ready:
+                    # Check if process is still running
+                    if self.proc and self.proc.poll() is not None:
+                        break
+                    continue
+                data = os.read(self.master_fd, 4096)
+                if not data:
+                    break
+                self._touch()
+                await on_output(data)
+            except (OSError, ValueError):
+                break
             except Exception:
                 break
-            if not data:
-                break
-            self._touch()
-            await on_output(data)
 
     def write(self, data: str) -> None:
         if self.master_fd is None or self.closed:

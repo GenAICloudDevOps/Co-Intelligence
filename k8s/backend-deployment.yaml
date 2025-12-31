@@ -20,6 +20,12 @@ spec:
         image: docker:24.0-dind
         securityContext:
           privileged: true
+        args:
+        - --host=tcp://0.0.0.0:2375
+        - --host=unix:///var/run/docker.sock
+        - --tls=false
+        ports:
+        - containerPort: 2375
         env:
         - name: DOCKER_TLS_CERTDIR
           value: ""
@@ -30,6 +36,12 @@ spec:
           limits:
             memory: "1Gi"
             cpu: "1000m"
+        readinessProbe:
+          exec:
+            command: ["docker", "info"]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
         volumeMounts:
         - name: docker-data
           mountPath: /var/lib/docker
