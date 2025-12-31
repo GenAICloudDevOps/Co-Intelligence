@@ -144,5 +144,20 @@ export const apps: AppConfig[] = [
     route: '/apps/terminal',
     status: 'active',
     requiresAuth: true
+  },
+  {
+    id: 'ai-agent',
+    name: 'AI Agent',
+    description: [
+      'General Purpose AI',
+      'Code Execution',
+      'Build & Deploy',
+      'Live URL Serving'
+    ],
+    icon: '🦾',
+    color: '#ec4899',
+    route: '/apps/ai-agent',
+    status: 'active',
+    requiresAuth: true
   }
 ]
