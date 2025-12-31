@@ -24,6 +24,7 @@ services:
       - postgres
     volumes:
       - ./backend:/app
+      - /var/run/docker.sock:/var/run/docker.sock
 
   frontend:
     build: ./frontend

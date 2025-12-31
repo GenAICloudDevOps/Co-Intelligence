@@ -1,3 +1,4 @@
+import 'xterm/css/xterm.css'
 import type { Metadata } from 'next'
 import { Providers } from './providers'
 

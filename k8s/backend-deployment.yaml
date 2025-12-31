@@ -16,6 +16,23 @@ spec:
       imagePullSecrets:
       - name: ecr-pull
       containers:
+      - name: dind
+        image: docker:24.0-dind
+        securityContext:
+          privileged: true
+        env:
+        - name: DOCKER_TLS_CERTDIR
+          value: ""
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: docker-data
+          mountPath: /var/lib/docker
       - name: backend
         image: <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/co-intelligence-backend:<IMAGE_TAG>
         ports:
@@ -26,6 +43,10 @@ spec:
         env:
         - name: NOTIFICATION_WORKER_ENABLED
           value: "false"
+        - name: DOCKER_HOST
+          value: "tcp://localhost:2375"
+        - name: DOCKER_TLS_CERTDIR
+          value: ""
         resources:
           requests:
             memory: "512Mi"
@@ -49,6 +70,9 @@ spec:
           periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 3
+      volumes:
+      - name: docker-data
+        emptyDir: {}
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

@@ -129,5 +129,20 @@ export const apps: AppConfig[] = [
     route: '/apps/data-analysis',
     status: 'active',
     requiresAuth: true
+  },
+  {
+    id: 'terminal',
+    name: 'Terminal',
+    description: [
+      'Ubuntu 22.04 shell',
+      'Full internet access',
+      'Isolated container per session',
+      'No access to other apps'
+    ],
+    icon: '🖥️',
+    color: '#0ea5e9',
+    route: '/apps/terminal',
+    status: 'active',
+    requiresAuth: true
   }
 ]

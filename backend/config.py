@@ -25,6 +25,14 @@ class Settings(BaseSettings):
     AWS_SECRET_ACCESS_KEY: str = ""
     S3_BUCKET_NAME: str = ""
     CODE_EXECUTOR_URL: str = ""
+
+    # Terminal (App 9)
+    TERMINAL_IMAGE: str = "ubuntu:22.04"
+    TERMINAL_CPU: str = "1"
+    TERMINAL_MEMORY: str = "1g"
+    TERMINAL_PIDS_LIMIT: int = 256
+    TERMINAL_IDLE_TIMEOUT_SECONDS: int = 900
+    TERMINAL_BLOCK_PRIVATE_NETS: bool = True
     
     # GCP settings (for Data Analysis)
     GCP_PROJECT_ID: str = ""
