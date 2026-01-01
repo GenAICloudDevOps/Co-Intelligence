@@ -46,12 +46,21 @@ class AgentExecutor:
 
     def _resolve_local_path(self, path: str) -> Path:
         if not path.startswith("/workspace"):
-            raise ValueError("Only /workspace paths are supported")
+            # Fallback for relative paths or missing leading slash
+            if path.startswith("workspace"):
+                path = "/" + path
+            else:
+                path = "/workspace/" + path.lstrip("/")
+        
         relative = path[len("/workspace"):].lstrip("/")
         base = self._local_root().resolve()
+        # Ensure base directory exists
+        base.mkdir(parents=True, exist_ok=True)
         target = (base / relative).resolve()
-        if target != base and base not in target.parents:
-            raise ValueError("Invalid path outside workspace")
+        
+        # Security check: ensure target is within base
+        if base != target and base not in target.parents:
+            raise ValueError(f"Invalid path outside workspace: {path}")
         return target
 
     async def _write_local(self, path: str, content: str) -> dict:

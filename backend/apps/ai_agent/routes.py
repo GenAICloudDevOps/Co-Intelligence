@@ -44,7 +44,9 @@ async def chat(request: ChatRequest, user: User = Depends(get_current_user)):
             served_url=result.get("served_url"),
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 
 @router.post("/sessions/{session_id}/cleanup")

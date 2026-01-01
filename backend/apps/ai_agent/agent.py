@@ -141,6 +141,8 @@ def _format_history(history: Iterable[dict] | None) -> list[str]:
 
 
 def _looks_like_site_request(message: str) -> bool:
+    if not message:
+        return False
     if not _SITE_REQUEST_RE.search(message):
         return False
     # Must have a build verb to be a site request
@@ -156,6 +158,8 @@ def _looks_like_site_request(message: str) -> bool:
 
 
 def _looks_like_web_research(message: str) -> bool:
+    if not message:
+        return False
     # If it's a site request, don't trigger web research here
     if _looks_like_site_request(message):
         return False
@@ -332,21 +336,32 @@ async def _run_site_builder(
         # Ensure workspace exists
         await executor._ensure_mode()
         logger.info("writing_site_file", extra={"session_id": session_id, "path": "/workspace/index.html"})
-        write_result = await executor.write_file("/workspace/index.html", html)
+        
+        # Ensure the directory exists before writing
+        try:
+            write_result = await executor.write_file("/workspace/index.html", html)
+        except Exception as write_exc:
+            logger.exception("site_write_exception", extra={"session_id": session_id})
+            write_result = {"success": False, "stderr": str(write_exc)}
+
         if write_result.get("success"):
             logger.info("serving_site_directory", extra={"session_id": session_id})
-            url = await executor.serve_directory("/workspace")
-            if url:
-                served_url = url
-                logger.info("site_served", extra={"session_id": session_id, "url": url})
-            else:
-                serve_error = "Server failed to start or return a URL"
+            try:
+                url = await executor.serve_directory("/workspace")
+                if url:
+                    served_url = url
+                    logger.info("site_served", extra={"session_id": session_id, "url": url})
+                else:
+                    serve_error = "Server failed to start or return a URL"
+            except Exception as serve_exc:
+                logger.exception("site_serve_exception", extra={"session_id": session_id})
+                serve_error = f"Serve error: {str(serve_exc)}"
         else:
             serve_error = write_result.get("stderr") or "Failed to write file"
             logger.error("site_write_failed", extra={"session_id": session_id, "error": serve_error})
     except Exception as exc:
         logger.exception("ai_agent_serve_failed", extra={"session_id": session_id})
-        serve_error = str(exc)
+        serve_error = f"Unexpected error: {str(exc)}"
 
     if serve_error:
         # If it's a site builder request, we still want to return the HTML even if preview fails
@@ -361,7 +376,7 @@ def _extract_html(text: str | None) -> str | None:
     # First check for code fences
     for block in re.findall(r"```(?:html)?\s*([\s\S]*?)```", text, flags=re.IGNORECASE):
         candidate = block.strip()
-        if "<html" in candidate.lower() or "<!doctype html" in candidate.lower():
+        if "<html" in candidate.lower() or "<!doctype html" in candidate.lower() or "<body" in candidate.lower():
             return candidate
 
     lowered = text.lower()
@@ -369,6 +384,11 @@ def _extract_html(text: str | None) -> str | None:
     if start == -1:
         start = lowered.find("<html")
     if start == -1:
+        start = lowered.find("<body")
+    if start == -1:
+        # If we see common HTML tags but no root tags, it might be a fragment
+        if "<div" in lowered or "<p" in lowered or "<script" in lowered:
+            return text.strip()
         return None
 
     end = lowered.rfind("</html>")
