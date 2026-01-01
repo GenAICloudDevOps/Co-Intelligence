@@ -2,7 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/app/hooks/useAuth';
+import { useModel } from '@/app/components/ModelProvider';
 import AppHeader from '@/app/design-system/components/AppHeader';
+import { api } from '@/app/services/api';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -10,8 +12,15 @@ interface Message {
   servedUrl?: string;
 }
 
+type AgentResponse = {
+  response: string;
+  session_id: string;
+  served_url?: string | null;
+};
+
 export default function AIAgentPage() {
   const { user, initializing } = useAuth(true);
+  const { selectedModel, setSelectedModel } = useModel();
   const isLoading = initializing;
   const isAuthenticated = !!user;
   const [messages, setMessages] = useState<Message[]>([]);
@@ -34,30 +43,22 @@ export default function AIAgentPage() {
 
     try {
       const history = messages.map((m) => ({ role: m.role, content: m.content }));
-      console.log('Sending request to AI agent...');
-      const res = await fetch('/api/apps/ai-agent/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          message: userMessage,
-          session_id: sessionId,
-          history,
-        }),
+      const data = await api.post<AgentResponse>('/api/apps/ai-agent/chat', {
+        message: userMessage,
+        session_id: sessionId,
+        history,
+        model: selectedModel || undefined,
       });
-
-      console.log('Response status:', res.status);
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error('Error response:', errorText);
-        throw new Error(`HTTP ${res.status}: ${errorText}`);
-      }
-
-      const data = await res.json();
+      const rawServedUrl = data.served_url ?? undefined;
+      const apiBase = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+      const servedUrl =
+        rawServedUrl && rawServedUrl.startsWith('/') && apiBase
+          ? `${apiBase}${rawServedUrl}`
+          : rawServedUrl;
       setSessionId(data.session_id);
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: data.response, servedUrl: data.served_url },
+        { role: 'assistant', content: data.response, servedUrl },
       ]);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
@@ -95,7 +96,12 @@ export default function AIAgentPage() {
 
   return (
     <div className="min-h-screen bg-gray-950 flex flex-col">
-      <AppHeader appName="AI Agent" />
+      <AppHeader
+        appName="AI Agent"
+        showModelSelector={true}
+        selectedModel={selectedModel}
+        onModelChange={setSelectedModel}
+      />
 
       <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full p-4">
         {/* Messages */}
