@@ -355,6 +355,8 @@ async def _run_site_builder(
                     served_url = url
                     logger.info("site_served", extra={"session_id": session_id, "url": url})
                 else:
+                    # If serve_directory returns None, it's not necessarily a crash, but we should log it
+                    logger.warning("site_serve_returned_none", extra={"session_id": session_id})
                     serve_error = "Server failed to start or return a URL"
             except Exception as serve_exc:
                 logger.exception("site_serve_exception", extra={"session_id": session_id})
@@ -364,7 +366,8 @@ async def _run_site_builder(
             logger.error("site_write_failed", extra={"session_id": session_id, "error": serve_error})
     except Exception as exc:
         logger.exception("ai_agent_serve_failed", extra={"session_id": session_id})
-        serve_error = f"Unexpected error: {str(exc)}"
+        # Do NOT let this exception bubble up and cause a 500 error
+        serve_error = f"Unexpected error during site building: {str(exc)}"
 
     # Final safety check: ensure we return something
     response_content = html.strip() if html else (response_text.strip() if response_text else "Error generating content")
@@ -474,6 +477,7 @@ async def run_agent(
                     if html:
                         try:
                             executor = get_executor(session_id)
+                            await executor._ensure_mode()
                             write_result = await executor.write_file("/workspace/index.html", html)
                             if write_result.get("success"):
                                 url = await executor.serve_directory("/workspace")
@@ -483,6 +487,7 @@ async def run_agent(
                                 error = write_result.get("stderr") or "Failed to write file"
                                 response_text = f"{response_text.strip()}\n\n[Auto-serve failed: {error}]"
                         except Exception as exc:
+                            logger.exception("auto_serve_failed", extra={"session_id": session_id})
                             response_text = f"{response_text.strip()}\n\n[Auto-serve failed: {exc}]"
                 return {"response": response_text.strip(), "served_url": served_url}
 
