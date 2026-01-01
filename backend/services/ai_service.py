@@ -101,9 +101,10 @@ class AIService:
         context_terms: Optional[list[str]] = None,
         allow_urls: Optional[list[str]] = None,
         block_pii: bool = True,
+        allow_code: bool = False,
     ) -> str:
         """Generate a single response (non-streaming) with routing, caching, and guardrails."""
-        decision = check_input(prompt, block_pii=block_pii)
+        decision = check_input(prompt, block_pii=block_pii, allow_code=allow_code)
         if not decision.allowed:
             raise AIServiceError(f"Input blocked: {decision.reason}")
 
@@ -136,6 +137,7 @@ class AIService:
             context_terms=context_terms or [],
             allow_urls=allow_urls,
             block_pii=block_pii,
+            allow_code=allow_code,
         )
         if not decision.allowed:
             reason = decision.reason or "Guardrail blocked the response"

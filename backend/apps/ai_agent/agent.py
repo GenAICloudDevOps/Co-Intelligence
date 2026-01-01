@@ -319,7 +319,10 @@ async def _run_site_builder(
 
     resolved_model = model_name or settings.AI_DEFAULT_MODEL
     try:
-        response_text = await ai_service.call_model(resolved_model, prompt)
+        # Use generate_response with block_pii=False and allow_code=True for code generation
+        response_text = await ai_service.generate_response(
+            prompt, resolved_model, block_pii=False, allow_code=True
+        )
     except Exception as e:
         logger.exception("ai_agent_model_call_failed", extra={"session_id": session_id})
         return {"response": f"AI Error: {str(e)}", "served_url": None}
@@ -457,7 +460,10 @@ async def run_agent(
             # Call AI (non-streaming for simplicity)
             try:
                 resolved_model = model_name or settings.AI_DEFAULT_MODEL
-                response_text = await ai_service.call_model(resolved_model, prompt)
+                # Use generate_response with block_pii=False and allow_code=True for code generation
+                response_text = await ai_service.generate_response(
+                    prompt, resolved_model, block_pii=False, allow_code=True
+                )
             except asyncio.CancelledError:
                 raise
             except Exception as e:

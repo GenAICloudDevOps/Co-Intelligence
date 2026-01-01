@@ -83,7 +83,7 @@ def redact_pii(text: str, extra_terms: List[str] | None = None) -> tuple[str, bo
     return redacted, found, terms
 
 
-def check_input(prompt: str, max_length: int = 4000, block_pii: bool = True) -> GuardrailDecision:
+def check_input(prompt: str, max_length: int = 4000, block_pii: bool = True, allow_code: bool = False) -> GuardrailDecision:
     if not prompt or not prompt.strip():
         return GuardrailDecision(False, "Empty prompt")
     if len(prompt) > max_length:
@@ -97,9 +97,11 @@ def check_input(prompt: str, max_length: int = 4000, block_pii: bool = True) -> 
     if pii_hit and block_pii:
         return GuardrailDecision(False, f"PII detected: {pattern}")
 
-    code_hit, pattern = _matches_any(prompt, CODE_PATTERNS)
-    if code_hit:
-        return GuardrailDecision(False, f"High-risk code marker: {pattern}")
+    # Only block code patterns if not explicitly allowed
+    if not allow_code:
+        code_hit, pattern = _matches_any(prompt, CODE_PATTERNS)
+        if code_hit:
+            return GuardrailDecision(False, f"High-risk code marker: {pattern}")
 
     return GuardrailDecision(True, None)
 
@@ -114,6 +116,7 @@ def check_output(
     context_terms: list[str] | None = None,
     allow_urls: list[str] | None = None,
     block_pii: bool = True,
+    allow_code: bool = False,
 ) -> GuardrailDecision:
     if not text:
         return GuardrailDecision(False, "Empty response")
@@ -122,9 +125,11 @@ def check_output(
     if pii_hit and block_pii:
         return GuardrailDecision(False, f"PII in output: {pattern}")
 
-    code_hit, pattern = _matches_any(text, CODE_PATTERNS)
-    if code_hit and "```" in text:
-        return GuardrailDecision(False, f"Code block contains risky import: {pattern}")
+    # Only block code patterns if not explicitly allowed
+    if not allow_code:
+        code_hit, pattern = _matches_any(text, CODE_PATTERNS)
+        if code_hit and "```" in text:
+            return GuardrailDecision(False, f"Code block contains risky import: {pattern}")
 
     if allow_urls is not None:
         def _url_allowed(url: str, allowed_prefix: str) -> bool:
