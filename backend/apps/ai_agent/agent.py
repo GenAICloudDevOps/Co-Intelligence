@@ -290,6 +290,8 @@ async def _run_web_research(
             "Web Search Results:",
             search_context,
             "",
+            "IMPORTANT: You MUST include a 'Sources:' section at the end of your report listing the URLs used.",
+            "",
             "Assistant:",
         ]
     )
@@ -327,7 +329,8 @@ async def _run_site_builder(
     if not response_text.strip():
         return {"response": "AI Error: Empty response from model.", "served_url": None}
 
-    html = _extract_html(response_text) or _fallback_html(response_text)
+    extracted_html = _extract_html(response_text)
+    html = extracted_html or _fallback_html(response_text)
     served_url = None
     serve_error: str | None = None
 
@@ -363,11 +366,14 @@ async def _run_site_builder(
         logger.exception("ai_agent_serve_failed", extra={"session_id": session_id})
         serve_error = f"Unexpected error: {str(exc)}"
 
+    # Final safety check: ensure we return something
+    response_content = html.strip() if html else (response_text.strip() if response_text else "Error generating content")
+    
     if serve_error:
         # If it's a site builder request, we still want to return the HTML even if preview fails
-        return {"response": f"{html.strip()}\n\n[Preview unavailable: {serve_error}]", "served_url": None}
+        return {"response": f"{response_content}\n\n[Preview unavailable: {serve_error}]", "served_url": None}
 
-    return {"response": html.strip(), "served_url": served_url}
+    return {"response": response_content, "served_url": served_url}
 
 def _extract_html(text: str | None) -> str | None:
     if not text:

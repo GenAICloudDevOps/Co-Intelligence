@@ -172,42 +172,55 @@ class AgentExecutor:
     async def serve_directory(self, directory: str = "/workspace", port: int = 8080) -> str | None:
         """Start HTTP server in container and return URL."""
         await self._ensure_mode()
-        if self.mode != "docker":
-            try:
-                local_dir = self._resolve_local_path(directory)
-                index_path = local_dir / "index.html"
-                if not index_path.exists():
-                    return None
+        
+        # Always provide a local fallback URL if possible
+        local_fallback_url = None
+        try:
+            local_dir = self._resolve_local_path(directory)
+            index_path = local_dir / "index.html"
+            if index_path.exists():
                 rel_path = index_path.relative_to(self._local_root().resolve()).as_posix()
-                return f"/api/apps/ai-agent/sessions/{self.session_id}/files/{rel_path}"
-            except Exception:
-                return None
-        await self.ensure_container()
+                local_fallback_url = f"/api/apps/ai-agent/sessions/{self.session_id}/files/{rel_path}"
+        except Exception:
+            pass
 
-        # Kill any existing server
-        await self.run_command("pkill -f 'python3 -m http.server' || true")
+        if self.mode != "docker":
+            return local_fallback_url
 
-        # Start server in background
-        cmd = f"cd {directory} && nohup python3 -m http.server {port} > /dev/null 2>&1 &"
-        await self.run_command(cmd)
+        try:
+            await self.ensure_container()
 
-        mapped = self._get_mapped_host_port(port)
-        if mapped:
-            host, host_port = mapped
-            self.served_port = host_port
-            self.host_port = host_port
-            return f"http://{host}:{host_port}"
+            # Kill any existing server
+            await self.run_command("pkill -f 'python3 -m http.server' || true")
 
-        result = subprocess.run(
-            ["docker", "inspect", "-f", "{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}", self.container_name],
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            ip = result.stdout.strip()
-            self.served_port = port
-            return f"http://{ip}:{port}"
-        return None
+            # Start server in background
+            cmd = f"cd {directory} && nohup python3 -m http.server {port} > /dev/null 2>&1 &"
+            await self.run_command(cmd)
+
+            # Give it a moment to start
+            await asyncio.sleep(1)
+
+            mapped = self._get_mapped_host_port(port)
+            if mapped:
+                host, host_port = mapped
+                self.served_port = host_port
+                self.host_port = host_port
+                return f"http://{host}:{host_port}"
+
+            result = subprocess.run(
+                ["docker", "inspect", "-f", "{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}", self.container_name],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                ip = result.stdout.strip()
+                self.served_port = port
+                return f"http://{ip}:{port}"
+        except Exception:
+            # If docker serving fails, fall back to local file serving
+            pass
+            
+        return local_fallback_url
 
     def _get_mapped_host_port(self, port: int) -> tuple[str, int] | None:
         try:
