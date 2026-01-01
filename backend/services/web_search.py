@@ -9,7 +9,7 @@ def search_web(query: str, max_results: int = 3) -> dict[str, Any]:
     """Search the web using Tavily (best-effort)."""
     api_key = getattr(settings, "TAVILY_API_KEY", "") or ""
     if not api_key:
-        return {"results": [], "error": "Tavily API key not configured", "query": query}
+        return {"results": [], "error": "Tavily API key not configured. Please set TAVILY_API_KEY in your .env file.", "query": query}
 
     try:
         from tavily import TavilyClient

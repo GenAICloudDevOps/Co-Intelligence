@@ -27,12 +27,13 @@ You have access to these tools (use JSON format to call them):
 - serve_website: Start HTTP server. Usage: {"tool": "serve_website", "directory": "/workspace"}
 
 GUIDELINES:
-- For simple questions: Answer directly WITHOUT using tools
-- For tasks (build website, write code, etc.): Use tools by outputting the JSON on its own line
+- For simple conversational questions: Answer directly WITHOUT using tools.
+- For information you don't know or that might be recent: State that you need to search or that your knowledge is limited.
+- For tasks (build website, write code, etc.): Use tools by outputting the JSON on its own line.
 - For tool calls, emit a single-line JSON object with escaped newlines (\\n). Do NOT wrap in code fences.
-- Always use /workspace as the base directory
-- After building a website, use serve_website to get a live URL
-- Be concise but thorough"""
+- Always use /workspace as the base directory.
+- After building a website, use serve_website to get a live URL.
+- Be concise but thorough."""
 
 _SITE_REQUEST_RE = re.compile(r"\b(html|website|web\s?page|landing|site|homepage|single[- ]page)\b", re.IGNORECASE)
 _RESEARCH_REQUEST_RE = re.compile(
@@ -142,29 +143,43 @@ def _format_history(history: Iterable[dict] | None) -> list[str]:
 def _looks_like_site_request(message: str) -> bool:
     if not _SITE_REQUEST_RE.search(message):
         return False
-    if _BUILD_VERB_RE.search(message):
-        return True
+    # Must have a build verb to be a site request
+    if not _BUILD_VERB_RE.search(message):
+        return False
+    # If it's a question about a website (e.g., "what is a website?"), it's not a site request
     if "?" in message:
         return False
-    if re.search(r"\b(what|where|who|when|why|how)\b", message, flags=re.IGNORECASE):
+    # If it starts with a question word, it's likely a question, not a command
+    if re.search(r"^\s*(what|where|who|when|why|how|tell|explain|describe|define|search|find)\b", message, flags=re.IGNORECASE):
         return False
     return True
 
 
 def _looks_like_web_research(message: str) -> bool:
-    # If it's a general question, don't trigger web research
-    if _GENERAL_QUESTION_RE.search(message):
+    # If it's a site request, don't trigger web research here
+    if _looks_like_site_request(message):
         return False
-    # Only trigger web research if there's a URL or explicit research keywords with context
-    if _URL_RE.search(message):
-        if _BUILD_VERB_RE.search(message) and _looks_like_site_request(message):
-            return False
-        return True
-    # For "research" keyword, require additional context (founder, funding, etc.)
+    
+    # Trigger web research for explicit research keywords
     if _RESEARCH_REQUEST_RE.search(message):
-        # Check if it's a specific research request (not just "research about X")
-        if re.search(r"\b(founder|funding|investigate|due diligence|comprehensive|report|sources?|citations?)\b", message, re.IGNORECASE):
+        return True
+        
+    # Trigger web research for questions that likely need up-to-date info
+    # but aren't simple conversational questions
+    if _GENERAL_QUESTION_RE.search(message):
+        # If it's a "tell me about [Name]" or similar, it often needs web search
+        if re.search(r"\b(tell me about|who is|what is|latest|recent|news|info on|information about|search for|find out about)\b", message, re.IGNORECASE):
             return True
+        # If it's a long question with a specific entity, it might need research
+        # (e.g., "What is the current stock price of Apple?")
+        if len(message.split()) > 4:
+            return True
+        return False
+        
+    # If there's a URL, we should probably research it
+    if _URL_RE.search(message):
+        return True
+        
     return False
 
 
@@ -223,20 +238,31 @@ async def _run_web_research(
     message: str,
     model_name: str | None,
 ) -> dict:
+    logger.info("running_web_research", extra={"query": message})
     search_payload = await asyncio.to_thread(search_web, message, 4)
     results = search_payload.get("results") or []
+    logger.info("web_search_results", extra={"count": len(results), "error": search_payload.get("error")})
 
     if not results:
         error = search_payload.get("error")
         if error:
-            return {
-                "response": (
-                    "Web research is unavailable right now. "
-                    f"Reason: {error}. "
-                    "Configure TAVILY_API_KEY to enable live research."
-                ),
-                "served_url": None,
-            }
+            # If it's a configuration error, we should still try to answer but inform the user
+            resolved_model = model_name or settings.AI_DEFAULT_MODEL
+            fallback_prompt = (
+                f"The user asked for web research: {message}\n\n"
+                f"However, the web search tool is currently unavailable (Reason: {error}).\n"
+                "Please provide the best answer you can based on your internal knowledge, "
+                "and mention that you couldn't perform a live search."
+            )
+            try:
+                response_text = await ai_service.call_model(resolved_model, fallback_prompt)
+                return {"response": response_text.strip(), "served_url": None}
+            except Exception as e:
+                return {
+                    "response": f"Web research failed and fallback also failed. Error: {error}. AI Error: {str(e)}",
+                    "served_url": None,
+                }
+
         resolved_model = model_name or settings.AI_DEFAULT_MODEL
         fallback_prompt = (
             "You do not have live web access or search results. "
@@ -303,18 +329,28 @@ async def _run_site_builder(
 
     try:
         executor = get_executor(session_id)
+        # Ensure workspace exists
+        await executor._ensure_mode()
+        logger.info("writing_site_file", extra={"session_id": session_id, "path": "/workspace/index.html"})
         write_result = await executor.write_file("/workspace/index.html", html)
         if write_result.get("success"):
+            logger.info("serving_site_directory", extra={"session_id": session_id})
             url = await executor.serve_directory("/workspace")
             if url:
                 served_url = url
+                logger.info("site_served", extra={"session_id": session_id, "url": url})
+            else:
+                serve_error = "Server failed to start or return a URL"
         else:
             serve_error = write_result.get("stderr") or "Failed to write file"
+            logger.error("site_write_failed", extra={"session_id": session_id, "error": serve_error})
     except Exception as exc:
+        logger.exception("ai_agent_serve_failed", extra={"session_id": session_id})
         serve_error = str(exc)
 
     if serve_error:
-        html = f"{html}\n\n[Preview unavailable: {serve_error}]"
+        # If it's a site builder request, we still want to return the HTML even if preview fails
+        return {"response": f"{html.strip()}\n\n[Preview unavailable: {serve_error}]", "served_url": None}
 
     return {"response": html.strip(), "served_url": served_url}
 
@@ -339,7 +375,12 @@ def _extract_html(text: str | None) -> str | None:
     if end != -1:
         return text[start:end + len("</html>")].strip()
     
-    # If no closing tag, return from start to end
+    # If no closing tag, look for the last tag or just return from start
+    # But let's try to find the last '>' to be safe
+    last_gt = text.rfind(">")
+    if last_gt != -1 and last_gt > start:
+        return text[start:last_gt + 1].strip()
+
     return text[start:].strip()
 
 
