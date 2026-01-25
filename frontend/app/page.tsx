@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import AppCard from './design-system/components/AppCard'
 import Modal from './design-system/components/Modal'
+import styles from './page.module.css'
 import ArchitectureDiagram from './components/ArchitectureDiagram'
 import NotificationBell from './components/NotificationBell'
 import NotificationPreferences from './components/NotificationPreferences'
@@ -304,9 +305,9 @@ export default function Home() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: theme.pageBg, color: 'white' }}>
+    <div className={styles.mainContainer} style={{ background: theme.pageBg, color: 'white' }}>
       {/* Header */}
-      <header style={{ padding: '16px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${theme.headerBorder}`, background: theme.headerBg }}>
+      <header className={styles.header} style={{ borderBottom: `1px solid ${theme.headerBorder}`, background: theme.headerBg }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ width: '40px', height: '40px', background: theme.brandGradient, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>✨</div>
           <div>
@@ -564,10 +565,10 @@ export default function Home() {
         </div>
       </header>
 
-      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '40px 40px' }}>
+      <div className={styles.contentWrapper}>
         {/* Hero Section */}
-        <section style={{ textAlign: 'center', marginBottom: '30px' }}>
-          <h1 style={{ fontSize: '4rem', fontWeight: 'bold', marginBottom: '12px', lineHeight: '1.2' }}>
+        <section className={styles.heroSection}>
+          <h1 className={styles.heroTitle}>
             Where Human Meets<br />
             <span
               className="hero-gradient"
@@ -576,7 +577,7 @@ export default function Home() {
               AI Intelligence
             </span>
           </h1>
-          <div style={{ fontSize: '1.1rem', color: theme.mutedText, maxWidth: '900px', margin: '0 auto', lineHeight: '1.8' }}>
+          <div className={styles.heroSubtitle} style={{ color: theme.mutedText }}>
             <div style={{ textAlign: 'center' }}>Build once. Deploy to AWS, GCP, or Azure.</div>
             <div style={{ textAlign: 'center' }}>Agentic workflows • Serverless • Managed databases • Full-stack • Evals &amp; Guardrails</div>
           </div>
@@ -592,7 +593,7 @@ export default function Home() {
               {cloudProvider && <span>☁️ {cloudProvider.toUpperCase()}</span>}
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px' }}>
+          <div className={styles.appGrid}>
             {appCatalog.map(app => (
               <AppCard
                 key={app.id}
@@ -612,9 +613,9 @@ export default function Home() {
 
         {/* Platform Features Section */}
         <section style={{ marginBottom: '60px' }}>
-          <div style={{ background: theme.panelBg, borderRadius: '16px', padding: '50px', border: `1px solid ${theme.border}` }}>
+          <div style={{ background: theme.panelBg, borderRadius: '16px', padding: 'min(50px, 5vw)', border: `1px solid ${theme.border}` }}>
             <h2 style={{ fontSize: '2rem', marginBottom: '50px', textAlign: 'center', fontWeight: 'bold' }}>Platform Features</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '30px' }}>
+            <div className={styles.featuresGrid}>
               {[
                 { icon: '☸️', title: 'Container Orchestration', desc: 'Kubernetes on any cloud with unified manifests', color: '#3b82f6' },
                 { icon: '☁️', title: 'Multi-Cloud Ready', desc: 'Deploy anywhere - AWS, GCP, or Azure with cloud-agnostic infrastructure', color: '#ec4899' },
@@ -655,7 +656,7 @@ export default function Home() {
               </div>
               <div style={{ color: theme.softText, fontSize: '0.9rem' }}>Prometheus • Grafana • Jaeger</div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+            <div className={styles.observabilityGrid}>
               {observabilityLinks.map((link) => (
                 <a
                   key={link.name}
@@ -720,7 +721,7 @@ export default function Home() {
                   {evalError}
                 </div>
               )}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+              <div className={styles.evalMetricsGrid}>
                 {(evalSummary?.metrics || [
                   { name: 'Context Precision', score: 0, delta: 0 },
                   { name: 'Context Recall', score: 0, delta: 0 },
@@ -763,7 +764,7 @@ export default function Home() {
                   <div style={{ color: theme.mutedText, marginBottom: '8px', fontSize: '0.95rem' }}>Model usage (top 5)</div>
                   {(evalSummary?.model_usage || []).map((m, idx) => (
                     <div key={idx} style={{ marginBottom: '6px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#cbd5e1' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#cbd5e1', flexWrap: 'wrap' }}>
                         <span>{m.model}</span>
                         <span style={{ color: theme.mutedText }}>{m.count}</span>
                       </div>
@@ -827,9 +828,9 @@ export default function Home() {
 
         {/* Platform Metrics Section */}
         <section style={{ marginBottom: '60px' }}>
-          <div style={{ background: theme.panelBg, borderRadius: '16px', padding: '50px', border: `1px solid ${theme.border}`, textAlign: 'center' }}>
+          <div style={{ background: theme.panelBg, borderRadius: '16px', padding: 'min(50px, 5vw)', border: `1px solid ${theme.border}`, textAlign: 'center' }}>
             <h2 style={{ fontSize: '2rem', marginBottom: '40px', fontWeight: 'bold' }}>Platform Metrics</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '40px', maxWidth: '800px', margin: '0 auto' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '40px', maxWidth: '800px', margin: '0 auto' }}>
               <div>
                 <div style={{ fontSize: '3rem', fontWeight: 'bold', color: theme.success, marginBottom: '8px' }}>7</div>
                 <div style={{ fontSize: '1.1rem', color: theme.mutedText }}>AI Models</div>
