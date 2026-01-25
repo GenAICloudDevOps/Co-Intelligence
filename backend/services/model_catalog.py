@@ -15,7 +15,7 @@ class ModelSpec:
 
 
 # Single source of truth for the default model used across the product.
-DEFAULT_MODEL_ID = "gemini-3-flash-preview"
+DEFAULT_MODEL_ID = "meta-llama/llama-4-maverick-17b-128e-instruct"
 
 
 MODEL_CATALOG: list[ModelSpec] = [
@@ -27,6 +27,12 @@ MODEL_CATALOG: list[ModelSpec] = [
     ModelSpec(
         id="meta-llama/llama-4-scout-17b-16e-instruct",
         name="Llama 4 Scout",
+        provider="Groq",
+        provider_key="groq",
+    ),
+    ModelSpec(
+        id="meta-llama/llama-4-maverick-17b-128e-instruct",
+        name="Llama 4 Maverick",
         provider="Groq",
         provider_key="groq",
     ),
