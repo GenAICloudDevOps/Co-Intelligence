@@ -12,10 +12,11 @@ export default function Card({ children, className = '', padding = 'md', hover =
     md: '24px',
     lg: '32px'
   }
-  
+
   return (
     <div
       onClick={onClick}
+      className={`appCard ${className}`}
       style={{
         background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%)',
         backdropFilter: 'blur(10px)',
@@ -28,7 +29,6 @@ export default function Card({ children, className = '', padding = 'md', hover =
         overflow: 'hidden',
         cursor: onClick ? 'pointer' : 'default'
       }}
-      className={className}
       onMouseEnter={(e) => {
         if (hover) {
           e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)'
@@ -55,7 +55,7 @@ export default function Card({ children, className = '', padding = 'md', hover =
         pointerEvents: 'none',
         opacity: 0.5
       }} />
-      
+
       <div style={{ position: 'relative', zIndex: 1 }}>
         {children}
       </div>

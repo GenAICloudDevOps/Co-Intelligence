@@ -8,45 +8,47 @@ interface AppCardProps {
 
 export default function AppCard({ app, onLaunch }: AppCardProps) {
   const isActive = app.status === 'active'
-  
+
   return (
     <Card padding="lg" hover={isActive}>
       <div style={{ position: 'relative' }}>
         {/* Status Badge */}
         <div
+          className="appCardStatus"
           style={{
             position: 'absolute',
             top: '-12px',
             right: '-12px',
             padding: '6px 16px',
-            background: isActive 
-              ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
+            background: isActive
+              ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
               : 'linear-gradient(135deg, #64748b 0%, #475569 100%)',
             borderRadius: '20px',
             fontSize: '0.75rem',
             fontWeight: '700',
             textTransform: 'uppercase',
             letterSpacing: '0.5px',
-            boxShadow: isActive 
-              ? '0 4px 15px rgba(16, 185, 129, 0.5), 0 0 20px rgba(16, 185, 129, 0.3)' 
+            boxShadow: isActive
+              ? '0 4px 15px rgba(16, 185, 129, 0.5), 0 0 20px rgba(16, 185, 129, 0.3)'
               : '0 4px 12px rgba(100, 116, 139, 0.4)',
-            border: isActive 
-              ? '2px solid rgba(16, 185, 129, 0.6)' 
+            border: isActive
+              ? '2px solid rgba(16, 185, 129, 0.6)'
               : '2px solid rgba(100, 116, 139, 0.4)',
             animation: isActive ? 'pulse-glow 2s ease-in-out infinite' : 'none'
           }}
         >
           {app.status}
         </div>
-        
+
         {/* Icon and Title */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '20px' }}>
+        <div className="appCardHeader" style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '20px' }}>
           <div
+            className="appCardIcon"
             style={{
               width: '64px',
               height: '64px',
-              background: isActive 
-                ? `linear-gradient(135deg, ${app.color} 0%, ${app.color}dd 100%)` 
+              background: isActive
+                ? `linear-gradient(135deg, ${app.color} 0%, ${app.color}dd 100%)`
                 : 'linear-gradient(135deg, #64748b 0%, #475569 100%)',
               borderRadius: '16px',
               display: 'flex',
@@ -54,8 +56,8 @@ export default function AppCard({ app, onLaunch }: AppCardProps) {
               justifyContent: 'center',
               fontSize: '32px',
               flexShrink: 0,
-              boxShadow: isActive 
-                ? `0 8px 30px ${app.color}50, 0 0 40px ${app.color}30` 
+              boxShadow: isActive
+                ? `0 8px 30px ${app.color}50, 0 0 40px ${app.color}30`
                 : '0 8px 24px rgba(100, 116, 139, 0.4)',
               border: '3px solid rgba(255, 255, 255, 0.15)',
               transition: 'all 0.3s ease',
@@ -77,10 +79,10 @@ export default function AppCard({ app, onLaunch }: AppCardProps) {
             )}
             <span style={{ position: 'relative', zIndex: 1 }}>{app.icon}</span>
           </div>
-          
-          <h3 style={{ 
-            fontSize: '1.75rem', 
-            fontWeight: '800', 
+
+          <h3 className="appCardTitle" style={{
+            fontSize: '1.75rem',
+            fontWeight: '800',
             margin: 0,
             background: 'linear-gradient(135deg, #ffffff 0%, #c7d2fe 100%)',
             WebkitBackgroundClip: 'text',
@@ -91,19 +93,19 @@ export default function AppCard({ app, onLaunch }: AppCardProps) {
             {app.name}
           </h3>
         </div>
-        
+
         {/* Description */}
-        <p style={{ 
-          color: '#cbd5e1', 
-          lineHeight: '1.8', 
-          marginBottom: '28px', 
+        <p className="appCardDescription" style={{
+          color: '#cbd5e1',
+          lineHeight: '1.8',
+          marginBottom: '28px',
           fontSize: '1rem',
           fontWeight: '400'
         }}>
           {app.description.map((line, i) => (
             <span key={i}>
-              <span style={{ 
-                color: '#8b5cf6', 
+              <span style={{
+                color: '#8b5cf6',
                 fontWeight: '700',
                 marginRight: '8px',
                 fontSize: '1.2rem'
@@ -115,15 +117,16 @@ export default function AppCard({ app, onLaunch }: AppCardProps) {
             </span>
           ))}
         </p>
-        
+
         {/* Launch Button */}
         <button
+          className="appCardButton"
           onClick={() => onLaunch(app)}
           disabled={!isActive}
           style={{
             padding: '14px 32px',
-            background: isActive 
-              ? `linear-gradient(135deg, ${app.color} 0%, ${app.color}cc 100%)` 
+            background: isActive
+              ? `linear-gradient(135deg, ${app.color} 0%, ${app.color}cc 100%)`
               : 'linear-gradient(135deg, #64748b 0%, #475569 100%)',
             border: 'none',
             borderRadius: '12px',
@@ -135,8 +138,8 @@ export default function AppCard({ app, onLaunch }: AppCardProps) {
             alignItems: 'center',
             gap: '10px',
             opacity: isActive ? 1 : 0.6,
-            boxShadow: isActive 
-              ? `0 6px 25px ${app.color}60, 0 0 30px ${app.color}30` 
+            boxShadow: isActive
+              ? `0 6px 25px ${app.color}60, 0 0 30px ${app.color}30`
               : '0 6px 20px rgba(100, 116, 139, 0.4)',
             transition: 'all 0.3s ease',
             textTransform: 'uppercase',
@@ -176,7 +179,7 @@ export default function AppCard({ app, onLaunch }: AppCardProps) {
           {isActive && <span style={{ fontSize: '1.2rem', position: 'relative', zIndex: 1 }}>↗</span>}
         </button>
       </div>
-      
+
       <style jsx>{`
         @keyframes pulse-glow {
           0%, 100% { 

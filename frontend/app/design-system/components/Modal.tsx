@@ -4,13 +4,16 @@ interface ModalProps {
   children: React.ReactNode
   title?: string
   maxWidth?: string
+  containerClassName?: string
+  contentClassName?: string
 }
 
-export default function Modal({ isOpen, onClose, children, title, maxWidth = '500px' }: ModalProps) {
+export default function Modal({ isOpen, onClose, children, title, maxWidth = '500px', containerClassName, contentClassName }: ModalProps) {
   if (!isOpen) return null
 
   return (
     <div
+      className={containerClassName}
       style={{
         position: 'fixed',
         top: 0,
@@ -28,6 +31,7 @@ export default function Modal({ isOpen, onClose, children, title, maxWidth = '50
       onClick={onClose}
     >
       <div
+        className={contentClassName}
         style={{
           background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(49, 46, 129, 0.95) 100%)',
           backdropFilter: 'blur(20px)',
@@ -56,7 +60,7 @@ export default function Modal({ isOpen, onClose, children, title, maxWidth = '50
           animation: 'shimmer 3s linear infinite',
           backgroundSize: '200% 100%'
         }} />
-        
+
         {/* Animated corner accents */}
         <div style={{
           position: 'absolute',
@@ -68,7 +72,7 @@ export default function Modal({ isOpen, onClose, children, title, maxWidth = '50
           borderRadius: '50%',
           animation: 'pulse 2s ease-in-out infinite'
         }} />
-        
+
         <div style={{
           position: 'absolute',
           bottom: '20px',
@@ -79,11 +83,11 @@ export default function Modal({ isOpen, onClose, children, title, maxWidth = '50
           borderRadius: '50%',
           animation: 'pulse 2s ease-in-out infinite 1s'
         }} />
-        
+
         {title && (
-          <h2 style={{ 
-            marginBottom: '28px', 
-            fontSize: '1.75rem', 
+          <h2 style={{
+            marginBottom: '28px',
+            fontSize: '1.75rem',
             fontWeight: '800',
             background: 'linear-gradient(135deg, #ffffff 0%, #c7d2fe 100%)',
             WebkitBackgroundClip: 'text',
@@ -96,12 +100,12 @@ export default function Modal({ isOpen, onClose, children, title, maxWidth = '50
             {title}
           </h2>
         )}
-        
+
         <div style={{ position: 'relative', zIndex: 1 }}>
           {children}
         </div>
       </div>
-      
+
       <style jsx>{`
         @keyframes fadeIn {
           from { opacity: 0; }

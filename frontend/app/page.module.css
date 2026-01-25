@@ -12,6 +12,24 @@
   background: var(--header-bg);
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.authRow {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
 .contentWrapper {
   max-width: 1400px;
   margin: 0 auto;
@@ -37,10 +55,28 @@
   line-height: 1.8;
 }
 
+.heroSubtitleShort {
+  display: none;
+  /* Hidden on desktop */
+  font-size: 1.2rem;
+  font-weight: 600;
+  text-align: center;
+  margin-top: 8px;
+}
+
+.heroSubtitleFull {
+  display: block;
+  /* Visible on desktop */
+}
+
 .appGrid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 24px;
+}
+
+.hideOnMobile {
+  display: block;
 }
 
 .featuresGrid {
@@ -61,11 +97,16 @@
   gap: 16px;
 }
 
+.featureExpanded {
+  display: none;
+}
+
 /* Response Media Queries */
 @media (max-width: 1200px) {
   .appGrid {
     grid-template-columns: repeat(3, 1fr);
   }
+
   .featuresGrid {
     grid-template-columns: repeat(3, 1fr);
   }
@@ -75,6 +116,7 @@
   .heroTitle {
     font-size: 3rem;
   }
+
   .evalMetricsGrid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -96,12 +138,121 @@
     font-size: 2.2rem;
   }
 
-  .appGrid {
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  .heroSubtitleShort {
+    display: block;
+    /* Visible on mobile */
   }
 
+  .heroSubtitleFull {
+    display: none;
+    /* Hidden on mobile */
+  }
+
+  .hideOnMobile {
+    display: none !important;
+  }
+
+  /* Compact 3-column Grid (matching Features style) */
+  .appGrid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 12px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .appGrid>div {
+    flex: none !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    cursor: pointer;
+  }
+
+  /* Hide description, button, and status in compact view */
+  .appGrid :global(.appCardDescription),
+  .appGrid :global(.appCardButton),
+  .appGrid :global(.appCardStatus) {
+    display: none !important;
+  }
+
+  /* Completely simplify card to match feature item style */
+  .appGrid :global(.appCard) {
+    background: rgba(30, 41, 59, 0.6) !important;
+    backdrop-filter: none !important;
+    border-radius: 12px !important;
+    padding: 16px !important;
+    border: 1px solid rgba(148, 163, 184, 0.1) !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+
+  /* Hide the animated gradient background inside cards */
+  .appGrid :global(.appCard > div:first-child) {
+    display: none !important;
+  }
+
+  /* Center Apps like Features on Mobile */
+  .appGrid :global(.appCardHeader) {
+    flex-direction: column !important;
+    gap: 8px !important;
+    text-align: center !important;
+    margin-bottom: 0 !important;
+  }
+
+  .appGrid :global(.appCardIcon) {
+    width: 56px !important;
+    height: 56px !important;
+    font-size: 28px !important;
+    margin: 0 auto !important;
+    border-radius: 12px !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .appGrid :global(.appCardTitle) {
+    font-size: 1rem !important;
+    text-align: center !important;
+    width: 100% !important;
+    font-weight: bold !important;
+    background: none !important;
+    -webkit-text-fill-color: white !important;
+    color: white !important;
+  }
+
+  /* Iconic Feature Grid 3x3 */
   .featuresGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .featureItem {
+    padding: 16px !important;
+    cursor: pointer !important;
+  }
+
+  .featureItemActive {
+    border: 2px solid var(--accent-color) !important;
+  }
+
+  .featureTitle {
+    font-size: 0.75rem !important;
+  }
+
+  .featureDescription {
+    display: none;
+    /* Hidden by default on mobile unless expanded */
+  }
+
+  .featureExpanded {
+    grid-column: span 3;
+    display: block !important;
+    text-align: left;
+    margin-top: 12px;
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: var(--muted-text);
   }
 
   .observabilityGrid {
@@ -111,10 +262,103 @@
   .evalMetricsGrid {
     grid-template-columns: 1fr;
   }
+
+  /* Header Stacking Order */
+  .headerActions {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 12px;
+    align-items: center;
+    margin-top: 16px;
+  }
+
+  .authRow {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .metaRow {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.75rem;
+    color: var(--muted-text);
+  }
 }
 
 @media (max-width: 480px) {
   .heroTitle {
     font-size: 1.8rem;
+  }
+}
+
+/* Mobile FAB */
+.fab {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .fab {
+    display: flex;
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+    border: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.5);
+    z-index: 1000;
+    cursor: pointer;
+    animation: slideInUp 0.5s ease-out;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(100px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Bottom Sheet override for Modal (Mobile Only) */
+@media (max-width: 768px) {
+  .bottomSheetModal {
+    display: flex !important;
+    align-items: flex-end !important;
+  }
+
+  .bottomSheetContent {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 24px 24px 0 0 !important;
+    animation: slideUpSheet 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    margin-bottom: 0 !important;
+  }
+}
+
+@keyframes slideUpSheet {
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0);
   }
 }
